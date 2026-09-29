@@ -1,0 +1,18 @@
+import type { CameraPreset, Vector3Tuple } from "../types/diorama.types";
+
+export const DEFAULT_CAMERA_TARGET: Vector3Tuple = [0, 0.3, 0];
+
+interface CameraPresetConfig {
+  position: Vector3Tuple;
+  zoom: number;
+  label: string;
+}
+
+export const CAMERA_PRESETS: Record<CameraPreset, CameraPresetConfig> = {
+  isometric: { position: [8, 7, 8], zoom: 72, label: "Isometric" },
+  front: { position: [0, 2.4, 13.5], zoom: 62, label: "Front" },
+  side: { position: [13.5, 2.4, 0], zoom: 62, label: "Side" },
+  top: { position: [0.01, 13.5, 0.01], zoom: 78, label: "Top" },
+};
+
+export const CAMERA_PRESET_ORDER: CameraPreset[] = ["isometric", "front", "side", "top"];
