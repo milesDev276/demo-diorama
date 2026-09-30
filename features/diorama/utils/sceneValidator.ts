@@ -3,10 +3,11 @@ import type { DioramaObject, DioramaObjectType, DioramaScene, Vector3Tuple } fro
 import { createId } from "./id";
 import { DEFAULT_SCENE_NAME } from "./objectDefaults";
 import { DEFAULT_CAMERA_STATE, DEFAULT_ENVIRONMENT } from "./sceneDefaults";
+import { migrateRawObjects, SCENE_FILE_VERSION } from "./sceneSerializer";
 
 const VALID_TYPES: ReadonlySet<DioramaObjectType> = new Set(DIORAMA_OBJECT_TYPES);
 
-const POSITION_LIMIT = 30; // world units — generous but bounded, well beyond the plot
+const POSITION_LIMIT = 180; // meters — generous but bounded, well beyond the plot
 const SCALE_MIN = 0.1;
 const SCALE_MAX = 6;
 
@@ -50,7 +51,9 @@ function normalizeObject(raw: unknown, seenIds: Set<string>): DioramaObject | nu
 /**
  * Validates and normalizes arbitrary JSON into a safe DioramaScene. Never
  * throws — always returns either the scene or a human-readable error.
- * Tolerant of both `{ scene: {...} }` (export format) and a bare scene object.
+ * Tolerant of both `{ version, scene: {...} }` (save/export format) and a bare
+ * scene object; a missing version means v1, the only format that predates it.
+ * Older versions are migrated to the current one before validation.
  */
 export function validateAndNormalizeScene(data: unknown): { scene: DioramaScene } | { error: string } {
   try {
@@ -59,6 +62,11 @@ export function validateAndNormalizeScene(data: unknown): { scene: DioramaScene 
     }
 
     const container = data as Record<string, unknown>;
+    const version = typeof container.version === "number" ? container.version : 1;
+    if (version > SCENE_FILE_VERSION) {
+      return { error: "This file was made with a newer version of the app." };
+    }
+
     const root = (
       container.scene && typeof container.scene === "object" ? container.scene : container
     ) as Record<string, unknown>;
@@ -68,7 +76,7 @@ export function validateAndNormalizeScene(data: unknown): { scene: DioramaScene 
     }
 
     const name = typeof root.name === "string" && root.name.trim() ? root.name.trim().slice(0, 80) : DEFAULT_SCENE_NAME;
-    const rawObjects = Array.isArray(root.objects) ? root.objects : [];
+    const rawObjects = migrateRawObjects(Array.isArray(root.objects) ? root.objects : [], version);
     const seenIds = new Set<string>();
     const objects = rawObjects
       .map((o) => normalizeObject(o, seenIds))

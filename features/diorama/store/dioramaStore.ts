@@ -112,8 +112,11 @@ function clampTransformMode(selectionSize: number, mode: TransformMode): Transfo
   return selectionSize > 1 && mode !== "translate" ? "translate" : mode;
 }
 
+/** How far (meters, along X and Z) a duplicate lands from its source. */
+const DUPLICATE_OFFSET = 3;
+
 function offsetPosition(position: Vector3Tuple): Vector3Tuple {
-  return [position[0] + 0.5, position[1], position[2] + 0.5];
+  return [position[0] + DUPLICATE_OFFSET, position[1], position[2] + DUPLICATE_OFFSET];
 }
 
 function loadInitialState(): { objects: DioramaObject[]; sceneId: string; sceneName: string } {
@@ -147,7 +150,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   selectedObjectIds: [],
   transformMode: "translate",
   snapEnabled: false,
-  gridSize: 0.5,
+  gridSize: 0.5, // meters (CLAUDE.md §23)
   rotationSnapEnabled: false,
   rotationSnapDegrees: 15,
   isPreviewMode: false,
@@ -354,7 +357,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
     }
     const result = validateAndNormalizeScene(parsed);
     if ("error" in result) {
-      set({ importError: "Unable to import Diorama. The file is invalid or corrupted." });
+      set({ importError: `Unable to import Diorama. ${result.error}` });
       return;
     }
     get().loadScene(result.scene);

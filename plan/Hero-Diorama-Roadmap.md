@@ -295,13 +295,17 @@ mean tuning them twice.
       `art/blender/build.py`.
 * [x] Pilot approved: `prop_vending_machine_01`, 3,144 triangles, 2 draw
       calls. It is the style benchmark for all later assets.
-* [ ] Baseline screenshots.
-* [x] Layout sheet drafted: [Hero-Layout.md](Hero-Layout.md). Awaiting
-      agreement.
+* [x] Baseline screenshots, taken with `scripts/capture-presets.mjs` at
+      the start of Stage 1.
+* [x] Layout sheet agreed: [Hero-Layout.md](Hero-Layout.md). It was
+      merged in PR #3.
 * [x] Blockout rendered by `art/blender/blockout/hero_blockout.py` into
       `art/previews/hero_blockout_{view,top}.png`.
 
 ### Stage 1 — Scale migration
+
+**Status:** implemented and verified on branch `stage1-scale`, 2026-09-30.
+See [Stage-1-Implementation.md](Stage-1-Implementation.md) §6.
 
 * Apply L1 across `worldScale.ts`, `assetRegistry.ts` (legacy wrapper and
   footprint radii), `cameraPresets.ts`, `sceneDefaults.ts`,

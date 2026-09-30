@@ -40,8 +40,11 @@ export interface AssetDefinition {
   icon: LucideIcon;
   /** Procedural geometry, origin at the ground contact point. */
   component: ComponentType;
+  /** True if `component` is authored in the pre-meter unit (≈ 6 m) and must be
+   *  rendered scaled by LEGACY_UNIT_SCALE. New assets are authored in meters. */
+  legacyUnits: boolean;
   defaultScale: Vector3Tuple;
-  /** Radius of the selection ring drawn under the object (local units). */
+  /** Radius of the selection ring drawn under the object, in meters. */
   footprintRadius: number;
   /** Natural things spawn at a random heading; street-built things spawn facing the road (+Z). */
   randomSpawnRotation: boolean;
@@ -59,8 +62,9 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     category: "Buildings",
     icon: HouseIcon,
     component: House,
+    legacyUnits: true,
     defaultScale: [1, 1, 1],
-    footprintRadius: 0.85,
+    footprintRadius: 5.1,
     randomSpawnRotation: false,
     tags: ["home", "residential", "building"],
   },
@@ -70,8 +74,9 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     category: "Buildings",
     icon: Store,
     component: Shop,
+    legacyUnits: true,
     defaultScale: [1, 1, 1],
-    footprintRadius: 0.85,
+    footprintRadius: 5.1,
     randomSpawnRotation: false,
     tags: ["store", "shop", "commercial", "building"],
   },
@@ -81,8 +86,9 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     category: "Infrastructure",
     icon: UtilityPoleIcon,
     component: UtilityPole,
+    legacyUnits: true,
     defaultScale: [1, 1, 1],
-    footprintRadius: 0.2,
+    footprintRadius: 1.2,
     randomSpawnRotation: false,
     tags: ["pole", "electric", "transformer", "denchu"],
   },
@@ -92,8 +98,9 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     category: "Infrastructure",
     icon: Cable,
     component: PowerLine,
+    legacyUnits: true,
     defaultScale: [1, 1, 1],
-    footprintRadius: 0.2,
+    footprintRadius: 1.2,
     randomSpawnRotation: false,
     tags: ["wire", "cable", "electric", "overhead"],
   },
@@ -103,8 +110,9 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     category: "Props",
     icon: CupSoda,
     component: VendingMachine,
+    legacyUnits: true,
     defaultScale: [1, 1, 1],
-    footprintRadius: 0.2,
+    footprintRadius: 1.2,
     randomSpawnRotation: false,
     tags: ["drink", "jihanki", "machine"],
   },
@@ -114,8 +122,9 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     category: "Street",
     icon: Signpost,
     component: Sign,
+    legacyUnits: true,
     defaultScale: [1, 1, 1],
-    footprintRadius: 0.15,
+    footprintRadius: 0.9,
     randomSpawnRotation: false,
     tags: ["road sign", "stop", "tomare", "traffic"],
   },
@@ -125,8 +134,9 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     category: "Nature",
     icon: TreePine,
     component: Tree,
+    legacyUnits: true,
     defaultScale: [1, 1, 1],
-    footprintRadius: 0.5,
+    footprintRadius: 3,
     randomSpawnRotation: true,
     tags: ["plant", "green", "garden"],
   },
@@ -136,8 +146,9 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     category: "Nature",
     icon: Gem,
     component: Rock,
+    legacyUnits: true,
     defaultScale: [0.9, 0.9, 0.9],
-    footprintRadius: 0.45,
+    footprintRadius: 2.7,
     randomSpawnRotation: true,
     tags: ["rock", "stone", "garden"],
   },
