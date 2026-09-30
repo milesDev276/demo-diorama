@@ -6,12 +6,12 @@
 export function SceneLighting() {
   return (
     <>
-      <ambientLight intensity={0.55} color="#fff4e6" />
-      <hemisphereLight color="#bfe3ff" groundColor="#e8c9a0" intensity={0.5} />
+      <ambientLight intensity={0.5} color="#fff0dc" />
+      <hemisphereLight color="#cfe3f2" groundColor="#e6c9a3" intensity={0.5} />
       <directionalLight
-        position={[5, 8, 4]}
-        intensity={1.3}
-        color="#fff1d8"
+        position={[6, 7, 3.5]}
+        intensity={1.35}
+        color="#ffe9cc"
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}

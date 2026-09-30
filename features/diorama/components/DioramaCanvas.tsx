@@ -9,7 +9,7 @@ import { Ground } from "./Ground";
 import { SceneLighting } from "./SceneLighting";
 import { DioramaObject } from "./DioramaObject";
 import { CameraControls } from "./CameraControls";
-import { ISLAND_RADIUS } from "../utils/objectDefaults";
+import { PLOT_DEPTH, PLOT_WIDTH } from "../utils/worldScale";
 
 /**
  * Owns the R3F Canvas: camera, controls, lighting, ground, grid, and every
@@ -46,15 +46,16 @@ export function DioramaCanvas() {
         {!isPreviewMode && (
           <Grid
             position={[0, 0.012, 0]}
-            args={[ISLAND_RADIUS * 2.6, ISLAND_RADIUS * 2.6]}
+            args={[PLOT_WIDTH, PLOT_DEPTH]}
             cellSize={gridSize}
             cellThickness={0.5}
             cellColor="#8b6f52"
             sectionSize={gridSize * 4}
             sectionThickness={0.9}
             sectionColor="#8b6f52"
-            fadeDistance={ISLAND_RADIUS * 1.05}
-            fadeStrength={2}
+            fadeFrom={0}
+            fadeDistance={PLOT_WIDTH * 0.75}
+            fadeStrength={1.5}
             followCamera={false}
             infiniteGrid={false}
             renderOrder={-1}

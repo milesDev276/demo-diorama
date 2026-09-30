@@ -4,7 +4,7 @@ import type { DioramaCameraState, DioramaEnvironment, Vector3Tuple } from "../ty
  *  type so future ground/sky presets don't require a data migration. */
 export const DEFAULT_ENVIRONMENT: DioramaEnvironment = {
   background: "sky-cozy",
-  ground: "grass-island",
+  ground: "street-corner",
 };
 
 const ISOMETRIC_POSITION: Vector3Tuple = [8, 7, 8];
