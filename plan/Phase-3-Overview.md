@@ -16,6 +16,7 @@ read them in order:
 | [Phase-3a-Asset-Sourcing.md](Phase-3a-Asset-Sourcing.md) | Where do the models come from? |
 | [Phase-3b-Entity-Creation.md](Phase-3b-Entity-Creation.md) | How do we turn a model/shape into a placeable diorama entity? |
 | [Phase-3c-Diorama-Assembly.md](Phase-3c-Diorama-Assembly.md) | How do we compose entities into one coherent, complete diorama? |
+| [Phase-3-Implementation.md](Phase-3-Implementation.md) | In what order do we build it, and how do we verify each step? |
 
 ---
 

@@ -1,11 +1,12 @@
+import { DIORAMA_OBJECT_TYPES } from "../types/diorama.types";
 import type { DioramaObject, DioramaObjectType, DioramaScene, Vector3Tuple } from "../types/diorama.types";
 import { createId } from "./id";
 import { DEFAULT_SCENE_NAME } from "./objectDefaults";
 import { DEFAULT_CAMERA_STATE, DEFAULT_ENVIRONMENT } from "./sceneDefaults";
 
-const VALID_TYPES: ReadonlySet<DioramaObjectType> = new Set(["tree", "house", "rock"]);
+const VALID_TYPES: ReadonlySet<DioramaObjectType> = new Set(DIORAMA_OBJECT_TYPES);
 
-const POSITION_LIMIT = 30; // world units — generous but bounded, well beyond the island
+const POSITION_LIMIT = 30; // world units — generous but bounded, well beyond the plot
 const SCALE_MIN = 0.1;
 const SCALE_MAX = 6;
 

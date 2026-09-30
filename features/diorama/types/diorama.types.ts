@@ -1,4 +1,16 @@
-export type DioramaObjectType = "tree" | "house" | "rock";
+/** Every placeable object type. Single source for the type union and import validation. */
+export const DIORAMA_OBJECT_TYPES = [
+  "tree",
+  "house",
+  "rock",
+  "shop",
+  "utilityPole",
+  "powerLine",
+  "vendingMachine",
+  "sign",
+] as const;
+
+export type DioramaObjectType = (typeof DIORAMA_OBJECT_TYPES)[number];
 
 export type Vector3Tuple = [number, number, number];
 
@@ -15,16 +27,6 @@ export interface DioramaObject {
 }
 
 export type TransformMode = "translate" | "rotate" | "scale";
-
-export interface ObjectLibraryItem {
-  type: DioramaObjectType;
-  label: string;
-}
-
-export interface ObjectLibraryCategory {
-  title: string;
-  items: ObjectLibraryItem[];
-}
 
 /** Scene-level environment settings. Only one variant exists today, but the
  *  shape leaves room for future ground/sky presets without a data migration. */

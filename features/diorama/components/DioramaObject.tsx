@@ -6,16 +6,8 @@ import * as THREE from "three";
 import type { Group } from "three";
 import type { DioramaObject as DioramaObjectData, TransformMode } from "../types/diorama.types";
 import { useDioramaStore } from "../store/dioramaStore";
-import { Tree } from "../objects/Tree";
-import { House } from "../objects/House";
-import { Rock } from "../objects/Rock";
+import { ASSET_REGISTRY } from "../assets/assetRegistry";
 import { SelectionRing } from "./SelectionRing";
-
-const OBJECT_VISUALS: Record<DioramaObjectData["type"], () => React.ReactElement> = {
-  tree: Tree,
-  house: House,
-  rock: Rock,
-};
 
 /** Which gizmo handles are shown per mode — rotate is Y-only, scale is uniform (X drives all axes). */
 const GIZMO_AXES: Record<TransformMode, { x: boolean; y: boolean; z: boolean }> = {
@@ -51,7 +43,8 @@ export function DioramaObject({ object, isGizmoOwner }: DioramaObjectProps) {
   const isMultiSelect = selectedObjectIds.length > 1;
   const showGizmo = isGizmoOwner && !object.locked;
 
-  const Visual = OBJECT_VISUALS[object.type];
+  const asset = ASSET_REGISTRY[object.type];
+  const Visual = asset.component;
   const axes = GIZMO_AXES[isMultiSelect ? "translate" : transformMode];
 
   const handleMouseDown = useCallback(() => {
@@ -102,7 +95,7 @@ export function DioramaObject({ object, isGizmoOwner }: DioramaObjectProps) {
         }}
       >
         <Visual />
-        {isSelected && <SelectionRing locked={object.locked} />}
+        {isSelected && <SelectionRing locked={object.locked} radius={asset.footprintRadius} />}
       </group>
 
       {showGizmo && group && (

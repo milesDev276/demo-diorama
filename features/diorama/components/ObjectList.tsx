@@ -1,12 +1,9 @@
 "use client";
 
-import { TreePine, Gem, Home, Eye, EyeOff, Lock, Unlock, Trash2, type LucideIcon } from "lucide-react";
+import { Eye, EyeOff, Lock, Unlock, Trash2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useDioramaStore } from "../store/dioramaStore";
-import type { DioramaObjectType } from "../types/diorama.types";
-
-const ICONS: Record<DioramaObjectType, LucideIcon> = { tree: TreePine, rock: Gem, house: Home };
-const LABELS: Record<DioramaObjectType, string> = { tree: "Tree", rock: "Rock", house: "House" };
+import { ASSET_REGISTRY } from "../assets/assetRegistry";
 
 /**
  * The scene object list: every object in the Diorama, selectable, with
@@ -36,7 +33,7 @@ export function ObjectList() {
       ) : (
         <div className="flex flex-1 flex-col gap-1 overflow-y-auto">
           {objects.map((object) => {
-            const Icon = ICONS[object.type];
+            const Icon = ASSET_REGISTRY[object.type].icon;
             const isSelected = selectedObjectIds.includes(object.id);
             return (
               <div
@@ -54,7 +51,7 @@ export function ObjectList() {
               >
                 <Icon size={14} className={cn("shrink-0", !object.visible && "opacity-40")} />
                 <span className={cn("flex-1 truncate", !object.visible && "italic opacity-50")}>
-                  {LABELS[object.type]}
+                  {ASSET_REGISTRY[object.type].label}
                 </span>
                 {object.locked && <Lock size={11} className="shrink-0 text-[#4A3421]/40" />}
 
