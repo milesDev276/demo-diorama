@@ -185,7 +185,9 @@ This scope is approved now. Normally it would sit in Phase 4–5.
 * Add `@react-three/postprocessing`. Use the v3 line, which targets
   R3F 9 / React 19. Verify peer dependencies at install time.
 * **Editor:**
-  * AgX tone mapping
+  * ~~AgX~~ **Neutral** tone mapping. Changed during Stage 2: AgX greyed
+    the pastel palette; see [Stage-2-Implementation.md](Stage-2-Implementation.md)
+    D2.
   * a procedural environment map: drei `<Environment>` built from
     `<Lightformer>`s, with no HDRI file
   * soft shadow filtering at 2048²; use whichever method three 0.184
@@ -325,6 +327,9 @@ See [Stage-1-Implementation.md](Stage-1-Implementation.md) §6.
 * Lint and build pass.
 
 ### Stage 2 — Look-dev
+
+**Status:** implemented and verified on branch `stage2-lookdev`,
+2026-09-30. See [Stage-2-Implementation.md](Stage-2-Implementation.md).
 
 * Install `@react-three/postprocessing`.
 * `SceneLighting.tsx`:

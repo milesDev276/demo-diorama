@@ -2,15 +2,24 @@
 
 import { Suspense, useMemo, useState } from "react";
 import { Canvas } from "@react-three/fiber";
-import { Grid, OrthographicCamera } from "@react-three/drei";
+import { Grid } from "@react-three/drei";
+import { NeutralToneMapping } from "three";
 import { Trees } from "lucide-react";
 import { useDioramaStore } from "../store/dioramaStore";
 import { Ground } from "./Ground";
 import { SceneLighting } from "./SceneLighting";
 import { DioramaObject } from "./DioramaObject";
 import { CameraControls } from "./CameraControls";
+import { PostEffects } from "./PostEffects";
+import { SceneFog } from "./SceneFog";
 import { HeroBlockout } from "./dev/HeroBlockout";
 import { STREET_PLOT } from "../utils/worldScale";
+import { DIORAMA_COLORS } from "../utils/palette";
+
+/** Inline because the stops come from the palette, which SkyBackdrop in Preview also uses. */
+const SKY_BACKDROP_STYLE = {
+  background: `linear-gradient(to bottom, ${DIORAMA_COLORS.skyTop}, ${DIORAMA_COLORS.skyMiddle}, ${DIORAMA_COLORS.skyBottom})`,
+};
 
 /** `/diorama?dev=blockout` swaps the scene for the hero blockout (dev reference only). */
 function isBlockoutView(): boolean {
@@ -41,11 +50,14 @@ export function DioramaCanvas() {
   }, [selectedObjectIds, objects]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-3xl bg-gradient-to-b from-[#bfe3ff] via-[#e3f0dd] to-[#ecdfc2]">
-      <Canvas shadows onPointerMissed={() => clearSelection()} gl={{ antialias: true }}>
-        <OrthographicCamera makeDefault position={[48, 42, 48]} zoom={12} near={0.6} far={600} />
+    <div className="relative h-full w-full overflow-hidden rounded-3xl" style={SKY_BACKDROP_STYLE}>
+      <Canvas
+        shadows="percentage"
+        onPointerMissed={() => clearSelection()}
+        gl={{ antialias: true, toneMapping: NeutralToneMapping }}
+      >
         <CameraControls />
-        <fog attach="fog" args={["#e3f0dd", 90, 162]} />
+        <SceneFog />
 
         <SceneLighting />
         {showBlockout ? (
@@ -79,6 +91,8 @@ export function DioramaCanvas() {
           objects.map((object) => (
             <DioramaObject key={object.id} object={object} isGizmoOwner={object.id === gizmoOwnerId} />
           ))}
+
+        {isPreviewMode && <PostEffects />}
       </Canvas>
 
       {objects.length === 0 && !isPreviewMode && (
