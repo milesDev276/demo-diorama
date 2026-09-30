@@ -1,12 +1,37 @@
 import type { DioramaObject, DioramaScene } from "../types/diorama.types";
 
 export const STORAGE_KEY = "diorama-scene";
-export const SCENE_FILE_VERSION = 1;
+
+/**
+ * File format version written by this app.
+ *   1 — positions in the pre-meter world unit (≈ 6 m).
+ *   2 — positions in meters.
+ */
+export const SCENE_FILE_VERSION = 2;
+
+/** v1 → v2: one v1 world unit was 6 m. Fixed forever — it describes old files. */
+const V1_METERS_PER_UNIT = 6;
 
 export interface DioramaSceneFile {
   version: number;
   savedAt: number;
   scene: DioramaScene;
+}
+
+/**
+ * Upgrades raw, not-yet-validated scene objects written by an older file
+ * version to the current one. Anything malformed passes through untouched;
+ * the validator decides what to keep.
+ */
+export function migrateRawObjects(rawObjects: unknown[], fromVersion: number): unknown[] {
+  if (fromVersion >= 2) return rawObjects;
+  return rawObjects.map((raw) => {
+    if (!raw || typeof raw !== "object") return raw;
+    const object = raw as Record<string, unknown>;
+    if (!Array.isArray(object.position)) return raw;
+    const position = object.position.map((n) => (typeof n === "number" ? n * V1_METERS_PER_UNIT : n));
+    return { ...object, position };
+  });
 }
 
 /** Builds the exact payload written to localStorage and exported files. */

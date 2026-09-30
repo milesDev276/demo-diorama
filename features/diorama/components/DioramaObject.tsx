@@ -7,6 +7,7 @@ import type { Group } from "three";
 import type { DioramaObject as DioramaObjectData, TransformMode } from "../types/diorama.types";
 import { useDioramaStore } from "../store/dioramaStore";
 import { ASSET_REGISTRY } from "../assets/assetRegistry";
+import { LEGACY_UNIT_SCALE } from "../utils/legacyUnits";
 import { SelectionRing } from "./SelectionRing";
 
 /** Which gizmo handles are shown per mode — rotate is Y-only, scale is uniform (X drives all axes). */
@@ -94,7 +95,13 @@ export function DioramaObject({ object, isGizmoOwner }: DioramaObjectProps) {
           else selectObject(object.id);
         }}
       >
-        <Visual />
+        {asset.legacyUnits ? (
+          <group scale={LEGACY_UNIT_SCALE}>
+            <Visual />
+          </group>
+        ) : (
+          <Visual />
+        )}
         {isSelected && <SelectionRing locked={object.locked} radius={asset.footprintRadius} />}
       </group>
 

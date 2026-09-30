@@ -13,7 +13,8 @@ const MODES: { mode: TransformMode; label: string; icon: typeof Move }[] = [
   { mode: "scale", label: "Scale", icon: Maximize2 },
 ];
 
-const GRID_SIZES = [0.25, 0.5, 1];
+/** Snap grid sizes in meters. */
+const GRID_SIZES = [0.1, 0.25, 0.5, 1];
 const ROTATION_SNAPS = [15, 30, 45, 90];
 
 function ToolbarChip({
@@ -131,7 +132,7 @@ export function EditorSubToolbar() {
         >
           {GRID_SIZES.map((size) => (
             <option key={size} value={size}>
-              {size}
+              {size} m
             </option>
           ))}
         </select>

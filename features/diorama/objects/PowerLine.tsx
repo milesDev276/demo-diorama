@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { DIORAMA_COLORS } from "../utils/palette";
-import { POWER_LINE_ATTACH, POWER_LINE_SPAN } from "../utils/worldScale";
+import { POWER_LINE_ATTACH, POWER_LINE_SPAN } from "../utils/legacyUnits";
 
 /** How far a wire droops at mid-span between poles. */
 const SAG = 0.16;

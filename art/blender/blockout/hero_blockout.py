@@ -2,9 +2,10 @@
 
     blender --background --factory-startup --python art/blender/blockout/hero_blockout.py
 
-Renders art/previews/hero_blockout_view.png (hero 3/4 view) and
-hero_blockout_top.png (top-down). Numbers below are app-space meters
-(x right, y up, z front) exactly as in the layout sheet.
+Exports public/models/_dev/hero_blockout.glb (loaded by the app at
+/diorama?dev=blockout) and renders art/previews/hero_blockout_view.png (hero
+3/4 view) and hero_blockout_top.png (top-down). Numbers below are app-space
+meters (x right, y up, z front) exactly as in the layout sheet.
 """
 
 import math
@@ -16,9 +17,10 @@ from mathutils import Vector
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from build import PREVIEWS_DIR, reset_scene  # noqa: E402
+from build import MODELS_DIR, PREVIEWS_DIR, reset_scene  # noqa: E402
 from lib import preview  # noqa: E402
 from lib.builder import MeshBuilder  # noqa: E402
+from lib.finish import export_glb, triangle_count  # noqa: E402
 from lib.palette import load_palette  # noqa: E402
 
 ROAD_Y = -0.15
@@ -47,7 +49,6 @@ class Blockout:
 
 
 def base(k: Blockout) -> None:
-    k.rect(-40, 40, -40, 40, -1.40, -1.36, "poleConcrete", shade=0.75)  # backdrop floor
     k.rect(-8, 8, -8, 8, -1.35, ROAD_Y - 0.1, "vendingDark", bevel=0.05)  # plinth
     k.rect(-8, 8, 3.5, 8, ROAD_Y - 0.1, ROAD_Y, "asphalt")  # front road
     k.rect(3.5, 8, -8, 3.5, ROAD_Y - 0.1, ROAD_Y, "asphalt")  # right road
@@ -180,7 +181,15 @@ def render() -> None:
     street_furniture(k)
     nature(k)
     vehicles_and_people(k)
-    builder.to_object()
+    blockout = builder.to_object()
+
+    glb = MODELS_DIR / "_dev" / "hero_blockout.glb"
+    export_glb(blockout, glb)
+    print(f"[blockout] {glb} ({triangle_count(blockout)} tris, {glb.stat().st_size / 1024:.0f} KB)")
+
+    backdrop = Blockout(MeshBuilder("_backdrop", palette))  # render-only floor, not exported
+    backdrop.rect(-40, 40, -40, 40, -1.40, -1.36, "poleConcrete", shade=0.75)
+    backdrop.b.to_object()
 
     PREVIEWS_DIR.mkdir(parents=True, exist_ok=True)
     preview._set_world((0.52, 0.60, 0.72), 0.9)

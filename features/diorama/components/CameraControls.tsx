@@ -65,14 +65,14 @@ export function CameraControls() {
         positions.forEach((p) => box.expandByPoint(new THREE.Vector3(...p)));
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
-        const radius = Math.max(1.5, size.length() / 2 + 1.5);
+        const radius = Math.max(9, size.length() / 2 + 9);
 
         const direction = camera.position.clone().sub(controls.target);
         if (direction.lengthSq() === 0) direction.set(1, 1, 1);
         direction.normalize();
 
-        const distance = 13;
-        const targetZoom = THREE.MathUtils.clamp(95 / radius, 32, 170);
+        const distance = 78;
+        const targetZoom = THREE.MathUtils.clamp(95 / radius, 32 / 6, 170 / 6);
 
         startTransition(
           [
@@ -127,12 +127,12 @@ export function CameraControls() {
       target={DEFAULT_CAMERA_TARGET}
       enableDamping
       dampingFactor={0.08}
-      minZoom={30}
-      maxZoom={200}
+      minZoom={5}
+      maxZoom={200 / 6}
       minPolarAngle={0.05}
       maxPolarAngle={Math.PI / 2 - 0.02}
-      minDistance={4}
-      maxDistance={26}
+      minDistance={24}
+      maxDistance={156}
     />
   );
 }

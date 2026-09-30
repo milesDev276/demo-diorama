@@ -7,11 +7,11 @@ export const DEFAULT_ENVIRONMENT: DioramaEnvironment = {
   ground: "street-corner",
 };
 
-const ISOMETRIC_POSITION: Vector3Tuple = [8, 7, 8];
-const DEFAULT_TARGET: Vector3Tuple = [0, 0.3, 0];
+const ISOMETRIC_POSITION: Vector3Tuple = [48, 42, 48];
+const DEFAULT_TARGET: Vector3Tuple = [0, 1.8, 0];
 
 export const DEFAULT_CAMERA_STATE: DioramaCameraState = {
   position: ISOMETRIC_POSITION,
   target: DEFAULT_TARGET,
-  zoom: 72,
+  zoom: 12,
 };

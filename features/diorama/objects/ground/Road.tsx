@@ -1,5 +1,5 @@
 import { DIORAMA_COLORS } from "../../utils/palette";
-import { PLOT_WIDTH, PLOT_Z, ROAD_SURFACE_Y, STRIP_DEPTH } from "../../utils/worldScale";
+import { PLOT_WIDTH, PLOT_Z, ROAD_SURFACE_Y, STRIP_DEPTH } from "../../utils/legacyUnits";
 
 const SLAB = 0.1;
 const CENTER_Z = PLOT_Z.road + STRIP_DEPTH.road / 2;

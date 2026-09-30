@@ -1,5 +1,5 @@
 import { DIORAMA_COLORS } from "../utils/palette";
-import { CROSSARM_HEIGHT, POLE_HEIGHT, POWER_LINE_ATTACH } from "../utils/worldScale";
+import { CROSSARM_HEIGHT, POLE_HEIGHT, POWER_LINE_ATTACH } from "../utils/legacyUnits";
 
 /**
  * Japanese concrete utility pole: tapered shaft, a crossarm perpendicular

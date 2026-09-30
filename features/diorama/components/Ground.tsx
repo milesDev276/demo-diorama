@@ -1,5 +1,5 @@
 import { DIORAMA_COLORS } from "../utils/palette";
-import { PLOT_DEPTH, PLOT_WIDTH, PLOT_Z, STRIP_DEPTH } from "../utils/worldScale";
+import { LEGACY_UNIT_SCALE, PLOT_DEPTH, PLOT_WIDTH, PLOT_Z, STRIP_DEPTH } from "../utils/legacyUnits";
 import { Road } from "../objects/ground/Road";
 import { Sidewalk } from "../objects/ground/Sidewalk";
 
@@ -22,10 +22,11 @@ function SurfaceStrip({ start, depth, color }: { start: number; depth: number; c
  * infinite plane. From back to front — a grass strip, the building lot, the
  * sidewalk and the road — all resting on a soil plinth with a tapered
  * underside so the whole thing reads as a handcrafted miniature object.
+ * Authored in legacy units, hence the scaled group (see legacyUnits.ts).
  */
 export function Ground() {
   return (
-    <group>
+    <group scale={LEGACY_UNIT_SCALE}>
       <SurfaceStrip start={PLOT_Z.back} depth={STRIP_DEPTH.grass} color={DIORAMA_COLORS.grassTop} />
       <SurfaceStrip start={PLOT_Z.lot} depth={STRIP_DEPTH.lot} color={DIORAMA_COLORS.lotGravel} />
       <Sidewalk />
