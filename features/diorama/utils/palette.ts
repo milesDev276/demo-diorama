@@ -1,5 +1,11 @@
 /** Shared low-poly material palette — keeps every procedural object visually consistent. */
 export const DIORAMA_COLORS = {
+  // Sky backdrop, top → middle → bottom. Drawn by CSS behind the editor
+  // canvas and by SkyBackdrop in Preview; the fog fades toward the middle.
+  skyTop: "#bfe3ff",
+  skyMiddle: "#e3f0dd",
+  skyBottom: "#ecdfc2",
+
   // Nature
   grassTop: "#9fbf84",
   dirt: "#a9764f",
