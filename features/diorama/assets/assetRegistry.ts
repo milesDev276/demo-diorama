@@ -1,11 +1,16 @@
 import type { ComponentType } from "react";
 import {
+  AirVent,
+  Bike,
   Cable,
+  CarFront,
   CupSoda,
   Gem,
   House as HouseIcon,
+  PersonStanding,
   Signpost,
   Store,
+  TreeDeciduous,
   TreePine,
   UtilityPole as UtilityPoleIcon,
   type LucideIcon,
@@ -18,9 +23,8 @@ import { Shop } from "../objects/Shop";
 import { Sign } from "../objects/Sign";
 import { Tree } from "../objects/Tree";
 import { UtilityPole } from "../objects/UtilityPole";
-import { VendingMachine } from "../objects/VendingMachine";
 
-export type AssetCategory = "Buildings" | "Street" | "Infrastructure" | "Props" | "Nature" | "Vehicles";
+export type AssetCategory = "Buildings" | "Street" | "Infrastructure" | "Props" | "Nature" | "Vehicles" | "People";
 
 /** Display order of categories in the asset browser (empty ones are hidden). */
 export const ASSET_CATEGORY_ORDER: AssetCategory[] = [
@@ -30,19 +34,14 @@ export const ASSET_CATEGORY_ORDER: AssetCategory[] = [
   "Props",
   "Nature",
   "Vehicles",
+  "People",
 ];
 
-/** "What is this object?" — metadata shared by every placed instance of a type. */
-export interface AssetDefinition {
+interface AssetBase {
   type: DioramaObjectType;
   label: string;
   category: AssetCategory;
   icon: LucideIcon;
-  /** Procedural geometry, origin at the ground contact point. */
-  component: ComponentType;
-  /** True if `component` is authored in the pre-meter unit (≈ 6 m) and must be
-   *  rendered scaled by LEGACY_UNIT_SCALE. New assets are authored in meters. */
-  legacyUnits: boolean;
   defaultScale: Vector3Tuple;
   /** Radius of the selection ring drawn under the object, in meters. */
   footprintRadius: number;
@@ -51,9 +50,27 @@ export interface AssetDefinition {
   tags: string[];
 }
 
+/** Geometry written as JSX, origin at the ground contact point. */
+export interface ProceduralAsset extends AssetBase {
+  component: ComponentType;
+  /** True if `component` is authored in the pre-meter unit (≈ 6 m) and must be
+   *  rendered scaled by LEGACY_UNIT_SCALE. */
+  legacyUnits: boolean;
+}
+
+/** A GLB built by art/blender/build.py: meters, origin at the ground contact
+ *  point, front toward +Z, material slots remapped by objects/materials.ts. */
+export interface ModelAsset extends AssetBase {
+  modelUrl: string;
+}
+
+/** "What is this object?" — metadata shared by every placed instance of a type. */
+export type AssetDefinition = ProceduralAsset | ModelAsset;
+
 /**
  * Single source of asset metadata. Adding a type = extend
- * `DIORAMA_OBJECT_TYPES`, write its component, add one entry here.
+ * `DIORAMA_OBJECT_TYPES`, build its GLB (art/blender) or write its
+ * component, add one entry here.
  */
 export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
   house: {
@@ -109,12 +126,22 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     label: "Vending Machine",
     category: "Props",
     icon: CupSoda,
-    component: VendingMachine,
-    legacyUnits: true,
+    modelUrl: "/models/props/prop_vending_machine_01.glb",
     defaultScale: [1, 1, 1],
-    footprintRadius: 1.2,
+    footprintRadius: 0.8,
     randomSpawnRotation: false,
     tags: ["drink", "jihanki", "machine"],
+  },
+  airConditioner: {
+    type: "airConditioner",
+    label: "AC Unit",
+    category: "Props",
+    icon: AirVent,
+    modelUrl: "/models/props/prop_ac_unit_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 0.55,
+    randomSpawnRotation: false,
+    tags: ["air conditioner", "outdoor unit", "shitsugaiki", "aircon"],
   },
   sign: {
     type: "sign",
@@ -152,7 +179,56 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     randomSpawnRotation: true,
     tags: ["rock", "stone", "garden"],
   },
+  bicycle: {
+    type: "bicycle",
+    label: "Bicycle",
+    category: "Props",
+    icon: Bike,
+    modelUrl: "/models/props/prop_bicycle_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 1.0,
+    randomSpawnRotation: false,
+    tags: ["bicycle", "bike", "mamachari", "vehicle", "parked"],
+  },
+  ginkgoTree: {
+    type: "ginkgoTree",
+    label: "Ginkgo Tree",
+    category: "Nature",
+    icon: TreeDeciduous,
+    modelUrl: "/models/nature/nature_tree_ginkgo_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 2.6,
+    randomSpawnRotation: true,
+    tags: ["tree", "ginkgo", "icho", "autumn", "street tree"],
+  },
+  keiCar: {
+    type: "keiCar",
+    label: "Kei Car",
+    category: "Vehicles",
+    icon: CarFront,
+    modelUrl: "/models/vehicles/vehicle_kei_car_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 1.9,
+    randomSpawnRotation: false,
+    tags: ["car", "kei", "vehicle", "parked"],
+  },
+  pedestrian: {
+    type: "pedestrian",
+    label: "Pedestrian",
+    category: "People",
+    icon: PersonStanding,
+    modelUrl: "/models/people/people_pedestrian_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 0.45,
+    randomSpawnRotation: false,
+    tags: ["person", "people", "figure", "walker"],
+  },
 };
+
+/** Every GLB in the registry, for preloading. */
+export const MODEL_URLS: string[] = Object.values(ASSET_REGISTRY).flatMap((asset) =>
+  "modelUrl" in asset ? [asset.modelUrl] : []
+);
 
 /** Registry entries grouped by category, optionally filtered by a label/tag search. */
 export function getAssetsByCategory(query = ""): Array<{ category: AssetCategory; assets: AssetDefinition[] }> {

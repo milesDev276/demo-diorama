@@ -7,7 +7,7 @@ from pathlib import Path
 import bpy
 
 from .builder import set_active_color
-from .materials import BASE_INDEX, COLOR_ATTRIBUTE
+from .materials import COLOR_ATTRIBUTE, EMISSIVE_INDEX
 
 
 def _smoothstep(edge0: float, edge1: float, x: float) -> float:
@@ -59,29 +59,35 @@ def weather(
     face_jitter: float = 0.035,
     samples: int = 128,
 ) -> None:
-    """Darkens base-slot colors with baked AO, a dirt gradient near the ground and
-    slight per-face value variation. Emissive faces are left untouched."""
-    _bake_ambient_occlusion(obj, ao_distance, samples)
+    """Darkens colors with baked AO, a dirt gradient near the ground and slight
+    per-face value variation. Printed faces weather like base ones (their white
+    becomes the multiplier on the atlas); emissive faces are left untouched.
+    Assets tune the defaults through a module-level WEATHER dict; with
+    `ao_strength=0` the Cycles bake is skipped entirely."""
+    baked = ao_strength > 0
+    if baked:
+        _bake_ambient_occlusion(obj, ao_distance, samples)
 
     mesh = obj.data
     colors = mesh.color_attributes[COLOR_ATTRIBUTE].data
-    ao = mesh.color_attributes["AO"].data
+    ao = mesh.color_attributes["AO"].data if baked else None
     rng = random.Random(seed)
 
     for poly in mesh.polygons:
         jitter = 1 + rng.uniform(-face_jitter, face_jitter)
-        if poly.material_index != BASE_INDEX:
+        if poly.material_index == EMISSIVE_INDEX:
             continue
         for li in poly.loop_indices:
             z = mesh.vertices[mesh.loops[li].vertex_index].co.z
             grime = 1 - grime_strength * (1 - _smoothstep(0.0, grime_height, z))
-            occlusion = 1 - ao_strength * (1 - ao[li].color[0])
+            occlusion = 1 - ao_strength * (1 - ao[li].color[0]) if baked else 1.0
             k = jitter * grime * occlusion
             r, g, b, a = colors[li].color
             colors[li].color = (r * k, g * k, b * k, a)
 
-    mesh.color_attributes.remove(mesh.color_attributes["AO"])
-    set_active_color(mesh, COLOR_ATTRIBUTE)
+    if baked:
+        mesh.color_attributes.remove(mesh.color_attributes["AO"])
+        set_active_color(mesh, COLOR_ATTRIBUTE)
 
 
 def export_glb(obj: bpy.types.Object, path: Path) -> None:
@@ -94,7 +100,7 @@ def export_glb(obj: bpy.types.Object, path: Path) -> None:
         export_apply=True,
         export_yup=True,
         export_normals=True,
-        export_texcoords=False,
+        export_texcoords=bool(obj.data.uv_layers),  # only assets with printed faces
         export_materials="EXPORT",
         export_vertex_color="ACTIVE",
         export_all_vertex_colors=False,
@@ -103,3 +109,8 @@ def export_glb(obj: bpy.types.Object, path: Path) -> None:
 
 def triangle_count(obj: bpy.types.Object) -> int:
     return sum(len(p.vertices) - 2 for p in obj.data.polygons)
+
+
+def draw_calls(obj: bpy.types.Object) -> int:
+    """One glTF primitive — one draw call in the app — per material slot in use."""
+    return len({p.material_index for p in obj.data.polygons})

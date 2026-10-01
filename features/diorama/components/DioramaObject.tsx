@@ -6,7 +6,8 @@ import * as THREE from "three";
 import type { Group } from "three";
 import type { DioramaObject as DioramaObjectData, TransformMode } from "../types/diorama.types";
 import { useDioramaStore } from "../store/dioramaStore";
-import { ASSET_REGISTRY } from "../assets/assetRegistry";
+import { ASSET_REGISTRY, type AssetDefinition } from "../assets/assetRegistry";
+import { GltfAsset } from "../objects/GltfAsset";
 import { LEGACY_UNIT_SCALE } from "../utils/legacyUnits";
 import { SelectionRing } from "./SelectionRing";
 
@@ -16,6 +17,19 @@ const GIZMO_AXES: Record<TransformMode, { x: boolean; y: boolean; z: boolean }> 
   rotate: { x: false, y: true, z: false },
   scale: { x: true, y: false, z: false },
 };
+
+/** The asset's geometry at its natural size in meters. */
+function AssetVisual({ asset }: { asset: AssetDefinition }) {
+  if ("modelUrl" in asset) return <GltfAsset url={asset.modelUrl} footprintRadius={asset.footprintRadius} />;
+  const Visual = asset.component;
+  return asset.legacyUnits ? (
+    <group scale={LEGACY_UNIT_SCALE}>
+      <Visual />
+    </group>
+  ) : (
+    <Visual />
+  );
+}
 
 interface DioramaObjectProps {
   object: DioramaObjectData;
@@ -45,7 +59,6 @@ export function DioramaObject({ object, isGizmoOwner }: DioramaObjectProps) {
   const showGizmo = isGizmoOwner && !object.locked;
 
   const asset = ASSET_REGISTRY[object.type];
-  const Visual = asset.component;
   const axes = GIZMO_AXES[isMultiSelect ? "translate" : transformMode];
 
   const handleMouseDown = useCallback(() => {
@@ -95,13 +108,7 @@ export function DioramaObject({ object, isGizmoOwner }: DioramaObjectProps) {
           else selectObject(object.id);
         }}
       >
-        {asset.legacyUnits ? (
-          <group scale={LEGACY_UNIT_SCALE}>
-            <Visual />
-          </group>
-        ) : (
-          <Visual />
-        )}
+        <AssetVisual asset={asset} />
         {isSelected && <SelectionRing locked={object.locked} radius={asset.footprintRadius} />}
       </group>
 

@@ -7,9 +7,12 @@ from .palette import Rgb, srgb_to_linear
 
 COLOR_ATTRIBUTE = "Col"
 
-# Slot order = face material_index used by MeshBuilder.
-MATERIAL_SLOTS = ("base", "emissive")
+# Slot order = face material_index used by MeshBuilder. "printed" faces carry
+# UVs into the app's graphics atlas; Blender has no atlas, so previews show
+# them as blank panels.
+MATERIAL_SLOTS = ("base", "emissive", "printed")
 BASE_INDEX = MATERIAL_SLOTS.index("base")
+EMISSIVE_INDEX = MATERIAL_SLOTS.index("emissive")
 
 EMISSION_STRENGTH = 1.1
 

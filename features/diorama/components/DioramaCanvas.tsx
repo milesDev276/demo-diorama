@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { Canvas } from "@react-three/fiber";
-import { Grid } from "@react-three/drei";
+import { Grid, useGLTF } from "@react-three/drei";
 import { NeutralToneMapping } from "three";
 import { Trees } from "lucide-react";
 import { useDioramaStore } from "../store/dioramaStore";
@@ -13,6 +13,8 @@ import { CameraControls } from "./CameraControls";
 import { PostEffects } from "./PostEffects";
 import { SceneFog } from "./SceneFog";
 import { HeroBlockout } from "./dev/HeroBlockout";
+import { DevRendererHandle } from "./dev/DevRendererHandle";
+import { MODEL_URLS } from "../assets/assetRegistry";
 import { STREET_PLOT } from "../utils/worldScale";
 import { DIORAMA_COLORS } from "../utils/palette";
 
@@ -21,9 +23,13 @@ const SKY_BACKDROP_STYLE = {
   background: `linear-gradient(to bottom, ${DIORAMA_COLORS.skyTop}, ${DIORAMA_COLORS.skyMiddle}, ${DIORAMA_COLORS.skyBottom})`,
 };
 
-/** `/diorama?dev=blockout` swaps the scene for the hero blockout (dev reference only). */
-function isBlockoutView(): boolean {
-  return new URLSearchParams(window.location.search).get("dev") === "blockout";
+/**
+ * `/diorama?dev=<flag>` dev aids: `blockout` swaps the scene for the hero
+ * blockout (a reference only); `stats` exposes the renderer to the
+ * measurement scripts.
+ */
+function getDevFlag(): string | null {
+  return new URLSearchParams(window.location.search).get("dev");
 }
 
 /**
@@ -36,7 +42,13 @@ export function DioramaCanvas() {
   const gridSize = useDioramaStore((s) => s.gridSize);
   const isPreviewMode = useDioramaStore((s) => s.isPreviewMode);
   const clearSelection = useDioramaStore((s) => s.clearSelection);
-  const [showBlockout] = useState(isBlockoutView);
+  const [devFlag] = useState(getDevFlag);
+  const showBlockout = devFlag === "blockout";
+
+  // Fetch every model up front, so adding one from the library never shows a placeholder.
+  useEffect(() => {
+    for (const url of MODEL_URLS) useGLTF.preload(url);
+  }, []);
 
   // The gizmo attaches to the sole selection, or — in a multi-selection — the
   // most-recently-selected object that isn't locked (locked objects can't drag the group).
@@ -58,6 +70,7 @@ export function DioramaCanvas() {
       >
         <CameraControls />
         <SceneFog />
+        {devFlag === "stats" && <DevRendererHandle />}
 
         <SceneLighting />
         {showBlockout ? (

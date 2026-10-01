@@ -5,7 +5,9 @@
 For each asset script in art/blender/assets/<category>/<name>.py this builds the
 mesh, bakes weathering, exports public/models/<category>/<name>.glb and renders
 review images into art/previews/. Asset scripts define NAME, CATEGORY,
-TRI_BUDGET and build(builder).
+TRI_BUDGET and build(builder), and may define WEATHER (keyword overrides for
+lib.finish.weather). An asset over its triangle budget or over MAX_DRAW_CALLS
+is still exported for review, but the build exits non-zero.
 """
 
 import importlib.util
@@ -19,12 +21,15 @@ ART_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(ART_DIR))
 
 from lib.builder import MeshBuilder  # noqa: E402
-from lib.finish import export_glb, triangle_count, weather  # noqa: E402
+from lib.finish import draw_calls, export_glb, triangle_count, weather  # noqa: E402
 from lib.palette import REPO_ROOT, load_palette  # noqa: E402
 from lib.preview import render_previews  # noqa: E402
 
 # bpy changes between releases; assets are only guaranteed to build on this one.
 REQUIRED_VERSION = (5, 2)
+
+# Roadmap L4/L8: base + emissive + printed at most.
+MAX_DRAW_CALLS = 3
 
 # Assets finished by hand in the Blender GUI: their .blend is the source, never rebuild.
 HAND_FINISHED: set[str] = set()
@@ -58,19 +63,22 @@ def build_asset(path: Path) -> bool:
     builder = MeshBuilder(module.NAME, palette)
     module.build(builder)
     obj = builder.to_object()
-    weather(obj, seed=module.NAME)
+    weather(obj, seed=module.NAME, **getattr(module, "WEATHER", {}))
 
     glb = MODELS_DIR / module.CATEGORY / f"{module.NAME}.glb"
     export_glb(obj, glb)
     tris = triangle_count(obj)
+    calls = draw_calls(obj)
     previews = render_previews(obj, PREVIEWS_DIR, palette)
 
-    within = tris <= module.TRI_BUDGET
-    print(f"[build] {module.NAME}: {tris} tris / budget {module.TRI_BUDGET} {'OK' if within else 'OVER BUDGET'}")
+    tris_ok = tris <= module.TRI_BUDGET
+    calls_ok = calls <= MAX_DRAW_CALLS
+    print(f"[build] {module.NAME}: {tris} tris / budget {module.TRI_BUDGET} {'OK' if tris_ok else 'OVER BUDGET'}")
+    print(f"[build]   {calls} draw calls / max {MAX_DRAW_CALLS} {'OK' if calls_ok else 'OVER BUDGET'}")
     print(f"[build]   glb {glb.relative_to(REPO_ROOT)} ({glb.stat().st_size / 1024:.1f} KB)")
     for p in previews:
         print(f"[build]   preview {p.relative_to(REPO_ROOT)}")
-    return within
+    return tris_ok and calls_ok
 
 
 def main(argv: list[str]) -> int:
