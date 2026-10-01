@@ -8,6 +8,11 @@ export const DIORAMA_OBJECT_TYPES = [
   "powerLine",
   "vendingMachine",
   "sign",
+  "airConditioner",
+  "ginkgoTree",
+  "pedestrian",
+  "keiCar",
+  "bicycle",
 ] as const;
 
 export type DioramaObjectType = (typeof DIORAMA_OBJECT_TYPES)[number];

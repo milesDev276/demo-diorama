@@ -156,8 +156,9 @@ How:
 
 * **In Blender:**
   * palette colors are written as a color attribute (vertex colors)
-  * ambient occlusion and grime are baked on top with Cycles "bake to
-    color attribute"
+  * ~~ambient occlusion and grime are baked on top with Cycles "bake to
+    color attribute"~~ Changed during Stage 3 (user decision): assets
+    built from then on skip the bake; the first four keep it.
   * the result is exported as `COLOR_0`
 * **Material slots** use fixed names: `base`, `emissive` (windows, signs,
   vending fronts) and `printed` (surfaces that receive the Canvas
@@ -351,6 +352,15 @@ See [Stage-1-Implementation.md](Stage-1-Implementation.md) §6.
   ≥ 50 fps, Preview ≥ 40 fps.
 
 ### Stage 3 — Blender pipeline and first hero assets
+
+**Status:** implemented and verified on branch `stage3-assets`,
+2026-09-30; previews approved 2026-10-01. See
+[Stage-3-Implementation.md](Stage-3-Implementation.md) §7.
+
+* **User decision during the stage:** new assets no longer get the baked
+  AO and ground grime. The four assets built before that keep it; the kei
+  car and bicycle do not. Organic shapes stay simple (the ginkgo is a
+  foam crown).
 
 * **Blender side:**
   * complete `art/blender/lib/`: palette loader, material slots,

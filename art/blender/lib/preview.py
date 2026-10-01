@@ -85,9 +85,13 @@ def render_previews(asset: bpy.types.Object, out_dir: Path, palette: dict[str, R
     """Renders <name>_day / _dusk / _scale PNGs into out_dir; returns their paths."""
     out_dir.mkdir(parents=True, exist_ok=True)
     name = asset.name
-    height = max(v.co.z for v in asset.data.vertices)
-    focus = Vector((0, 0, height * 0.48))
-    distance = max(3.0, height * 2.3)
+    xs, ys, zs = zip(*(v.co for v in asset.data.vertices))
+    height = max(zs)
+    width = max(xs) - min(xs)
+    extent = max(width, max(ys) - min(ys))
+    # Tall assets are framed by height, long ones (cars, bikes) by their footprint.
+    focus = Vector(((max(xs) + min(xs)) / 2, (max(ys) + min(ys)) / 2, height * 0.48))
+    distance = max(1.8, height * 2.3, extent * 1.9)
     three_quarter = focus + Vector((0.5, -0.83, 0.32)).normalized() * distance
     paths = []
 
@@ -115,14 +119,16 @@ def render_previews(asset: bpy.types.Object, out_dir: Path, palette: dict[str, R
     _add_floor(palette)
     _set_world((0.6, 0.62, 0.66), 1.2)
     _add_sun("_sun", (1.0, 1.0, 1.0), 2.0, 35, -20)
-    width = max(v.co.x for v in asset.data.vertices) - min(v.co.x for v in asset.data.vertices)
     refs = MeshBuilder("_scale_refs", palette)
     refs.cylinder(0.16, 1.44, (-width / 2 - 0.6, 0, 0), "poleConcrete", segments=16)
     refs.cylinder(0.11, 0.26, (-width / 2 - 0.6, 0, 1.44), "poleConcrete", segments=16)
     refs.box((0.9, 0.05, 2.0), (width / 2 + 0.9, 0.3, 1.0), "woodTrim")
     refs.to_object()
-    span = width + 3.2
-    _add_camera(Vector((0.15, -10, 1.0)), Vector((0.15, 0, 1.0)), ortho_scale=max(span, 3.2))
+    # The frame is 1000 × 640: fit the width with the references, and the
+    # height of whichever is taller, the asset or the 2 m door.
+    ortho = max(width + 3.2, 3.2, (max(height, 2.0) + 0.5) / 0.64)
+    eye_z = max(1.0, ortho * 0.32 - 0.35)
+    _add_camera(Vector((0.15, -10, eye_z)), Vector((0.15, 0, eye_z)), ortho_scale=ortho)
     paths.append(out_dir / f"{name}_scale.png")
     _render(paths[-1])
 

@@ -15,6 +15,12 @@ export const DIORAMA_COLORS = {
   foliageDark: "#5f8c4a",
   rock: "#a19d93",
   rockDark: "#86827a",
+  // Autumn ginkgo (イチョウ): mostly turned, a few clumps still greenish
+  ginkgoLeaf: "#dcb247",
+  ginkgoLeafLight: "#e8c86a",
+  ginkgoLeafDeep: "#c28f34",
+  ginkgoLeafGreen: "#aea24e",
+  bark: "#6b6156",
 
   // Japanese building
   wallPlaster: "#efe6d3",
@@ -52,6 +58,20 @@ export const DIORAMA_COLORS = {
   signRed: "#b8433a",
   signBoard: "#f4f1ea",
   signPost: "#a9adb0",
+  plateYellow: "#e6c34f",
+
+  // Vehicles
+  carBody: "#a9c4b6",
+  carGlass: "#39434b",
+  tireRubber: "#2f2d2b",
+  metalLight: "#c4c7c8",
+  bikeFrame: "#7d98a3",
+
+  // People (model-railway figures: flat painted colors)
+  clothNavy: "#46506a",
+  clothBeige: "#bba98b",
+  skin: "#dfb896",
+  hairDark: "#3b322c",
 
   // Editor
   selection: "#f0b27a",

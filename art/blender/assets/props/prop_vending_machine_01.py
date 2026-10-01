@@ -2,8 +2,8 @@
 
 A lit sample display with three rows of dummy drinks (PET bottles on top,
 cans below) and a price button under each; blue buttons are cold drinks,
-red are hot. Below: a coin / bill / IC-card panel on the right, an ad panel
-on the left and the pickup flap near the ground. Front faces −Y.
+red are hot. Below: a coin / bill / IC-card panel on the right, a printed
+ad panel on the left and the pickup flap near the ground. Front faces −Y.
 """
 
 import random
@@ -96,9 +96,13 @@ def _controls(b) -> None:
 
 
 def _ad_panel(b) -> None:
-    b.box((0.58, 0.01, 0.40), (-0.17, -0.335, 0.73), "vendingPanel", shade=0.95)
-    b.box((0.58, 0.004, 0.08), (-0.17, -0.342, 0.60), "canBlue")
-    b.box((0.10, 0.004, 0.26), (-0.36, -0.342, 0.77), "canGreen", shade=0.9)
+    """Printed drink ad (atlas cell `vending_ad`) in a thin silver poster frame."""
+    x, z, w, h = -0.17, 0.73, 0.58, 0.40
+    b.box((w, 0.01, h), (x, -0.335, z), "vendingPanel", cuts=4, print="vending_ad")
+    for dz in (-1, 1):
+        b.box((w + 0.024, 0.008, 0.012), (x, -0.341, z + dz * (h / 2 + 0.006)), "signPost")
+    for dx in (-1, 1):
+        b.box((0.012, 0.008, h), (x + dx * (w / 2 + 0.006), -0.341, z), "signPost")
 
 
 def _pickup(b) -> None:
