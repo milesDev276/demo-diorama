@@ -5,6 +5,7 @@ import { Trash2, MousePointerClick, Copy, Eye, EyeOff, Lock, Unlock, X } from "l
 import { cn } from "@/lib/cn";
 import { useDioramaStore } from "../store/dioramaStore";
 import type { Vector3Tuple } from "../types/diorama.types";
+import { ScenePanel } from "./ScenePanel";
 
 const AXES: { key: 0 | 1 | 2; label: string }[] = [
   { key: 0, label: "X" },
@@ -97,11 +98,14 @@ export function PropertiesPanel() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex flex-1 flex-col items-center justify-center gap-2 py-10 text-center text-[#4A3421]/45"
+            className="flex flex-1 flex-col gap-5"
           >
-            <MousePointerClick size={22} />
-            <p className="text-sm font-medium">No object selected</p>
-            <p className="text-xs">Select an object to edit its properties.</p>
+            <ScenePanel />
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 py-10 text-center text-[#4A3421]/45">
+              <MousePointerClick size={22} />
+              <p className="text-sm font-medium">No object selected</p>
+              <p className="text-xs">Select an object to edit its properties.</p>
+            </div>
           </motion.div>
         ) : object ? (
           <motion.div

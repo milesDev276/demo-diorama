@@ -14,11 +14,12 @@ comes next. Details live in the linked plan files.
 | Phase 3 asset system | Done. The commit is misnamed "done phase 2". | `main` (PR #2, `56ec1f5`) |
 | Stage 0: Blender pipeline, pilot, hero layout, blockout | Done | `main` (PR #3, branch `phase3`) |
 | Stage 1: world scale 1 unit = 1 m, scene file v2 | Done | `main` (PR #4, branch `stage1-scale`) |
-| Stage 2: look-dev | Done, committed and pushed (`61c0fab`) | branch `stage2-lookdev` |
-| **Stage 3: Blender GLB pipeline in the app, first six hero assets** | **Implemented, verified and approved by the user (2026-10-01); NOT committed** | branch **`stage3-assets`** (cut from `stage2-lookdev`) |
-| Stage 4: base templates and road surface | Next | — |
+| Stage 2: look-dev | Done | `main` (PR #5) |
+| Stage 3: Blender GLB pipeline in the app, first six hero assets | Done | `main` (PR #6) |
+| **Stage 4: base templates and road surface** | **Implemented, verified and approved by the user (2026-10-01); NOT committed** | branch **`stage4-base`** (cut from `main`) |
+| Stage 5: modular building and surface attachment | Next | — |
 
-**Immediate next action:** commit `stage3-assets`, push, and open a PR.
+**Immediate next action:** commit `stage4-base`, push, and open a PR.
 The user merges PRs themselves, one branch per stage.
 
 ## 2. Documents
@@ -30,6 +31,7 @@ The user merges PRs themselves, one branch per stage.
 | [Stage-1-Implementation.md](Stage-1-Implementation.md) | Scale migration: value table and verification results |
 | [Stage-2-Implementation.md](Stage-2-Implementation.md) | Look-dev: decisions D1–D6, the bugs that were found, and verification results |
 | [Stage-3-Implementation.md](Stage-3-Implementation.md) | GLB pipeline and the first six assets: decisions D1–D8, deviations, asset table and verification results (§7) |
+| [Stage-4-Implementation.md](Stage-4-Implementation.md) | Base templates and the corner base: decisions D1–D8, deviations and verification results (§7) |
 | `Phase-*.md` | Earlier phases, kept for history |
 
 ## 3. Decisions That Must Not Be Re-litigated
@@ -62,9 +64,20 @@ The user merges PRs themselves, one branch per stage.
 * **GLB assets render with three shared materials** (`objects/materials.ts`),
   remapped from the Blender slot names `base`, `emissive`, `printed`.
   `EMISSIVE_INTENSITY` there is the single emissive level for the scene.
+* **A scene's base is scene data:** `environment.base`, `"street"` or
+  `"corner"`. It is additive (files stay v2); anything missing or unknown
+  loads as `"street"`.
+* **Everything sized to the base comes from `utils/baseTemplates.ts`:**
+  spawn area, grid, preset zooms, focus radius, shadow frustum. Never add
+  a new plot-sized constant elsewhere.
+* **The corner base mirrors the layout sheet through
+  `utils/cornerLayout.ts`.** Change `Hero-Layout.md` first, then that
+  file.
 * **Printed graphics come from one runtime canvas atlas.**
   `objects/textures/atlasLayout.json` is read by both the app and Blender;
   a new cell needs a rectangle there and a painter in `graphicsAtlas.ts`.
+  Opaque cells render through `printed`; transparent ones (listed in
+  `TRANSPARENT_CELLS`, e.g. 止まれ) through the `decal` material.
 * **Tone mapping is Neutral, not AgX.** AgX greyed the palette; see Stage 2
   D2.
 * **`@react-three/postprocessing` is pinned to exactly `3.0.4`.** Anything
@@ -96,7 +109,9 @@ node scripts/measure-scene.mjs --types keiCar,bicycle --count 100 [--seconds 5] 
 ```
 
 * **Dev views:**
-  * `/diorama?dev=blockout` shows the hero blockout instead of the scene.
+  * `/diorama?dev=blockout` shows the hero blockout on the corner base
+    instead of the scene's objects. Open it on a corner scene, so the
+    camera presets frame the 16 m base.
   * `/diorama?dev=stats` exposes the R3F state as `window.__dioramaThree()`
     (renderer, scene, camera) for the measurement and verification scripts.
   * **Preview** turns on the perspective camera and the effect stack.
@@ -138,10 +153,15 @@ node scripts/measure-scene.mjs --types keiCar,bicycle --count 100 [--seconds 5] 
   after the shadow pass.
 * **Headless fps is capped at 180** on this machine. An empty scene and
   100 objects both report 180, so use a heavier scene to see headroom.
-* **Close-up screenshots:** the OrbitControls target is fixed at
-  (0, 1.8, 0) and is not reachable from outside. Raise `camera.zoom`
-  through `__dioramaThree()` and position the objects around the target
-  in the seeded scene.
+* **Close-up screenshots:** `__dioramaThree()` gives `camera` and
+  `controls` (the OrbitControls). Set `controls.target`, the camera
+  position and `camera.zoom`, then call `updateProjectionMatrix()` and
+  `controls.update()`.
+* **`capture-presets.mjs` sometimes frames the first Preview shot small**
+  (a resize/screenshot race, about one run in four). Re-run it.
+* **`measure-scene.mjs --types` builds a street scene.** For the corner
+  base, write a scene file with `environment.base` and pass
+  `--seed-scene`.
 * **A printed face needs interior vertices** (`cuts=`) when AO is baked.
   A single quad takes the AO of its four corners and the whole print goes
   dark.
@@ -156,8 +176,11 @@ node scripts/measure-scene.mjs --types keiCar,bicycle --count 100 [--seconds 5] 
 
 ## 6. Known Limitations and Existing Behaviors (not bugs of these stages)
 
-* **Presets frame the 50 m legacy plot.** The blockout looks small, and a
-  0.5 m grid is dense on the big plot. The Stage 4 corner base fixes both.
+* **The street strip is still legacy geometry** (≈ 6 m units, 43 draw
+  calls). Only the corner base is authored in meters.
+* **Base changes are not on the undo stack.**
+* **Manhole and gutter grates are not placeable** until Stage 5's
+  surface snap.
 * **Redo does not restore the selection.**
 * **Duplicates are not clamped to the plot.**
 * **Lighting was re-checked with the first GLBs** in Stage 3 and left
@@ -169,24 +192,28 @@ node scripts/measure-scene.mjs --types keiCar,bicycle --count 100 [--seconds 5] 
 * **`npm audit` reports 10 findings.** They all predate this work (next,
   tailwind, sharp, …) and were not addressed.
 
-## 7. Next: Stage 4 — Base Templates and Road Surface
+## 7. Next: Stage 5 — Modular Building and Surface Attachment
 
-From the roadmap. Write `Stage-4-Implementation.md` first and get it
-approved; that is the user's usual flow.
+From the roadmap; it is the core stage. Write
+`Stage-5-Implementation.md` first and get it approved.
 
-* `environment.base: "street" | "corner"`, additive, defaulting to
-  `"street"`.
-* `Ground.tsx` delegates to `objects/ground/StreetBase` (today's strips)
-  or `CornerBase`, the 16 × 16 m L-road from
-  [Hero-Layout.md](Hero-Layout.md), on a dark bevelled plinth.
-* Road markings from the graphics atlas: crosswalk, stop line + 止まれ,
-  edge lines. Add cells to `atlasLayout.json` and painters to
-  `graphicsAtlas.ts`.
-* From Blender, without baked AO: manhole cover, 側溝 grates, カーブミラー.
-* The base is chosen in the New-diorama dialog and the environment panel;
-  spawn bounds, grid and camera presets follow the chosen template.
-* **Done when:** both templates render, old scenes load as `street`, and
-  the blockout's base pieces can be retired.
+* **Modules from Blender,** on the L6 grid (bay 1.82 m, floors 3.2 / 2.8
+  m, parapet 1.1 m), without baked AO: wall, window, shopfront and balcony
+  bays, corner, parapet, roof pieces.
+* **A `building` type driven by `params`:** bay counts, a facade per floor
+  and side, a roof type. The app assembles instanced modules.
+* **Attachments with `parentId`:** AC, laundry, water tank, rooftop items,
+  pots, sign frames. Fix the parent/child rules for delete, duplicate,
+  undo and import before writing code.
+* **Click-to-place with a ghost and surface snap.** This also makes the
+  manhole and gutter grate placeable; today they are fixed details of
+  `CornerBase`.
+* **Target footprint on the corner base:** x −3.76 … 1.7, z −3.76 … 1.7
+  (Hero-Layout §3). `?dev=blockout` on a corner scene shows the massing.
+* **Done when:** the hero building can be built from a preset in under 5
+  minutes, attachments follow moves, and undo/redo, duplicate,
+  multi-select, lock/hide, save and import stay correct with parent/child
+  links.
 
 ## 8. Working With This User
 

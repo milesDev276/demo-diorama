@@ -395,6 +395,11 @@ See [Stage-1-Implementation.md](Stage-1-Implementation.md) §6.
 
 ### Stage 4 — Base templates and road surface
 
+**Status:** implemented and verified on branch `stage4-base`, 2026-10-01.
+See [Stage-4-Implementation.md](Stage-4-Implementation.md) §7. The manhole
+and grates are fixed details of the corner base until Stage 5 adds surface
+snap; the curve mirror is a placeable asset.
+
 * Add `environment.base: "street" | "corner"`. The field is additive and
   defaults to `"street"`.
 * `Ground.tsx` delegates to `objects/ground/StreetBase` (today's strips)

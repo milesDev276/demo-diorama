@@ -6,6 +6,10 @@ Exports public/models/_dev/hero_blockout.glb (loaded by the app at
 /diorama?dev=blockout) and renders art/previews/hero_blockout_view.png (hero
 3/4 view) and hero_blockout_top.png (top-down). Numbers below are app-space
 meters (x right, y up, z front) exactly as in the layout sheet.
+
+The GLB holds only what stands ON the base. The base itself and its road
+markings are the app's CornerBase (objects/ground/CornerBase.tsx) since
+Stage 4; the gray versions below are drawn for the preview renders only.
 """
 
 import math
@@ -175,8 +179,6 @@ def render() -> None:
     palette = load_palette()
     builder = MeshBuilder("_hero_blockout", palette)
     k = Blockout(builder)
-    base(k)
-    road_markings(k)
     building(k)
     street_furniture(k)
     nature(k)
@@ -187,9 +189,11 @@ def render() -> None:
     export_glb(blockout, glb)
     print(f"[blockout] {glb} ({triangle_count(blockout)} tris, {glb.stat().st_size / 1024:.0f} KB)")
 
-    backdrop = Blockout(MeshBuilder("_backdrop", palette))  # render-only floor, not exported
-    backdrop.rect(-40, 40, -40, 40, -1.40, -1.36, "poleConcrete", shade=0.75)
-    backdrop.b.to_object()
+    stage = Blockout(MeshBuilder("_stage", palette))  # render-only: base, markings and floor, not exported
+    base(stage)
+    road_markings(stage)
+    stage.rect(-40, 40, -40, 40, -1.40, -1.36, "poleConcrete", shade=0.75)
+    stage.b.to_object()
 
     PREVIEWS_DIR.mkdir(parents=True, exist_ok=True)
     preview._set_world((0.52, 0.60, 0.72), 0.9)

@@ -117,11 +117,32 @@ function paintKeiPlate(ctx: CanvasRenderingContext2D, w: number, h: number) {
   ctx.fillText("12-34", w * 0.56, h * 0.66);
 }
 
+/** 止まれ road marking: paint only, on a transparent cell (rendered as a decal). 止 is at the top. */
+function paintTomare(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  ctx.fillStyle = DIORAMA_COLORS.asphaltLine;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const row = h / 3;
+  const size = row * 0.92;
+  ctx.font = font(900, size);
+  [..."止まれ"].forEach((glyph, i) => {
+    ctx.save();
+    ctx.translate(w / 2, row * (i + 0.5));
+    ctx.scale((w * 0.94) / size, 1); // road lettering is stretched to fill the lane
+    ctx.fillText(glyph, 0, size * 0.04);
+    ctx.restore();
+  });
+}
+
 /** One painter per cell; the Record type fails the build if the layout gains a cell with no painter. */
 const PAINTERS: Record<CellName, CellPainter> = {
   vending_ad: paintVendingAd,
   plate_kei: paintKeiPlate,
+  road_tomare: paintTomare,
 };
+
+/** Cells that keep their alpha, for the `decal` material. Everything else is opaque print. */
+const TRANSPARENT_CELLS: ReadonlySet<CellName> = new Set<CellName>(["road_tomare"]);
 
 /** Paints one cell and repeats its outer pixels into the gutter, so mipmaps never mix neighboring cells. */
 function paintCell(atlas: CanvasRenderingContext2D, name: CellName) {
@@ -131,6 +152,13 @@ function paintCell(atlas: CanvasRenderingContext2D, name: CellName) {
   cell.width = w;
   cell.height = h;
   PAINTERS[name](cell.getContext("2d")!, w, h);
+
+  if (TRANSPARENT_CELLS.has(name)) {
+    // Nothing to extend: the cell and its gutter are cleared, so its edges blend to nothing.
+    atlas.clearRect(x - g, y - g, w + 2 * g, h + 2 * g);
+    atlas.drawImage(cell, x, y);
+    return;
+  }
 
   atlas.drawImage(cell, x, y);
   atlas.drawImage(cell, 0, 0, w, 1, x, y - g, w, g); // top

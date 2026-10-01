@@ -2,11 +2,12 @@ import { MeshStandardMaterial, type Material } from "three";
 import { getGraphicsAtlas } from "./textures/graphicsAtlas";
 
 /**
- * The three materials every Blender GLB renders with. Assets carry their
- * colors (palette + baked AO and grime) as vertex colors and name their
- * material slots `base`, `emissive` and `printed`; GltfAsset swaps each
- * slot for the shared material below, so all instances of all assets share
- * three shader programs and the look is tuned in one place.
+ * The shared materials of everything authored in meters. Blender GLBs
+ * carry their colors as vertex colors and name their material slots
+ * `base`, `emissive` and `printed`; GltfAsset swaps each slot for the
+ * shared material below. App-built bases use `ground` and `decal`. All
+ * instances share these few shader programs, and the look is tuned in one
+ * place.
  */
 
 /** Glow of every `emissive` slot (vending fronts, later windows and signs). One
@@ -50,10 +51,31 @@ function createPrintedMaterial() {
   });
 }
 
+/** Matte vertex-colored surfaces of an app-built base: asphalt, concrete, gravel. */
+function createGroundMaterial() {
+  return new MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
+}
+
+/** Paint on top of a surface (road lettering): the atlas's transparent cells,
+ *  blended over whatever lies underneath and lit and shadowed like it. */
+function createDecalMaterial() {
+  return new MeshStandardMaterial({
+    map: getGraphicsAtlas(),
+    transparent: true,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -4,
+    roughness: 0.9,
+    metalness: 0,
+  });
+}
+
 const FACTORIES: Record<string, () => Material> = {
   base: createBaseMaterial,
   emissive: createEmissiveMaterial,
   printed: createPrintedMaterial,
+  ground: createGroundMaterial,
+  decal: createDecalMaterial,
 };
 
 const materials = new Map<string, Material>();
