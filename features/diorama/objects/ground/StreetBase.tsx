@@ -1,5 +1,6 @@
 import { DIORAMA_COLORS } from "../../utils/palette";
 import { LEGACY_UNIT_SCALE, PLOT_DEPTH, PLOT_WIDTH, PLOT_Z, STRIP_DEPTH } from "../../utils/legacyUnits";
+import { BASE_SURFACE } from "../../utils/surfaceSnap";
 import { Road } from "./Road";
 import { Sidewalk } from "./Sidewalk";
 
@@ -26,7 +27,7 @@ function SurfaceStrip({ start, depth, color }: { start: number; depth: number; c
  */
 export function StreetBase() {
   return (
-    <group scale={LEGACY_UNIT_SCALE}>
+    <group scale={LEGACY_UNIT_SCALE} userData={BASE_SURFACE}>
       <SurfaceStrip start={PLOT_Z.back} depth={STRIP_DEPTH.grass} color={DIORAMA_COLORS.grassTop} />
       <SurfaceStrip start={PLOT_Z.lot} depth={STRIP_DEPTH.lot} color={DIORAMA_COLORS.lotGravel} />
       <Sidewalk />

@@ -7,8 +7,11 @@ import type {
   DioramaScene,
   Vector3Tuple,
 } from "../types/diorama.types";
+import { DEFAULT_BUILDING_PARAMS } from "../assets/buildingPresets";
+import { normalizeBuildingParams } from "./buildingParams";
 import { createId } from "./id";
 import { DEFAULT_SCENE_NAME } from "./objectDefaults";
+import { repairParentLinks } from "./sceneGraph";
 import { DEFAULT_CAMERA_STATE, DEFAULT_ENVIRONMENT } from "./sceneDefaults";
 import { migrateRawObjects, SCENE_FILE_VERSION } from "./sceneSerializer";
 
@@ -52,7 +55,11 @@ function normalizeObject(raw: unknown, seenIds: Set<string>): DioramaObject | nu
   const visible = typeof r.visible === "boolean" ? r.visible : true;
   const locked = typeof r.locked === "boolean" ? r.locked : false;
 
-  return { id, type: r.type as DioramaObjectType, position, rotation, scale, visible, locked };
+  const object: DioramaObject = { id, type: r.type as DioramaObjectType, position, rotation, scale, visible, locked };
+  // Optional fields are only written when present, so files without them round-trip unchanged.
+  if (typeof r.parentId === "string" && r.parentId) object.parentId = r.parentId;
+  if (object.type === "building") object.params = normalizeBuildingParams(r.params) ?? DEFAULT_BUILDING_PARAMS;
+  return object;
 }
 
 /** Keeps the file's base if it is one this app knows; everything else is the default. */
@@ -92,9 +99,9 @@ export function validateAndNormalizeScene(data: unknown): { scene: DioramaScene 
     const name = typeof root.name === "string" && root.name.trim() ? root.name.trim().slice(0, 80) : DEFAULT_SCENE_NAME;
     const rawObjects = migrateRawObjects(Array.isArray(root.objects) ? root.objects : [], version);
     const seenIds = new Set<string>();
-    const objects = rawObjects
-      .map((o) => normalizeObject(o, seenIds))
-      .filter((o): o is DioramaObject => o !== null);
+    const objects = repairParentLinks(
+      rawObjects.map((o) => normalizeObject(o, seenIds)).filter((o): o is DioramaObject => o !== null)
+    );
 
     const scene: DioramaScene = {
       id: typeof root.id === "string" && root.id.trim() ? root.id : createId("scene"),

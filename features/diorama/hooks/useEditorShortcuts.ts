@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useDioramaStore } from "../store/dioramaStore";
+import { getWorldPosition, indexObjects } from "../utils/sceneGraph";
 
 const EDITABLE_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 
@@ -14,7 +15,7 @@ const EDITABLE_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
  * Ctrl+Shift+Z/Y    Redo
  * Ctrl+D            Duplicate selection
  * Ctrl+S            Save scene
- * Esc               Clear selection
+ * Esc               Cancel placing, else clear selection
  * F                 Focus selected object(s)
  * W / E / R         Move / Rotate / Scale mode
  */
@@ -70,7 +71,10 @@ export function useEditorShortcuts(enabled: boolean) {
       }
 
       if (event.key === "Escape") {
-        clearSelection();
+        // Esc first backs out of picking a surface, then clears the selection.
+        const state = useDioramaStore.getState();
+        if (state.placement) state.cancelPlacement();
+        else clearSelection();
         return;
       }
 
@@ -78,9 +82,10 @@ export function useEditorShortcuts(enabled: boolean) {
 
       if (key === "f") {
         const state = useDioramaStore.getState();
+        const byId = indexObjects(state.objects);
         const positions = state.objects
           .filter((o) => selectedObjectIds.includes(o.id))
-          .map((o) => o.position);
+          .map((o) => getWorldPosition(o, byId));
         state.cameraApi?.focusOn(positions);
         return;
       }

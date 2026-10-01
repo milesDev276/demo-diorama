@@ -14,11 +14,41 @@ export const DIORAMA_OBJECT_TYPES = [
   "keiCar",
   "bicycle",
   "curveMirror",
+  "building",
+  "manhole",
+  "gutterGrate",
+  "laundry",
+  "waterTank",
+  "rooftopShed",
+  "pottedPlant",
+  "kanbanSign",
 ] as const;
 
 export type DioramaObjectType = (typeof DIORAMA_OBJECT_TYPES)[number];
 
 export type Vector3Tuple = [number, number, number];
+
+/** What one facade bay of a building is. `shopfront` and `entrance` exist on the ground floor only. */
+export const FACADE_KINDS = ["blank", "windows", "shopfront", "balcony", "entrance"] as const;
+export type FacadeKind = (typeof FACADE_KINDS)[number];
+
+export const BUILDING_SIDES = ["front", "right", "back", "left"] as const;
+export type BuildingSide = (typeof BUILDING_SIDES)[number];
+
+export const ROOF_KINDS = ["flat-rooftop", "hipped-tile", "shed"] as const;
+export type RoofKind = (typeof ROOF_KINDS)[number];
+
+/** One facade kind per bay, left to right as seen from outside. */
+export type BuildingFloor = Record<BuildingSide, FacadeKind[]>;
+
+/** What a `building` object is assembled from (objects/building). Bays follow the 1.82 m grid. */
+export interface BuildingParams {
+  baysX: number;
+  baysZ: number;
+  /** Index 0 is the ground floor. */
+  floors: BuildingFloor[];
+  roof: RoofKind;
+}
 
 export interface DioramaObject {
   id: string;
@@ -30,9 +60,22 @@ export interface DioramaObject {
   visible: boolean;
   /** Locked objects are still selectable but cannot be moved/rotated/scaled. */
   locked: boolean;
+  /** The building this object is attached to. Position, rotation and scale
+   *  are then in that building's frame (utils/sceneGraph.ts). */
+  parentId?: string;
+  /** Only on `building` objects. */
+  params?: BuildingParams;
 }
 
 export type TransformMode = "translate" | "rotate" | "scale";
+
+/** Editor state while the user is choosing where an object goes: a new one
+ *  of `type`, or the existing object `movingId` being put somewhere else. */
+export interface Placement {
+  type: DioramaObjectType;
+  params?: BuildingParams;
+  movingId?: string;
+}
 
 /** The miniature base the scene is built on (utils/baseTemplates.ts). */
 export const DIORAMA_BASES = ["street", "corner"] as const;

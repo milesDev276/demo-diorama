@@ -1,14 +1,17 @@
 "use client";
 
+import { useMemo } from "react";
 import { Eye, EyeOff, Lock, Unlock, Trash2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useDioramaStore } from "../store/dioramaStore";
 import { ASSET_REGISTRY } from "../assets/assetRegistry";
+import { groupChildren } from "../utils/sceneGraph";
 
 /**
  * The scene object list: every object in the Diorama, selectable, with
- * inline visibility/lock/delete controls. Click a row to select it,
- * shift-click to add/remove it from the current selection.
+ * inline visibility/lock/delete controls. Objects attached to a building
+ * are listed indented under it. Click a row to select it, shift-click to
+ * add/remove it from the current selection.
  */
 export function ObjectList() {
   const objects = useDioramaStore((s) => s.objects);
@@ -18,6 +21,13 @@ export function ObjectList() {
   const setObjectVisibility = useDioramaStore((s) => s.setObjectVisibility);
   const setObjectLocked = useDioramaStore((s) => s.setObjectLocked);
   const removeObject = useDioramaStore((s) => s.removeObject);
+
+  const rows = useMemo(() => {
+    const childrenByParent = groupChildren(objects);
+    return objects
+      .filter((object) => !object.parentId)
+      .flatMap((object) => [object, ...(childrenByParent.get(object.id) ?? [])]);
+  }, [objects]);
 
   return (
     <div className="flex h-full w-full flex-col gap-3 overflow-hidden rounded-3xl border border-[#8b6f52]/15 bg-white/70 p-4 shadow-[0_8px_32px_rgba(139,111,82,0.12)] backdrop-blur-xl">
@@ -32,7 +42,7 @@ export function ObjectList() {
         <p className="py-6 text-center text-xs text-[#4A3421]/40">No objects yet.</p>
       ) : (
         <div className="flex flex-1 flex-col gap-1 overflow-y-auto">
-          {objects.map((object) => {
+          {rows.map((object) => {
             const Icon = ASSET_REGISTRY[object.type].icon;
             const isSelected = selectedObjectIds.includes(object.id);
             return (
@@ -46,6 +56,7 @@ export function ObjectList() {
                 }}
                 className={cn(
                   "group flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-sm transition-colors cursor-pointer",
+                  object.parentId && "ml-4",
                   isSelected ? "bg-[#F0B27A]/25 text-[#4A3421]" : "text-[#4A3421]/80 hover:bg-white/60"
                 )}
               >

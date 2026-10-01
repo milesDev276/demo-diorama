@@ -134,11 +134,36 @@ function paintTomare(ctx: CanvasRenderingContext2D, w: number, h: number) {
   });
 }
 
+/** Projecting vertical sign of a fictional liquor shop: 酒 in a red disc, the shop name below. */
+function paintKanbanSakaya(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  ctx.fillStyle = DIORAMA_COLORS.signBoard;
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = DIORAMA_COLORS.signRed;
+  ctx.fillRect(0, 0, w, h * 0.025);
+  ctx.fillRect(0, h * 0.975, w, h * 0.025);
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const disc = w * 0.42;
+  ctx.beginPath();
+  ctx.arc(w / 2, h * 0.14, disc, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#fff8ec";
+  ctx.font = font(900, disc * 1.35);
+  ctx.fillText("酒", w / 2, h * 0.145);
+
+  ctx.fillStyle = "#3b322c";
+  const size = w * 0.72;
+  ctx.font = font(800, size);
+  [..."山田酒店"].forEach((glyph, i) => ctx.fillText(glyph, w / 2, h * 0.34 + i * size * 1.22));
+}
+
 /** One painter per cell; the Record type fails the build if the layout gains a cell with no painter. */
 const PAINTERS: Record<CellName, CellPainter> = {
   vending_ad: paintVendingAd,
   plate_kei: paintKeiPlate,
   road_tomare: paintTomare,
+  kanban_sakaya: paintKanbanSakaya,
 };
 
 /** Cells that keep their alpha, for the `decal` material. Everything else is opaque print. */

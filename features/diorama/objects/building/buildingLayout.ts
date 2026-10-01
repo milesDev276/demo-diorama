@@ -1,0 +1,113 @@
+import type { BuildingParams, BuildingSide, FacadeKind, Vector3Tuple } from "../../types/diorama.types";
+import { BUILDING_SIDES } from "../../types/diorama.types";
+import { BUILDING_GRID, buildingSize, sideBayCount } from "../../utils/buildingParams";
+
+/** The GLB modules a building is assembled from (art/blender/assets/buildings). */
+export const BUILDING_MODULES = {
+  wall: "/models/buildings/building_bay_wall_01.glb",
+  window: "/models/buildings/building_bay_window_01.glb",
+  balcony: "/models/buildings/building_bay_balcony_01.glb",
+  balconySide: "/models/buildings/building_balcony_side_01.glb",
+  entrance: "/models/buildings/building_bay_entrance_01.glb",
+  shopfront: "/models/buildings/building_bay_shopfront_01.glb",
+  foundation: "/models/buildings/building_bay_foundation_01.glb",
+  corner: "/models/buildings/building_corner_01.glb",
+  parapet: "/models/buildings/building_parapet_01.glb",
+} as const;
+
+export type BuildingModule = keyof typeof BUILDING_MODULES;
+
+export const BUILDING_MODULE_NAMES = Object.keys(BUILDING_MODULES) as BuildingModule[];
+
+/** One module instance in the building's frame (origin: footprint center at ground level). */
+export interface ModulePlacement {
+  module: BuildingModule;
+  position: Vector3Tuple;
+  /** Rotation about Y; 0 faces +Z (the front). */
+  yaw: number;
+  /** Height scale, for the corner post. */
+  scaleY: number;
+}
+
+const SIDE_YAW: Record<BuildingSide, number> = {
+  front: 0,
+  right: Math.PI / 2,
+  back: Math.PI,
+  left: -Math.PI / 2,
+};
+
+/** How far a balcony end panel sits inside its run. */
+const BALCONY_END_INSET = 0.035;
+
+const BAY_MODULE: Record<FacadeKind, BuildingModule> = {
+  blank: "wall",
+  windows: "window",
+  balcony: "balcony",
+  shopfront: "shopfront",
+  entrance: "entrance",
+};
+
+/**
+ * Where every module of a building goes, for params that went through
+ * normalizeBuildingParams. Pure data in, pure data out: bays
+ * run left to right along each side as seen from outside, floors stack on
+ * the L6 grid, a foundation course lifts ground-floor wall and window bays,
+ * balcony runs get an end panel on each side, and corner posts cover the
+ * joints (up to the railing on a flat rooftop).
+ */
+export function layoutBuilding(params: BuildingParams): ModulePlacement[] {
+  const { bay, groundFloor, upperFloor, foundation, parapet } = BUILDING_GRID;
+  const { width, depth, wallHeight } = buildingSize(params);
+  const placements: ModulePlacement[] = [];
+
+  const at = (side: BuildingSide, along: number, y: number): Vector3Tuple => {
+    const half = side === "front" || side === "back" ? depth / 2 : width / 2;
+    const sin = Math.sin(SIDE_YAW[side]);
+    const cos = Math.cos(SIDE_YAW[side]);
+    return [along * cos + half * sin, y, -along * sin + half * cos];
+  };
+  const add = (module: BuildingModule, side: BuildingSide, along: number, y: number) =>
+    placements.push({ module, position: at(side, along, y), yaw: SIDE_YAW[side], scaleY: 1 });
+
+  for (const side of BUILDING_SIDES) {
+    const count = sideBayCount(params, side);
+    const start = (-count * bay) / 2;
+    const center = (i: number) => start + (i + 0.5) * bay;
+
+    params.floors.forEach((floor, floorIndex) => {
+      const bays = floor[side];
+      const isGround = floorIndex === 0;
+      const floorY = isGround ? 0 : groundFloor + (floorIndex - 1) * upperFloor;
+
+      bays.forEach((kind, i) => {
+        // Shopfronts and entrances are full ground-floor height; every other
+        // module is upper-floor height, raised on the foundation at ground level.
+        const onFoundation = isGround && kind !== "shopfront" && kind !== "entrance";
+        if (onFoundation) add("foundation", side, center(i), 0);
+        add(BAY_MODULE[kind], side, center(i), onFoundation ? foundation : floorY);
+
+        if (kind === "balcony") {
+          if (bays[i - 1] !== "balcony") add("balconySide", side, start + i * bay + BALCONY_END_INSET, floorY);
+          if (bays[i + 1] !== "balcony") add("balconySide", side, start + (i + 1) * bay - BALCONY_END_INSET, floorY);
+        }
+      });
+    });
+
+    if (params.roof === "flat-rooftop") {
+      for (let i = 0; i < count; i++) add("parapet", side, center(i), wallHeight);
+    }
+  }
+
+  const postHeight = params.roof === "flat-rooftop" ? wallHeight + parapet : wallHeight;
+  const corners: Array<[number, number]> = [
+    [width / 2, depth / 2],
+    [width / 2, -depth / 2],
+    [-width / 2, -depth / 2],
+    [-width / 2, depth / 2],
+  ];
+  corners.forEach(([x, z], i) =>
+    placements.push({ module: "corner", position: [x, 0, z], yaw: (i * Math.PI) / 2, scaleY: postHeight })
+  );
+
+  return placements;
+}

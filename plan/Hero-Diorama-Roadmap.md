@@ -423,6 +423,14 @@ snap; the curve mirror is a placeable asset.
 This is the core stage: it is what lets users build the reference
 without any modeling.
 
+**Status:** implemented and verified on branch `stage5-building`,
+2026-10-02. See [Stage-5-Implementation.md](Stage-5-Implementation.md) §7.
+Changes against the list below, all approved with the plan: buildings
+render as merged geometry (2–3 draw calls) instead of instanced modules;
+roofs are generated in app code; an `entrance` facade was added; facades
+are stored per bay and edited per side; surfaces are the base and
+buildings only, and attachments are one level deep.
+
 * **Modules from Blender**, all on the L6 grid: wall bay, window bay,
   shopfront bay, balcony bay, corner, parapet, roof pieces.
 * **New `building` type**, driven by `params`:

@@ -47,7 +47,7 @@ function AssetGhost({ radius, failed = false }: { radius: number; failed?: boole
 const reportedFailures = new Set<string>();
 
 /** Keeps one broken model from taking the whole canvas down. */
-class ModelErrorBoundary extends Component<{ url: string; fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
+export class ModelErrorBoundary extends Component<{ url: string; fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
 
   static getDerivedStateFromError() {

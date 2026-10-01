@@ -1,22 +1,34 @@
 import type { ComponentType } from "react";
 import {
   AirVent,
+  AlignJustify,
   Bike,
+  Building2,
   Cable,
   CarFront,
+  Circle,
   CircleDot,
   CupSoda,
+  Cylinder,
   Gem,
   House as HouseIcon,
   PersonStanding,
+  RectangleVertical,
+  Shirt,
   Signpost,
+  Sprout,
   Store,
   TreeDeciduous,
   TreePine,
   UtilityPole as UtilityPoleIcon,
+  Warehouse,
   type LucideIcon,
 } from "lucide-react";
-import type { DioramaObjectType, Vector3Tuple } from "../types/diorama.types";
+import type { BuildingParams, DioramaObject, DioramaObjectType, Vector3Tuple } from "../types/diorama.types";
+import { Building, type BuildingProps } from "../objects/building/Building";
+import { BUILDING_MODULES } from "../objects/building/buildingLayout";
+import { buildingSize } from "../utils/buildingParams";
+import { BUILDING_PRESETS, DEFAULT_BUILDING_PARAMS } from "./buildingPresets";
 import { House } from "../objects/House";
 import { PowerLine } from "../objects/PowerLine";
 import { Rock } from "../objects/Rock";
@@ -48,12 +60,16 @@ interface AssetBase {
   footprintRadius: number;
   /** Natural things spawn at a random heading; street-built things spawn facing the road (+Z). */
   randomSpawnRotation: boolean;
+  /** Set if the asset can hang on a wall: `offset` is how far its origin
+   *  stands off the wall, `only` means it cannot stand on a flat surface. */
+  wallMount?: { offset: number; only?: boolean };
   tags: string[];
 }
 
 /** Geometry written as JSX, origin at the ground contact point. */
 export interface ProceduralAsset extends AssetBase {
-  component: ComponentType;
+  /** Parametric assets (the building) read the object's params; the others take no props. */
+  component: ComponentType<BuildingProps>;
   /** True if `component` is authored in the pre-meter unit (≈ 6 m) and must be
    *  rendered scaled by LEGACY_UNIT_SCALE. */
   legacyUnits: boolean;
@@ -74,6 +90,18 @@ export type AssetDefinition = ProceduralAsset | ModelAsset;
  * component, add one entry here.
  */
 export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
+  building: {
+    type: "building",
+    label: "Building",
+    category: "Buildings",
+    icon: Building2,
+    component: Building,
+    legacyUnits: false,
+    defaultScale: [1, 1, 1],
+    footprintRadius: 4.2,
+    randomSpawnRotation: false,
+    tags: ["building", "modular"],
+  },
   house: {
     type: "house",
     label: "House",
@@ -142,6 +170,7 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     defaultScale: [1, 1, 1],
     footprintRadius: 0.55,
     randomSpawnRotation: false,
+    wallMount: { offset: 0.2 },
     tags: ["air conditioner", "outdoor unit", "shitsugaiki", "aircon"],
   },
   sign: {
@@ -166,6 +195,84 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     footprintRadius: 0.5,
     randomSpawnRotation: false,
     tags: ["mirror", "curve mirror", "kabu mira", "junction", "traffic"],
+  },
+  manhole: {
+    type: "manhole",
+    label: "Manhole",
+    category: "Street",
+    icon: Circle,
+    modelUrl: "/models/street/street_manhole_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 0.4,
+    randomSpawnRotation: false,
+    tags: ["manhole", "cover", "road", "sewer"],
+  },
+  gutterGrate: {
+    type: "gutterGrate",
+    label: "Gutter Grate",
+    category: "Street",
+    icon: AlignJustify,
+    modelUrl: "/models/street/street_gutter_grate_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 0.6,
+    randomSpawnRotation: false,
+    tags: ["grate", "gutter", "sokko", "drain", "road"],
+  },
+  kanbanSign: {
+    type: "kanbanSign",
+    label: "Shop Sign",
+    category: "Props",
+    icon: RectangleVertical,
+    modelUrl: "/models/props/prop_sign_kanban_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 0.45,
+    randomSpawnRotation: false,
+    wallMount: { offset: 0, only: true },
+    tags: ["sign", "kanban", "shop", "sakaya", "wall"],
+  },
+  laundry: {
+    type: "laundry",
+    label: "Laundry",
+    category: "Props",
+    icon: Shirt,
+    modelUrl: "/models/props/prop_laundry_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 1.0,
+    randomSpawnRotation: false,
+    tags: ["laundry", "clothes", "balcony", "monohoshi"],
+  },
+  pottedPlant: {
+    type: "pottedPlant",
+    label: "Potted Plant",
+    category: "Props",
+    icon: Sprout,
+    modelUrl: "/models/props/prop_potted_plant_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 0.3,
+    randomSpawnRotation: true,
+    tags: ["plant", "pot", "hachiue", "green"],
+  },
+  waterTank: {
+    type: "waterTank",
+    label: "Water Tank",
+    category: "Props",
+    icon: Cylinder,
+    modelUrl: "/models/props/prop_water_tank_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 0.85,
+    randomSpawnRotation: false,
+    tags: ["tank", "water", "rooftop"],
+  },
+  rooftopShed: {
+    type: "rooftopShed",
+    label: "Storage Shed",
+    category: "Props",
+    icon: Warehouse,
+    modelUrl: "/models/props/prop_rooftop_shed_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 1.6,
+    randomSpawnRotation: false,
+    tags: ["shed", "storage", "prefab", "monooki", "rooftop"],
   },
   tree: {
     type: "tree",
@@ -237,19 +344,55 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
   },
 };
 
-/** Every GLB in the registry, for preloading. */
-export const MODEL_URLS: string[] = Object.values(ASSET_REGISTRY).flatMap((asset) =>
-  "modelUrl" in asset ? [asset.modelUrl] : []
-);
+/** Every GLB the registry can show (assets and building modules), for preloading. */
+export const MODEL_URLS: string[] = [
+  ...Object.values(ASSET_REGISTRY).flatMap((asset) => ("modelUrl" in asset ? [asset.modelUrl] : [])),
+  ...Object.values(BUILDING_MODULES),
+];
 
-/** Registry entries grouped by category, optionally filtered by a label/tag search. */
-export function getAssetsByCategory(query = ""): Array<{ category: AssetCategory; assets: AssetDefinition[] }> {
+/** Radius of the selection ring under an object. A building's follows its footprint. */
+export function getFootprintRadius(object: Pick<DioramaObject, "type" | "params">): number {
+  if (object.type !== "building") return ASSET_REGISTRY[object.type].footprintRadius;
+  const { width, depth } = buildingSize(object.params ?? DEFAULT_BUILDING_PARAMS);
+  return Math.hypot(width, depth) / 2 + 0.4;
+}
+
+/** One entry of the asset browser: an asset, or a preset of a parametric one. */
+export interface LibraryItem {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  type: DioramaObjectType;
+  params?: BuildingParams;
+  tags: string[];
+}
+
+/** The building is offered as its presets; every other asset as itself. */
+function libraryItems(asset: AssetDefinition): LibraryItem[] {
+  if (asset.type !== "building") {
+    return [{ key: asset.type, label: asset.label, icon: asset.icon, type: asset.type, tags: asset.tags }];
+  }
+  return BUILDING_PRESETS.map((preset) => ({
+    key: `building:${preset.id}`,
+    label: preset.label,
+    icon: asset.icon,
+    type: asset.type,
+    params: preset.params,
+    tags: [...asset.tags, ...preset.tags],
+  }));
+}
+
+/** Asset browser entries grouped by category, optionally filtered by a label/tag search. */
+export function getLibraryItems(query = ""): Array<{ category: AssetCategory; items: LibraryItem[] }> {
   const q = query.trim().toLowerCase();
-  const matches = (asset: AssetDefinition) =>
-    !q || asset.label.toLowerCase().includes(q) || asset.tags.some((tag) => tag.includes(q));
+  const matches = (item: LibraryItem) =>
+    !q || item.label.toLowerCase().includes(q) || item.tags.some((tag) => tag.includes(q));
 
   return ASSET_CATEGORY_ORDER.map((category) => ({
     category,
-    assets: Object.values(ASSET_REGISTRY).filter((a) => a.category === category && matches(a)),
-  })).filter((group) => group.assets.length > 0);
+    items: Object.values(ASSET_REGISTRY)
+      .filter((asset) => asset.category === category)
+      .flatMap(libraryItems)
+      .filter(matches),
+  })).filter((group) => group.items.length > 0);
 }

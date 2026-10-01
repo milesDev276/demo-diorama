@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { CORNER } from "../../utils/cornerLayout";
 import { DIORAMA_COLORS } from "../../utils/palette";
+import { BASE_SURFACE } from "../../utils/surfaceSnap";
 import { GltfAsset } from "../GltfAsset";
 import { getSlotMaterial } from "../materials";
 import { buildCornerSurfaces, buildTomareDecal } from "./cornerGeometry";
@@ -44,7 +45,7 @@ export function CornerBase() {
 
   return (
     <group>
-      <mesh geometry={surfaces} material={getSlotMaterial("ground")} castShadow receiveShadow />
+      <mesh geometry={surfaces} material={getSlotMaterial("ground")} userData={BASE_SURFACE} castShadow receiveShadow />
       <mesh geometry={tomare} material={getSlotMaterial("decal")} receiveShadow />
       <mesh geometry={plinth} position={[0, CORNER.slabBottom - PLINTH_HEIGHT / 2, 0]} castShadow receiveShadow>
         <meshStandardMaterial color={DIORAMA_COLORS.plinth} roughness={0.9} />

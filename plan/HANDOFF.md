@@ -1,4 +1,4 @@
-# Handoff — Hero Diorama Work (as of 2026-10-01)
+# Handoff — Hero Diorama Work (as of 2026-10-02)
 
 Read this first when picking up the work. It summarizes where things
 stand, what was decided and why, how to run and verify things, and what
@@ -16,11 +16,19 @@ comes next. Details live in the linked plan files.
 | Stage 1: world scale 1 unit = 1 m, scene file v2 | Done | `main` (PR #4, branch `stage1-scale`) |
 | Stage 2: look-dev | Done | `main` (PR #5) |
 | Stage 3: Blender GLB pipeline in the app, first six hero assets | Done | `main` (PR #6) |
-| **Stage 4: base templates and road surface** | **Implemented, verified and approved by the user (2026-10-01); NOT committed** | branch **`stage4-base`** (cut from `main`) |
-| Stage 5: modular building and surface attachment | Next | — |
+| Stage 4: base templates and road surface | Done | `main` (PR #7) |
+| **Stage 5: modular building and surface attachment** | **Implemented and verified (2026-10-02); NOT committed; waiting for the user's review** | branch **`stage5-building`** (cut from `main`) |
+| Stage 6: density tools | Next | — |
 
-**Immediate next action:** commit `stage4-base`, push, and open a PR.
-The user merges PRs themselves, one branch per stage.
+**Immediate next action:** the user reviews Stage 5, then commits
+`stage5-building`, pushes and opens a PR. The user merges PRs themselves,
+one branch per stage.
+
+**A stash to know about.** `git stash list` holds "stage5 draft slice by
+another tool": six edited files and a box-shaped `Building.tsx` that
+another tool wrote on 2026-10-01 while the Stage 5 plan was being drafted.
+The approved plan replaced that slice, so it was stashed, not applied. It
+can be dropped once the user agrees.
 
 ## 2. Documents
 
@@ -32,6 +40,7 @@ The user merges PRs themselves, one branch per stage.
 | [Stage-2-Implementation.md](Stage-2-Implementation.md) | Look-dev: decisions D1–D6, the bugs that were found, and verification results |
 | [Stage-3-Implementation.md](Stage-3-Implementation.md) | GLB pipeline and the first six assets: decisions D1–D8, deviations, asset table and verification results (§7) |
 | [Stage-4-Implementation.md](Stage-4-Implementation.md) | Base templates and the corner base: decisions D1–D8, deviations and verification results (§7) |
+| [Stage-5-Implementation.md](Stage-5-Implementation.md) | Modular building, parent/child rules (D4) and click-to-place: decisions D1–D8, deviations, asset table and verification results (§7) |
 | `Phase-*.md` | Earlier phases, kept for history |
 
 ## 3. Decisions That Must Not Be Re-litigated
@@ -78,6 +87,23 @@ The user merges PRs themselves, one branch per stage.
   a new cell needs a rectangle there and a painter in `graphicsAtlas.ts`.
   Opaque cells render through `printed`; transparent ones (listed in
   `TRANSPARENT_CELLS`, e.g. 止まれ) through the `decal` material.
+* **A building is params, not a model.** `type: "building"` carries
+  `params` (bays, per-bay facades per floor and side, roof). The app merges
+  the Blender facade modules into one geometry per material slot
+  (`objects/building/`). Grid numbers live in `utils/buildingParams.ts` and
+  `art/blender/lib/facade.py`; keep the two in step.
+* **Parent/child rules are Stage 5 D4.** Flat array plus `parentId`; only
+  a building is a parent; one level; a child's transform is in the
+  building's frame. All world/local math and subtree logic goes through
+  `utils/sceneGraph.ts`. Both `params` and `parentId` are additive (files
+  stay v2).
+* **Adding with the pointer is click-to-place.** A library click starts a
+  placement; `PlacementLayer` raycasts onto meshes tagged
+  `userData.placementSurface` (the base, buildings) and
+  `utils/surfaceSnap.ts` decides the transform. Keyboard activation still
+  uses the spawn spiral.
+* **Building modules tile, so they have no per-face jitter** and nothing
+  bevelled at their left and right ends (`facade.WEATHER`).
 * **Tone mapping is Neutral, not AgX.** AgX greyed the palette; see Stage 2
   D2.
 * **`@react-three/postprocessing` is pinned to exactly `3.0.4`.** Anything
@@ -113,7 +139,8 @@ node scripts/measure-scene.mjs --types keiCar,bicycle --count 100 [--seconds 5] 
     instead of the scene's objects. Open it on a corner scene, so the
     camera presets frame the 16 m base.
   * `/diorama?dev=stats` exposes the R3F state as `window.__dioramaThree()`
-    (renderer, scene, camera) for the measurement and verification scripts.
+    (renderer, scene, camera) and the store as `window.__dioramaStore`, for
+    the measurement and verification scripts.
   * **Preview** turns on the perspective camera and the effect stack.
 * **Verification method used so far:**
   1. Capture before and after with `capture-presets.mjs`.
@@ -170,6 +197,21 @@ node scripts/measure-scene.mjs --types keiCar,bicycle --count 100 [--seconds 5] 
   a server you did not start.
 * **bmesh `create_icosphere`:** `subdivisions=1` is 20 faces, 2 is 80,
   3 is 320.
+* **`build.py all` rewrites every preview and re-bakes the four AO
+  assets** with slightly different noise. Build only what changed, or
+  restore the untouched ones with `git checkout`.
+* **Shell heredocs break on this machine** when the text holds an
+  apostrophe or a backtick, and `python` / `python3` are only the Windows
+  Store stubs (`py` works). Write script files with the editor tools and
+  run them with `node`.
+* **Scripted clicks need a visible target.** A test point behind the
+  building (seen from the camera) hits the building instead. Pick points
+  the preset camera can see, or frame the camera first.
+* **Scripted DOM events in one `evaluate` skip React renders.** Handlers
+  then see stale props; the building panel avoids that by updating from
+  the stored params.
+* **The transform gizmo must stay at the scene root** (`SceneObjects.tsx`).
+  Inside an object's group it would inherit the parent's transform.
 * **The emissive material patches three's shader** after
   `<emissivemap_fragment>` (`materials.ts`). Re-check it on a three
   upgrade.
@@ -179,8 +221,11 @@ node scripts/measure-scene.mjs --types keiCar,bicycle --count 100 [--seconds 5] 
 * **The street strip is still legacy geometry** (≈ 6 m units, 43 draw
   calls). Only the corner base is authored in meters.
 * **Base changes are not on the undo stack.**
-* **Manhole and gutter grates are not placeable** until Stage 5's
-  surface snap.
+* **Attachments do not follow a building resize;** the inspector edits a
+  facade side at once, not per bay; the gizmo neither snaps to surfaces
+  nor re-parents. The full list is in Stage-5-Implementation.md §7.
+* **Building windows glow in daylight** until Stage 7 drives
+  `EMISSIVE_INTENSITY` from the time of day.
 * **Redo does not restore the selection.**
 * **Duplicates are not clamped to the plot.**
 * **Lighting was re-checked with the first GLBs** in Stage 3 and left
@@ -192,28 +237,27 @@ node scripts/measure-scene.mjs --types keiCar,bicycle --count 100 [--seconds 5] 
 * **`npm audit` reports 10 findings.** They all predate this work (next,
   tailwind, sharp, …) and were not addressed.
 
-## 7. Next: Stage 5 — Modular Building and Surface Attachment
+## 7. Next: Stage 6 — Density Tools
 
-From the roadmap; it is the core stage. Write
-`Stage-5-Implementation.md` first and get it approved.
+From the roadmap. Write `Stage-6-Implementation.md` first and get it
+approved.
 
-* **Modules from Blender,** on the L6 grid (bay 1.82 m, floors 3.2 / 2.8
-  m, parapet 1.1 m), without baked AO: wall, window, shopfront and balcony
-  bays, corner, parapet, roof pieces.
-* **A `building` type driven by `params`:** bay counts, a facade per floor
-  and side, a roof type. The app assembles instanced modules.
-* **Attachments with `parentId`:** AC, laundry, water tank, rooftop items,
-  pots, sign frames. Fix the parent/child rules for delete, duplicate,
-  undo and import before writing code.
-* **Click-to-place with a ghost and surface snap.** This also makes the
-  manhole and gutter grate placeable; today they are fixed details of
-  `CornerBase`.
-* **Target footprint on the corner base:** x −3.76 … 1.7, z −3.76 … 1.7
-  (Hero-Layout §3). `?dev=blockout` on a corner scene shows the massing.
-* **Done when:** the hero building can be built from a preset in under 5
-  minutes, attachments follow moves, and undo/redo, duplicate,
-  multi-select, lock/hide, save and import stay correct with parent/child
-  links.
+* **Scatter brush** for fallen leaves, grass tufts, pebbles and small
+  plants: small Blender GLBs, one scene object per layer
+  (`type: "scatter"`, `params: { kind, seed, points }`), rendered with
+  `InstancedMesh`. `params` is typed as `BuildingParams` today; a second
+  parametric type means making it a union keyed by `type`.
+* **Kits:** save a selection as a kit (relative transforms, localStorage);
+  four built-in kits. A kit that contains a building has to keep its
+  attachments linked — reuse `duplicateWithChildren` in the store.
+* **Jitter on duplicating nature props;** asset browser thumbnails from
+  the Blender previews.
+* **Still open from the hero list (L7):** utility pole and transformer in
+  meters, zelkova, block wall, hedge, post box, recycling bin, A-frame
+  sign, chair, meter box. They are not Stage 6 items by themselves; decide
+  with the user where they go.
+* **Done when:** the hero scene's small-detail density takes about 15
+  minutes to reach, and 300+ instances cause no frame-rate drop.
 
 ## 8. Working With This User
 

@@ -1,6 +1,8 @@
 import type { DioramaBase, DioramaObject, DioramaObjectType, Vector3Tuple } from "../types/diorama.types";
 import { ASSET_REGISTRY } from "../assets/assetRegistry";
+import { BUILDING_PRESETS, DEFAULT_BUILDING_PARAMS } from "../assets/buildingPresets";
 import { BASE_TEMPLATES } from "./baseTemplates";
+import { BUILDING_GRID } from "./buildingParams";
 import { CORNER } from "./cornerLayout";
 import { createId } from "./id";
 import { STREET_PLOT } from "./worldScale";
@@ -29,33 +31,52 @@ function nextSpawnPosition(existingCount: number, base: DioramaBase): Vector3Tup
   return [Number(x.toFixed(2)), 0, Number(z.toFixed(2))];
 }
 
+/** The heading a new object of this type starts with. */
+export function spawnYaw(type: DioramaObjectType): number {
+  return ASSET_REGISTRY[type].randomSpawnRotation ? Math.random() * Math.PI * 2 : 0;
+}
+
+/**
+ * A new object of `type`. Without a transform it lands on the base's spawn
+ * spiral; `overrides` carries a chosen transform, a parent or building params.
+ */
 export function createDioramaObject(
   type: DioramaObjectType,
   existingCount: number,
   base: DioramaBase,
-  position?: Vector3Tuple
+  overrides: Partial<Pick<DioramaObject, "position" | "rotation" | "scale" | "parentId" | "params">> = {}
 ): DioramaObject {
-  return {
+  const object: DioramaObject = {
     id: createId(),
     type,
-    position: position ?? nextSpawnPosition(existingCount, base),
-    rotation: [0, ASSET_REGISTRY[type].randomSpawnRotation ? Math.random() * Math.PI * 2 : 0, 0],
-    scale: ASSET_REGISTRY[type].defaultScale,
+    position: overrides.position ?? nextSpawnPosition(existingCount, base),
+    rotation: overrides.rotation ?? [0, spawnYaw(type), 0],
+    scale: overrides.scale ?? ASSET_REGISTRY[type].defaultScale,
     visible: true,
     locked: false,
   };
+  if (overrides.parentId) object.parentId = overrides.parentId;
+  if (type === "building") object.params = overrides.params ?? DEFAULT_BUILDING_PARAMS;
+  return object;
 }
 
 function place(type: DioramaObjectType, x: number, z: number, rotationY = 0, scale?: number, y = 0): DioramaObject {
-  return {
-    id: createId(),
-    type,
+  return createDioramaObject(type, 0, "street", {
     position: [x, y, z],
     rotation: [0, rotationY, 0],
-    scale: scale === undefined ? ASSET_REGISTRY[type].defaultScale : [scale, scale, scale],
-    visible: true,
-    locked: false,
-  };
+    scale: scale === undefined ? undefined : [scale, scale, scale],
+  });
+}
+
+/** An object attached to `parent`, at a position in the parent's frame. */
+function attach(
+  parent: DioramaObject,
+  type: DioramaObjectType,
+  position: Vector3Tuple,
+  rotationY = 0,
+  scale?: number
+): DioramaObject {
+  return { ...place(type, position[0], position[2], rotationY, scale, position[1]), parentId: parent.id };
 }
 
 /** The starter scene of a base: what a first visit and "Reset" show. */
@@ -86,16 +107,38 @@ function getStreetStarter(): DioramaObject[] {
 
 /**
  * Street-corner starter, placed from plan/Hero-Layout.md with the assets
- * that exist so far (the corner building comes later): vending machines
- * and a customer under the ginkgo, a parked bicycle, an AC unit, a kei car
- * at the curb of the right road and a curve mirror watching the junction.
+ * that exist so far: the three-floor corner shop-house with its balcony,
+ * wall and rooftop attachments, vending machines and a customer under the
+ * ginkgo, pots by the shop, a parked bicycle, a kei car at the curb of the
+ * right road and a curve mirror watching the junction.
  */
 function getCornerStarter(): DioramaObject[] {
+  const { bay, groundFloor, upperFloor } = BUILDING_GRID;
+  // Footprint x, z −3.76 … 1.7 (Hero-Layout §3); attachments are in its frame.
+  const building = createDioramaObject("building", 0, "corner", {
+    position: [-1.03, 0, -1.03],
+    rotation: [0, 0, 0],
+    params: BUILDING_PRESETS[0].params,
+  });
+  const wall = (bay * 3) / 2;
+  const balconyFloor = groundFloor + 0.05;
+  const roof = groundFloor + 2 * upperFloor;
+
   return [
+    building,
+    attach(building, "airConditioner", [2.25, balconyFloor, wall + 0.3]),
+    attach(building, "laundry", [0.45, balconyFloor, wall + 0.5]),
+    attach(building, "airConditioner", [wall + 0.2, groundFloor + upperFloor + 0.15, 0], Math.PI / 2),
+    attach(building, "kanbanSign", [wall, 3.6, 2.1], Math.PI / 2),
+    attach(building, "waterTank", [1.63, roof, -1.77]),
+    attach(building, "rooftopShed", [-1.27, roof, -1.57]),
+    attach(building, "pottedPlant", [2.2, roof, 2.25], 0.6),
+    attach(building, "pottedPlant", [1.75, roof, 2.3], 2.1, 0.8),
+    place("pottedPlant", -3.45, 1.95, 1.2),
+    place("pottedPlant", -3.05, 1.9, 4.0, 0.8),
     place("ginkgoTree", -6.6, -1.0, 0.4),
     place("vendingMachine", -5.8, 1.35),
     place("vendingMachine", -4.8, 1.35),
-    place("airConditioner", -3.4, 1.4),
     place("pedestrian", -5.3, 2.4, Math.PI),
     place("bicycle", -1.9, 2.45),
     place("keiCar", 4.35, -5.6, Math.PI, undefined, CORNER.roadY),
