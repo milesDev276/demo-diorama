@@ -32,6 +32,9 @@ export const DIORAMA_COLORS = {
   windowGlow: "#ffd88a",
   acUnit: "#e4e1d9",
   acFan: "#6f6c66",
+  foundation: "#b4afa3",
+  roofSlab: "#a3a79e",
+  doorDark: "#4d423a",
 
   // Street
   asphalt: "#55575a",
@@ -62,6 +65,8 @@ export const DIORAMA_COLORS = {
   signBoard: "#f4f1ea",
   signPost: "#a9adb0",
   plateYellow: "#e6c34f",
+  terracotta: "#b8734f",
+  tankCream: "#e3dcc4",
 
   // Vehicles
   carBody: "#a9c4b6",

@@ -5,7 +5,10 @@ import { Trash2, MousePointerClick, Copy, Eye, EyeOff, Lock, Unlock, X } from "l
 import { cn } from "@/lib/cn";
 import { useDioramaStore } from "../store/dioramaStore";
 import type { Vector3Tuple } from "../types/diorama.types";
+import { ASSET_REGISTRY } from "../assets/assetRegistry";
+import { BuildingPanel } from "./BuildingPanel";
 import { ScenePanel } from "./ScenePanel";
+import { SurfaceActions } from "./SurfaceActions";
 
 const AXES: { key: 0 | 1 | 2; label: string }[] = [
   { key: 0, label: "X" },
@@ -117,7 +120,7 @@ export function PropertiesPanel() {
           >
             <div className="flex items-center justify-center gap-1.5 rounded-lg bg-[#A7C4A0]/25 px-2.5 py-1.5 text-center text-xs font-semibold uppercase tracking-wide text-[#4A3421]">
               {object.locked && <Lock size={11} />}
-              {object.type}
+              {ASSET_REGISTRY[object.type].label}
             </div>
 
             <div className="flex flex-col gap-2">
@@ -165,6 +168,9 @@ export function PropertiesPanel() {
                 onCommit={commitTransform}
               />
             </div>
+
+            {object.type === "building" && <BuildingPanel object={object} />}
+            <SurfaceActions object={object} />
 
             <div className="flex flex-col gap-1.5 border-t border-[#8b6f52]/10 pt-4">
               <button

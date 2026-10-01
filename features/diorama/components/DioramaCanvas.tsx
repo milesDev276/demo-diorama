@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Grid, useGLTF } from "@react-three/drei";
 import { NeutralToneMapping } from "three";
@@ -8,13 +8,15 @@ import { Trees } from "lucide-react";
 import { useDioramaStore } from "../store/dioramaStore";
 import { Ground } from "./Ground";
 import { SceneLighting } from "./SceneLighting";
-import { DioramaObject } from "./DioramaObject";
+import { SceneObjects } from "./SceneObjects";
+import { PlacementLayer } from "./PlacementLayer";
 import { CameraControls } from "./CameraControls";
 import { PostEffects } from "./PostEffects";
 import { SceneFog } from "./SceneFog";
 import { HeroBlockout } from "./dev/HeroBlockout";
 import { DevRendererHandle } from "./dev/DevRendererHandle";
-import { MODEL_URLS } from "../assets/assetRegistry";
+import { cn } from "@/lib/cn";
+import { ASSET_REGISTRY, MODEL_URLS } from "../assets/assetRegistry";
 import { BASE_TEMPLATES } from "../utils/baseTemplates";
 import { DIORAMA_COLORS } from "../utils/palette";
 
@@ -37,8 +39,8 @@ function getDevFlag(): string | null {
  * object rendered from the Zustand store. Clicking empty space deselects.
  */
 export function DioramaCanvas() {
-  const objects = useDioramaStore((s) => s.objects);
-  const selectedObjectIds = useDioramaStore((s) => s.selectedObjectIds);
+  const isEmpty = useDioramaStore((s) => s.objects.length === 0);
+  const placement = useDioramaStore((s) => s.placement);
   const gridSize = useDioramaStore((s) => s.gridSize);
   const isPreviewMode = useDioramaStore((s) => s.isPreviewMode);
   const base = useDioramaStore((s) => s.environment.base);
@@ -52,22 +54,17 @@ export function DioramaCanvas() {
     for (const url of MODEL_URLS) useGLTF.preload(url);
   }, []);
 
-  // The gizmo attaches to the sole selection, or — in a multi-selection — the
-  // most-recently-selected object that isn't locked (locked objects can't drag the group).
-  const gizmoOwnerId = useMemo(() => {
-    for (let i = selectedObjectIds.length - 1; i >= 0; i--) {
-      const id = selectedObjectIds[i];
-      const object = objects.find((o) => o.id === id);
-      if (object && !object.locked) return id;
-    }
-    return null;
-  }, [selectedObjectIds, objects]);
-
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-3xl" style={SKY_BACKDROP_STYLE}>
+    <div
+      className={cn("relative h-full w-full overflow-hidden rounded-3xl", placement && "cursor-crosshair")}
+      style={SKY_BACKDROP_STYLE}
+    >
       <Canvas
         shadows="percentage"
-        onPointerMissed={() => clearSelection()}
+        onPointerMissed={() => {
+          // While a surface is being picked, clicks belong to PlacementLayer.
+          if (!useDioramaStore.getState().placement) clearSelection();
+        }}
         gl={{ antialias: true, toneMapping: NeutralToneMapping }}
       >
         <CameraControls />
@@ -102,15 +99,20 @@ export function DioramaCanvas() {
           />
         )}
 
-        {!showBlockout &&
-          objects.map((object) => (
-            <DioramaObject key={object.id} object={object} isGizmoOwner={object.id === gizmoOwnerId} />
-          ))}
+        {!showBlockout && <SceneObjects />}
+        {!showBlockout && !isPreviewMode && <PlacementLayer />}
 
         {isPreviewMode && <PostEffects />}
       </Canvas>
 
-      {objects.length === 0 && !isPreviewMode && (
+      {placement && (
+        <p className="pointer-events-none absolute left-1/2 top-4 -translate-x-1/2 rounded-full bg-white/80 px-4 py-1.5 text-xs font-medium text-[#4A3421] shadow-[0_8px_24px_rgba(139,111,82,0.15)] backdrop-blur">
+          {ASSET_REGISTRY[placement.type].label}: click a surface to place it · Shift+click to place several · Esc
+          to cancel
+        </p>
+      )}
+
+      {isEmpty && !isPreviewMode && !placement && (
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 text-center">
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/70 text-[#8B6F52] shadow-[0_8px_24px_rgba(139,111,82,0.15)] backdrop-blur">
             <Trees size={26} />
