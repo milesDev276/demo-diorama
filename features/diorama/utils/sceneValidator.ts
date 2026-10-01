@@ -1,5 +1,12 @@
-import { DIORAMA_OBJECT_TYPES } from "../types/diorama.types";
-import type { DioramaObject, DioramaObjectType, DioramaScene, Vector3Tuple } from "../types/diorama.types";
+import { DIORAMA_BASES, DIORAMA_OBJECT_TYPES } from "../types/diorama.types";
+import type {
+  DioramaBase,
+  DioramaEnvironment,
+  DioramaObject,
+  DioramaObjectType,
+  DioramaScene,
+  Vector3Tuple,
+} from "../types/diorama.types";
 import { createId } from "./id";
 import { DEFAULT_SCENE_NAME } from "./objectDefaults";
 import { DEFAULT_CAMERA_STATE, DEFAULT_ENVIRONMENT } from "./sceneDefaults";
@@ -48,6 +55,13 @@ function normalizeObject(raw: unknown, seenIds: Set<string>): DioramaObject | nu
   return { id, type: r.type as DioramaObjectType, position, rotation, scale, visible, locked };
 }
 
+/** Keeps the file's base if it is one this app knows; everything else is the default. */
+function normalizeEnvironment(raw: unknown): DioramaEnvironment {
+  const base = raw && typeof raw === "object" ? (raw as Record<string, unknown>).base : undefined;
+  const known = (DIORAMA_BASES as readonly unknown[]).includes(base);
+  return { ...DEFAULT_ENVIRONMENT, base: known ? (base as DioramaBase) : DEFAULT_ENVIRONMENT.base };
+}
+
 /**
  * Validates and normalizes arbitrary JSON into a safe DioramaScene. Never
  * throws — always returns either the scene or a human-readable error.
@@ -86,7 +100,7 @@ export function validateAndNormalizeScene(data: unknown): { scene: DioramaScene 
       id: typeof root.id === "string" && root.id.trim() ? root.id : createId("scene"),
       name,
       objects,
-      environment: DEFAULT_ENVIRONMENT,
+      environment: normalizeEnvironment(root.environment),
       camera: DEFAULT_CAMERA_STATE,
     };
 

@@ -15,7 +15,7 @@ import { SceneFog } from "./SceneFog";
 import { HeroBlockout } from "./dev/HeroBlockout";
 import { DevRendererHandle } from "./dev/DevRendererHandle";
 import { MODEL_URLS } from "../assets/assetRegistry";
-import { STREET_PLOT } from "../utils/worldScale";
+import { BASE_TEMPLATES } from "../utils/baseTemplates";
 import { DIORAMA_COLORS } from "../utils/palette";
 
 /** Inline because the stops come from the palette, which SkyBackdrop in Preview also uses. */
@@ -41,6 +41,8 @@ export function DioramaCanvas() {
   const selectedObjectIds = useDioramaStore((s) => s.selectedObjectIds);
   const gridSize = useDioramaStore((s) => s.gridSize);
   const isPreviewMode = useDioramaStore((s) => s.isPreviewMode);
+  const base = useDioramaStore((s) => s.environment.base);
+  const template = BASE_TEMPLATES[base];
   const clearSelection = useDioramaStore((s) => s.clearSelection);
   const [devFlag] = useState(getDevFlag);
   const showBlockout = devFlag === "blockout";
@@ -73,18 +75,18 @@ export function DioramaCanvas() {
         {devFlag === "stats" && <DevRendererHandle />}
 
         <SceneLighting />
-        {showBlockout ? (
+        {/* The blockout is the hero scene, so it always stands on the corner base. */}
+        <Ground base={showBlockout ? "corner" : base} />
+        {showBlockout && (
           <Suspense fallback={null}>
             <HeroBlockout />
           </Suspense>
-        ) : (
-          <Ground />
         )}
 
         {!isPreviewMode && !showBlockout && (
           <Grid
-            position={[0, 0.072, 0]}
-            args={[STREET_PLOT.width, STREET_PLOT.depth]}
+            position={[0, template.gridY, 0]}
+            args={[template.width, template.depth]}
             cellSize={gridSize}
             cellThickness={0.5}
             cellColor="#8b6f52"
@@ -92,7 +94,7 @@ export function DioramaCanvas() {
             sectionThickness={0.9}
             sectionColor="#8b6f52"
             fadeFrom={0}
-            fadeDistance={STREET_PLOT.width * 0.75}
+            fadeDistance={template.width * 0.75}
             fadeStrength={1.5}
             followCamera={false}
             infiniteGrid={false}

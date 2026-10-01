@@ -7,7 +7,8 @@ const BLOCKOUT_URL = "/models/_dev/hero_blockout.glb";
 /**
  * Dev-only: the gray-box hero scene from plan/Hero-Layout.md, exported by
  * art/blender/blockout/hero_blockout.py. Shown via `/diorama?dev=blockout`
- * as a composition and lighting reference. Not scene data, not an asset.
+ * on top of the corner base, as a composition, alignment and lighting
+ * reference. Not scene data, not an asset.
  */
 export function HeroBlockout() {
   const { scene } = useGLTF(BLOCKOUT_URL);

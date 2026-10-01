@@ -13,6 +13,7 @@ export const DIORAMA_OBJECT_TYPES = [
   "pedestrian",
   "keiCar",
   "bicycle",
+  "curveMirror",
 ] as const;
 
 export type DioramaObjectType = (typeof DIORAMA_OBJECT_TYPES)[number];
@@ -33,11 +34,17 @@ export interface DioramaObject {
 
 export type TransformMode = "translate" | "rotate" | "scale";
 
-/** Scene-level environment settings. Only one variant exists today, but the
- *  shape leaves room for future ground/sky presets without a data migration. */
+/** The miniature base the scene is built on (utils/baseTemplates.ts). */
+export const DIORAMA_BASES = ["street", "corner"] as const;
+
+export type DioramaBase = (typeof DIORAMA_BASES)[number];
+
+/** Scene-level environment settings. `background` and `ground` have one
+ *  variant each today; `base` selects the base template. */
 export interface DioramaEnvironment {
   background: string;
   ground: string;
+  base: DioramaBase;
 }
 
 export interface DioramaCameraState {

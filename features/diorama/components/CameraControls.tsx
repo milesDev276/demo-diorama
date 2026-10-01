@@ -1,16 +1,21 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, OrthographicCamera, PerspectiveCamera } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
 import { useDioramaStore } from "../store/dioramaStore";
 import { CAMERA_PRESETS, DEFAULT_CAMERA_TARGET } from "../utils/cameraPresets";
+import { BASE_TEMPLATES } from "../utils/baseTemplates";
 import type { CameraPreset, Vector3Tuple } from "../types/diorama.types";
 
 /** Vertical field of view of the Preview camera — narrow, like a lens photographing a model. */
 const PREVIEW_FOV = 24;
+
+/** Orthographic zoom limits, in screen pixels per meter. */
+const MIN_ZOOM = 5;
+const MAX_ZOOM = 80;
 
 interface Transition {
   fromPos: THREE.Vector3;
@@ -53,7 +58,12 @@ export function CameraControls() {
   const previewEntryRef = useRef<PreviewEntry | null>(null);
   const camera = useThree((s) => s.camera);
   const isPreviewMode = useDioramaStore((s) => s.isPreviewMode);
+  const base = useDioramaStore((s) => s.environment.base);
   const registerCameraApi = useDioramaStore((s) => s.registerCameraApi);
+  // The zoom the editing camera is created with. Later base changes animate
+  // through the camera API instead of jumping with a changed prop.
+  const [initialZoom] = useState(() => BASE_TEMPLATES[base].presetZoom.isometric);
+  const framedBaseRef = useRef(base);
 
   // Switching between the editing and Preview cameras keeps the composition:
   // same orbit target, same viewing direction, same visible world height.
@@ -109,9 +119,10 @@ export function CameraControls() {
       };
     }
 
+    const template = BASE_TEMPLATES[base];
+
     function applyPreset(preset: CameraPreset) {
-      const config = CAMERA_PRESETS[preset];
-      startTransition(config.position, DEFAULT_CAMERA_TARGET, config.zoom);
+      startTransition(CAMERA_PRESETS[preset].position, DEFAULT_CAMERA_TARGET, template.presetZoom[preset]);
     }
 
     registerCameraApi({
@@ -125,14 +136,14 @@ export function CameraControls() {
         positions.forEach((p) => box.expandByPoint(new THREE.Vector3(...p)));
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
-        const radius = Math.max(9, size.length() / 2 + 9);
+        const radius = Math.max(template.focusRadius, size.length() / 2 + template.focusRadius);
 
         const direction = camera.position.clone().sub(controls.target);
         if (direction.lengthSq() === 0) direction.set(1, 1, 1);
         direction.normalize();
 
         const distance = 78;
-        const targetZoom = THREE.MathUtils.clamp(95 / radius, 32 / 6, 170 / 6);
+        const targetZoom = THREE.MathUtils.clamp(95 / radius, MIN_ZOOM, MAX_ZOOM);
 
         startTransition(
           [
@@ -147,8 +158,14 @@ export function CameraControls() {
       },
     });
 
+    // A different base is a different size: reframe it with its own presets.
+    if (framedBaseRef.current !== base) {
+      framedBaseRef.current = base;
+      applyPreset("isometric");
+    }
+
     return () => registerCameraApi(null);
-  }, [camera, registerCameraApi]);
+  }, [camera, base, registerCameraApi]);
 
   // R3F's whole model is imperative mutation of Three.js objects each frame —
   // `camera` here is the live scene camera, not React-owned render state, so
@@ -187,7 +204,7 @@ export function CameraControls() {
         ref={orthoRef}
         makeDefault={!isPreviewMode}
         position={CAMERA_PRESETS.isometric.position}
-        zoom={CAMERA_PRESETS.isometric.zoom}
+        zoom={initialZoom}
         near={0.6}
         far={600}
       />
@@ -198,8 +215,8 @@ export function CameraControls() {
         target={DEFAULT_CAMERA_TARGET}
         enableDamping
         dampingFactor={0.08}
-        minZoom={5}
-        maxZoom={200 / 6}
+        minZoom={MIN_ZOOM}
+        maxZoom={MAX_ZOOM}
         minPolarAngle={0.05}
         maxPolarAngle={Math.PI / 2 - 0.02}
         minDistance={8}

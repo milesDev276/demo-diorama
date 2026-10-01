@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type {
   CameraControlsApi,
+  DioramaBase,
   DioramaCameraState,
   DioramaEnvironment,
   DioramaObject,
@@ -78,8 +79,11 @@ interface DioramaState {
 
   // --- Scene management ---
   setSceneName: (name: string) => void;
+  /** Switches the base under the existing objects. Not on the undo stack: switch back to undo. */
+  setBase: (base: DioramaBase) => void;
   resetScene: () => void;
-  newScene: () => void;
+  /** Starts an empty scene on the given base (default: the current one). */
+  newScene: (base?: DioramaBase) => void;
   saveScene: () => void;
   loadScene: (scene: DioramaScene) => void;
   exportScene: () => void;
@@ -119,21 +123,36 @@ function offsetPosition(position: Vector3Tuple): Vector3Tuple {
   return [position[0] + DUPLICATE_OFFSET, position[1], position[2] + DUPLICATE_OFFSET];
 }
 
-function loadInitialState(): { objects: DioramaObject[]; sceneId: string; sceneName: string } {
+function loadInitialState(): {
+  objects: DioramaObject[];
+  sceneId: string;
+  sceneName: string;
+  environment: DioramaEnvironment;
+} {
   if (typeof window !== "undefined") {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const result = validateAndNormalizeScene(JSON.parse(raw));
         if (!("error" in result)) {
-          return { objects: result.scene.objects, sceneId: result.scene.id, sceneName: result.scene.name };
+          return {
+            objects: result.scene.objects,
+            sceneId: result.scene.id,
+            sceneName: result.scene.name,
+            environment: result.scene.environment,
+          };
         }
       }
     } catch {
       // Corrupted localStorage — fall through to the default scene.
     }
   }
-  return { objects: getDefaultScene(), sceneId: createId("scene"), sceneName: DEFAULT_SCENE_NAME };
+  return {
+    objects: getDefaultScene(DEFAULT_ENVIRONMENT.base),
+    sceneId: createId("scene"),
+    sceneName: DEFAULT_SCENE_NAME,
+    environment: DEFAULT_ENVIRONMENT,
+  };
 }
 
 const initial = loadInitialState();
@@ -142,7 +161,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   objects: initial.objects,
   sceneId: initial.sceneId,
   sceneName: initial.sceneName,
-  environment: DEFAULT_ENVIRONMENT,
+  environment: initial.environment,
   camera: DEFAULT_CAMERA_STATE,
 
   ...createInitialHistory(initial.objects),
@@ -160,7 +179,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
 
   addObject: (type, position) =>
     set((state) => {
-      const object = createDioramaObject(type, state.objects.length, position);
+      const object = createDioramaObject(type, state.objects.length, state.environment.base, position);
       const objects = [...state.objects, object];
       return {
         objects,
@@ -278,9 +297,12 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
 
   setSceneName: (name) => set({ sceneName: name.slice(0, 80) || DEFAULT_SCENE_NAME }),
 
+  setBase: (base) =>
+    set((state) => (state.environment.base === base ? state : { environment: { ...state.environment, base } })),
+
   resetScene: () =>
     set((state) => {
-      const objects = getDefaultScene();
+      const objects = getDefaultScene(state.environment.base);
       return {
         objects,
         selectedObjectIds: [],
@@ -289,11 +311,12 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
       };
     }),
 
-  newScene: () =>
-    set(() => {
+  newScene: (base) =>
+    set((state) => {
       const objects: DioramaObject[] = [];
       return {
         objects,
+        environment: { ...state.environment, base: base ?? state.environment.base },
         sceneId: createId("scene"),
         sceneName: DEFAULT_SCENE_NAME,
         selectedObjectIds: [],

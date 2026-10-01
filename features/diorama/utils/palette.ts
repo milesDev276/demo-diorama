@@ -40,6 +40,9 @@ export const DIORAMA_COLORS = {
   sidewalkJoint: "#b3ad9f",
   curb: "#dcd7cc",
   lotGravel: "#bdb4a0",
+  plinth: "#3d3835",
+  mirrorOrange: "#d98236",
+  mirrorGlass: "#b7ccd4",
 
   // Infrastructure
   poleConcrete: "#9c978b",

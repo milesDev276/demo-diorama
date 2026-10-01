@@ -1,27 +1,35 @@
 import { Environment, Lightformer } from "@react-three/drei";
+import { useDioramaStore } from "../store/dioramaStore";
+import { BASE_TEMPLATES } from "../utils/baseTemplates";
 
 /**
  * Soft, warm miniature lighting (meters). A low warm sun casts soft PCF
  * shadows. A small procedural environment — Lightformers, no HDRI file —
  * gives sky fill from above, a warm glow from the sun side and a little
  * ground bounce, so the ambient and hemisphere lights can stay low.
+ * The shadow frustum is fitted to the active base; the sun is recreated
+ * when the base changes so its shadow camera picks the new size up.
  */
 export function SceneLighting() {
+  const base = useDioramaStore((s) => s.environment.base);
+  const extent = BASE_TEMPLATES[base].shadowExtent;
+
   return (
     <>
       <ambientLight intensity={0.25} color="#fff0dc" />
       <hemisphereLight color="#cfe3f2" groundColor="#e6c9a3" intensity={0.45} />
       <directionalLight
+        key={base}
         position={[36, 29, 21]}
         intensity={1.8}
         color="#ffe2bf"
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
-        shadow-camera-left={-32}
-        shadow-camera-right={32}
-        shadow-camera-top={32}
-        shadow-camera-bottom={-32}
+        shadow-camera-left={-extent}
+        shadow-camera-right={extent}
+        shadow-camera-top={extent}
+        shadow-camera-bottom={-extent}
         shadow-camera-near={3}
         shadow-camera-far={120}
         shadow-bias={-0.001}

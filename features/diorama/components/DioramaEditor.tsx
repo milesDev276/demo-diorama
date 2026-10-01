@@ -9,7 +9,7 @@ import { ObjectLibrary } from "./ObjectLibrary";
 import { ObjectList } from "./ObjectList";
 import { PropertiesPanel } from "./PropertiesPanel";
 import { DioramaCanvas } from "./DioramaCanvas";
-import { ConfirmDialog } from "./ConfirmDialog";
+import { NewSceneDialog } from "./NewSceneDialog";
 import { useDioramaStore } from "../store/dioramaStore";
 import { useEditorShortcuts } from "../hooks/useEditorShortcuts";
 import { useAutoSave } from "../hooks/useAutoSave";
@@ -28,16 +28,12 @@ export function DioramaEditor() {
   const importError = useDioramaStore((s) => s.importError);
   const clearImportError = useDioramaStore((s) => s.clearImportError);
 
-  const [confirmNewOpen, setConfirmNewOpen] = useState(false);
+  const [newDialogOpen, setNewDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEditorShortcuts(!isPreview);
   useAutoSave();
 
-  const handleRequestNewScene = () => {
-    if (saveStatus !== "saved") setConfirmNewOpen(true);
-    else newScene();
-  };
 
   const handleImportClick = () => fileInputRef.current?.click();
 
@@ -64,7 +60,7 @@ export function DioramaEditor() {
           <EditorToolbar
             isPreview={isPreview}
             onTogglePreview={() => setPreviewMode(true)}
-            onRequestNewScene={handleRequestNewScene}
+            onRequestNewScene={() => setNewDialogOpen(true)}
             onImportClick={handleImportClick}
           />
         )}
@@ -154,17 +150,13 @@ export function DioramaEditor() {
         </motion.button>
       )}
 
-      <ConfirmDialog
-        open={confirmNewOpen}
-        title="You have unsaved changes."
-        message="Starting a new Diorama will discard them."
-        confirmLabel="Discard"
-        cancelLabel="Cancel"
-        danger
-        onCancel={() => setConfirmNewOpen(false)}
-        onConfirm={() => {
-          setConfirmNewOpen(false);
-          newScene();
+      <NewSceneDialog
+        open={newDialogOpen}
+        hasUnsavedChanges={saveStatus !== "saved"}
+        onCancel={() => setNewDialogOpen(false)}
+        onCreate={(base) => {
+          setNewDialogOpen(false);
+          newScene(base);
         }}
       />
     </div>
