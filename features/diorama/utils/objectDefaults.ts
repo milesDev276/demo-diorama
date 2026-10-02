@@ -1,10 +1,20 @@
-import type { DioramaBase, DioramaObject, DioramaObjectType, Vector3Tuple } from "../types/diorama.types";
+import type {
+  DioramaBase,
+  DioramaObject,
+  DioramaObjectType,
+  ObjectParams,
+  ScatterKind,
+  ScatterParams,
+  Vector3Tuple,
+} from "../types/diorama.types";
 import { ASSET_REGISTRY } from "../assets/assetRegistry";
 import { BUILDING_PRESETS, DEFAULT_BUILDING_PARAMS } from "../assets/buildingPresets";
+import { SCATTER_KIND_SPECS } from "../assets/scatterKinds";
 import { BASE_TEMPLATES } from "./baseTemplates";
 import { BUILDING_GRID } from "./buildingParams";
 import { CORNER } from "./cornerLayout";
 import { createId } from "./id";
+import { newScatterSeed, roundPoint, scatterLine, scatterPatch } from "./scatterParams";
 import { STREET_PLOT } from "./worldScale";
 
 const PLOT_Z = STREET_PLOT.z;
@@ -16,7 +26,7 @@ const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(mi
  * using a golden-angle spiral so repeated clicks fan out instead of stacking
  * on top of each other, clamped to stay inside it.
  */
-function nextSpawnPosition(existingCount: number, base: DioramaBase): Vector3Tuple {
+export function nextSpawnPosition(existingCount: number, base: DioramaBase): Vector3Tuple {
   const { spawnBounds: bounds, spawnSpread: spread } = BASE_TEMPLATES[base];
   const goldenAngle = 2.399963229728653; // radians
   const angle = existingCount * goldenAngle;
@@ -34,6 +44,25 @@ function nextSpawnPosition(existingCount: number, base: DioramaBase): Vector3Tup
 /** The heading a new object of this type starts with. */
 export function spawnYaw(type: DioramaObjectType): number {
   return ASSET_REGISTRY[type].randomSpawnRotation ? Math.random() * Math.PI * 2 : 0;
+}
+
+/** The scale of a repeat of `scale`: varied within the asset's jitter, if it has one. */
+export function jitteredScale(type: DioramaObjectType, scale: Vector3Tuple): Vector3Tuple {
+  const jitter = ASSET_REGISTRY[type].jitter;
+  if (!jitter) return scale;
+  const k = 1 + (Math.random() * 2 - 1) * jitter;
+  return [scale[0] * k, scale[1] * k, scale[2] * k];
+}
+
+/** A ready-made round patch of one scatter kind — the brush's keyboard path, kits and starters. */
+export function scatterPatchParams(kind: ScatterKind, radius = 1.2, seed = newScatterSeed()): ScatterParams {
+  return { kind, seed, points: scatterPatch(seed, radius, SCATTER_KIND_SPECS[kind].spacing * 1.15) };
+}
+
+function defaultParams(type: DioramaObjectType): ObjectParams | undefined {
+  if (type === "building") return DEFAULT_BUILDING_PARAMS;
+  if (type === "scatter") return scatterPatchParams("leaves");
+  return undefined;
 }
 
 /**
@@ -56,7 +85,8 @@ export function createDioramaObject(
     locked: false,
   };
   if (overrides.parentId) object.parentId = overrides.parentId;
-  if (type === "building") object.params = overrides.params ?? DEFAULT_BUILDING_PARAMS;
+  const params = overrides.params ?? defaultParams(type);
+  if (params) object.params = params;
   return object;
 }
 
@@ -105,12 +135,72 @@ function getStreetStarter(): DioramaObject[] {
   ];
 }
 
+/** A scatter layer at a world position, with points in its own frame. */
+function scatterLayer(kind: ScatterKind, origin: [number, number], seed: number, points: Vector3Tuple[]): DioramaObject {
+  return createDioramaObject("scatter", 0, "corner", {
+    position: [origin[0], 0, origin[1]],
+    rotation: [0, 0, 0],
+    params: { kind, seed, points },
+  });
+}
+
+/** Points of a patch centered at `center` (world), expressed from `origin` and kept inside `keep`. */
+function patchAt(
+  seed: number,
+  kind: ScatterKind,
+  origin: [number, number],
+  center: [number, number],
+  radius: number,
+  keep: (x: number, z: number) => boolean
+): Vector3Tuple[] {
+  return scatterPatch(seed, radius, SCATTER_KIND_SPECS[kind].spacing * 1.1, 400)
+    .map(([x, , z]): Vector3Tuple => [x + center[0], 0, z + center[1]])
+    .filter(([x, , z]) => keep(x, z))
+    .map(([x, , z]) => roundPoint([x - origin[0], 0, z - origin[1]]));
+}
+
+/**
+ * The corner starter's small details (Stage 6 D10): fallen leaves under the
+ * ginkgo drifting onto the sidewalk, weeds along the building's back walls
+ * and grass in the lot's back corner. Kept off the roads and the building.
+ */
+function cornerScatter(): DioramaObject[] {
+  const inside = (x: number, z: number) => Math.max(Math.abs(x), Math.abs(z)) < CORNER.half - 0.15;
+  const offRoad = (x: number, z: number) => inside(x, z) && x < CORNER.roadEdge - 0.2 && z < CORNER.roadEdge - 0.2;
+  const offBuilding = (x: number, z: number) => offRoad(x, z) && !(x > -3.9 && x < 1.85 && z > -3.9 && z < 1.85);
+
+  const leavesOrigin: [number, number] = [-6.6, -1.0];
+  const leaves = [
+    ...patchAt(11, "leaves", leavesOrigin, leavesOrigin, 2.4, offBuilding),
+    ...patchAt(12, "leaves", leavesOrigin, [-5.4, 2.7], 1.3, offBuilding),
+  ];
+
+  const weedsOrigin: [number, number] = [-3.95, -3.95];
+  const wallFoot = (from: [number, number], to: [number, number], seed: number) =>
+    scatterLine(seed, from, to, 0.5, 0.08).map(([x, , z]) => roundPoint([x - weedsOrigin[0], 0, z - weedsOrigin[1]]));
+  const weeds = [
+    ...wallFoot([-3.95, -3.95], [1.6, -3.95], 21),
+    ...wallFoot([-3.95, -3.7], [-3.95, 1.2], 22),
+    ...wallFoot([-7.75, -7.75], [-1.5, -7.75], 23),
+  ];
+
+  const grassOrigin: [number, number] = [-6.6, -6.6];
+  const grass = patchAt(31, "grass", grassOrigin, grassOrigin, 1.5, inside);
+
+  return [
+    scatterLayer("leaves", leavesOrigin, 1101, leaves),
+    scatterLayer("weeds", weedsOrigin, 2101, weeds),
+    scatterLayer("grass", grassOrigin, 3101, grass),
+  ];
+}
+
 /**
  * Street-corner starter, placed from plan/Hero-Layout.md with the assets
  * that exist so far: the three-floor corner shop-house with its balcony,
  * wall and rooftop attachments, vending machines and a customer under the
  * ginkgo, pots by the shop, a parked bicycle, a kei car at the curb of the
- * right road and a curve mirror watching the junction.
+ * right road, a curve mirror watching the junction, and fallen leaves,
+ * weeds and grass.
  */
 function getCornerStarter(): DioramaObject[] {
   const { bay, groundFloor, upperFloor } = BUILDING_GRID;
@@ -143,6 +233,7 @@ function getCornerStarter(): DioramaObject[] {
     place("bicycle", -1.9, 2.45),
     place("keiCar", 4.35, -5.6, Math.PI, undefined, CORNER.roadY),
     place("curveMirror", 3.2, 3.2, Math.PI / 4),
+    ...cornerScatter(),
   ];
 }
 

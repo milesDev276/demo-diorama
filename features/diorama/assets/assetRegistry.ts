@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import {
   AirVent,
   AlignJustify,
+  Armchair,
   Bike,
   Building2,
   Cable,
@@ -12,10 +13,14 @@ import {
   Cylinder,
   Gem,
   House as HouseIcon,
+  Package,
   PersonStanding,
+  Presentation,
   RectangleVertical,
+  Recycle,
   Shirt,
   Signpost,
+  Sparkles,
   Sprout,
   Store,
   TreeDeciduous,
@@ -24,11 +29,25 @@ import {
   Warehouse,
   type LucideIcon,
 } from "lucide-react";
-import type { BuildingParams, DioramaObject, DioramaObjectType, Vector3Tuple } from "../types/diorama.types";
-import { Building, type BuildingProps } from "../objects/building/Building";
+import { SCATTER_KINDS } from "../types/diorama.types";
+import type {
+  AssetComponentProps,
+  DioramaObject,
+  DioramaObjectType,
+  Kit,
+  ObjectParams,
+  ScatterKind,
+  Vector3Tuple,
+} from "../types/diorama.types";
+import { BuildingAsset } from "../objects/building/Building";
 import { BUILDING_MODULES } from "../objects/building/buildingLayout";
+import { ScatterLayer } from "../objects/scatter/ScatterLayer";
 import { buildingSize } from "../utils/buildingParams";
+import { buildingParamsOf, scatterParamsOf } from "../utils/objectParams";
+import { scatterRadius } from "../utils/scatterParams";
 import { BUILDING_PRESETS, DEFAULT_BUILDING_PARAMS } from "./buildingPresets";
+import { SCATTER_KIND_SPECS } from "./scatterKinds";
+import thumbnailKeys from "./thumbnails.json";
 import { House } from "../objects/House";
 import { PowerLine } from "../objects/PowerLine";
 import { Rock } from "../objects/Rock";
@@ -63,13 +82,16 @@ interface AssetBase {
   /** Set if the asset can hang on a wall: `offset` is how far its origin
    *  stands off the wall, `only` means it cannot stand on a flat surface. */
   wallMount?: { offset: number; only?: boolean };
+  /** Natural things whose repeats should not look stamped: duplicates and
+   *  Shift+click placements get a random heading and a size within ± this fraction. */
+  jitter?: number;
   tags: string[];
 }
 
 /** Geometry written as JSX, origin at the ground contact point. */
 export interface ProceduralAsset extends AssetBase {
-  /** Parametric assets (the building) read the object's params; the others take no props. */
-  component: ComponentType<BuildingProps>;
+  /** Parametric assets (building, scatter) read the object's params; the others ignore their props. */
+  component: ComponentType<AssetComponentProps>;
   /** True if `component` is authored in the pre-meter unit (≈ 6 m) and must be
    *  rendered scaled by LEGACY_UNIT_SCALE. */
   legacyUnits: boolean;
@@ -95,7 +117,7 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     label: "Building",
     category: "Buildings",
     icon: Building2,
-    component: Building,
+    component: BuildingAsset,
     legacyUnits: false,
     defaultScale: [1, 1, 1],
     footprintRadius: 4.2,
@@ -250,6 +272,7 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     defaultScale: [1, 1, 1],
     footprintRadius: 0.3,
     randomSpawnRotation: true,
+    jitter: 0.12,
     tags: ["plant", "pot", "hachiue", "green"],
   },
   waterTank: {
@@ -274,6 +297,51 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     randomSpawnRotation: false,
     tags: ["shed", "storage", "prefab", "monooki", "rooftop"],
   },
+  recycleBin: {
+    type: "recycleBin",
+    label: "Recycling Bin",
+    category: "Props",
+    icon: Recycle,
+    modelUrl: "/models/props/prop_recycle_bin_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 0.4,
+    randomSpawnRotation: false,
+    tags: ["recycle", "bin", "cans", "bottles", "trash", "vending"],
+  },
+  aFrameSign: {
+    type: "aFrameSign",
+    label: "A-frame Sign",
+    category: "Props",
+    icon: Presentation,
+    modelUrl: "/models/props/prop_a_frame_sign_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 0.4,
+    randomSpawnRotation: false,
+    tags: ["sign", "a-frame", "tatekanban", "menu", "shop", "board"],
+  },
+  chair: {
+    type: "chair",
+    label: "Plastic Chair",
+    category: "Props",
+    icon: Armchair,
+    modelUrl: "/models/props/prop_chair_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 0.4,
+    randomSpawnRotation: false,
+    tags: ["chair", "seat", "plastic", "rooftop"],
+  },
+  scatter: {
+    type: "scatter",
+    label: "Scatter",
+    category: "Nature",
+    icon: Sparkles,
+    component: ScatterLayer,
+    legacyUnits: false,
+    defaultScale: [1, 1, 1],
+    footprintRadius: 1,
+    randomSpawnRotation: false,
+    tags: ["scatter", "brush"],
+  },
   tree: {
     type: "tree",
     label: "Tree",
@@ -284,6 +352,7 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     defaultScale: [1, 1, 1],
     footprintRadius: 3,
     randomSpawnRotation: true,
+    jitter: 0.12,
     tags: ["plant", "green", "garden"],
   },
   rock: {
@@ -296,6 +365,7 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     defaultScale: [0.9, 0.9, 0.9],
     footprintRadius: 2.7,
     randomSpawnRotation: true,
+    jitter: 0.12,
     tags: ["rock", "stone", "garden"],
   },
   bicycle: {
@@ -318,6 +388,7 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     defaultScale: [1, 1, 1],
     footprintRadius: 2.6,
     randomSpawnRotation: true,
+    jitter: 0.12,
     tags: ["tree", "ginkgo", "icho", "autumn", "street tree"],
   },
   keiCar: {
@@ -344,55 +415,135 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
   },
 };
 
-/** Every GLB the registry can show (assets and building modules), for preloading. */
+/** Every GLB the registry can show (assets, building modules, scatter pieces), for preloading. */
 export const MODEL_URLS: string[] = [
   ...Object.values(ASSET_REGISTRY).flatMap((asset) => ("modelUrl" in asset ? [asset.modelUrl] : [])),
   ...Object.values(BUILDING_MODULES),
+  ...Object.values(SCATTER_KIND_SPECS).map((spec) => spec.modelUrl),
 ];
 
-/** Radius of the selection ring under an object. A building's follows its footprint. */
+/** Radius of the selection ring under an object. A building's follows its footprint, a scatter layer's its pieces. */
 export function getFootprintRadius(object: Pick<DioramaObject, "type" | "params">): number {
-  if (object.type !== "building") return ASSET_REGISTRY[object.type].footprintRadius;
-  const { width, depth } = buildingSize(object.params ?? DEFAULT_BUILDING_PARAMS);
-  return Math.hypot(width, depth) / 2 + 0.4;
+  if (object.type === "building") {
+    const { width, depth } = buildingSize(buildingParamsOf(object) ?? DEFAULT_BUILDING_PARAMS);
+    return Math.hypot(width, depth) / 2 + 0.4;
+  }
+  if (object.type === "scatter") return Math.max(0.5, scatterRadius(scatterParamsOf(object)?.points ?? []) + 0.3);
+  return ASSET_REGISTRY[object.type].footprintRadius;
 }
 
-/** One entry of the asset browser: an asset, or a preset of a parametric one. */
-export interface LibraryItem {
+/** What the scene list and the inspector call an object: a scatter layer is named after its kind. */
+export function objectLabel(object: Pick<DioramaObject, "type" | "params">): string {
+  const scatter = scatterParamsOf(object);
+  return scatter ? SCATTER_KIND_SPECS[scatter.kind].label : ASSET_REGISTRY[object.type].label;
+}
+
+export function objectIcon(object: Pick<DioramaObject, "type" | "params">): LucideIcon {
+  const scatter = scatterParamsOf(object);
+  return scatter ? SCATTER_KIND_SPECS[scatter.kind].icon : ASSET_REGISTRY[object.type].icon;
+}
+
+const THUMBNAILS: ReadonlySet<string> = new Set(thumbnailKeys as string[]);
+
+/** File name of a library item's thumbnail (scripts/capture-thumbnails.mjs writes them). */
+export function thumbnailFileName(key: string): string {
+  return `${key.replace(/[^a-zA-Z0-9-]+/g, "--")}.webp`;
+}
+
+/** The item's thumbnail, if one was rendered for it. */
+function thumbnailFor(key: string): string | undefined {
+  return THUMBNAILS.has(key) ? `/thumbnails/${thumbnailFileName(key)}` : undefined;
+}
+
+interface LibraryItemBase {
   key: string;
   label: string;
   icon: LucideIcon;
-  type: DioramaObjectType;
-  params?: BuildingParams;
   tags: string[];
+  thumbnail?: string;
 }
 
-/** The building is offered as its presets; every other asset as itself. */
+/** One entry of the asset browser: something to place, a scatter brush, or a kit. */
+export type LibraryItem = LibraryItemBase &
+  (
+    | { action: "place"; type: DioramaObjectType; params?: ObjectParams }
+    | { action: "brush"; kind: ScatterKind }
+    | { action: "kit"; kit: Kit }
+  );
+
+/** The building is offered as its presets, scatter as its kinds; every other asset as itself. */
 function libraryItems(asset: AssetDefinition): LibraryItem[] {
-  if (asset.type !== "building") {
-    return [{ key: asset.type, label: asset.label, icon: asset.icon, type: asset.type, tags: asset.tags }];
+  if (asset.type === "building") {
+    return BUILDING_PRESETS.map((preset) => {
+      const key = `building:${preset.id}`;
+      return {
+        key,
+        action: "place" as const,
+        label: preset.label,
+        icon: asset.icon,
+        type: asset.type,
+        params: preset.params,
+        tags: [...asset.tags, ...preset.tags],
+        thumbnail: thumbnailFor(key),
+      };
+    });
   }
-  return BUILDING_PRESETS.map((preset) => ({
-    key: `building:${preset.id}`,
-    label: preset.label,
-    icon: asset.icon,
-    type: asset.type,
-    params: preset.params,
-    tags: [...asset.tags, ...preset.tags],
-  }));
+  if (asset.type === "scatter") {
+    return SCATTER_KINDS.map((kind) => {
+      const spec = SCATTER_KIND_SPECS[kind];
+      const key = `scatter:${kind}`;
+      return { key, action: "brush" as const, kind, label: spec.label, icon: spec.icon, tags: spec.tags, thumbnail: thumbnailFor(key) };
+    });
+  }
+  return [
+    {
+      key: asset.type,
+      action: "place",
+      label: asset.label,
+      icon: asset.icon,
+      type: asset.type,
+      tags: asset.tags,
+      thumbnail: thumbnailFor(asset.type),
+    },
+  ];
 }
 
-/** Asset browser entries grouped by category, optionally filtered by a label/tag search. */
-export function getLibraryItems(query = ""): Array<{ category: AssetCategory; items: LibraryItem[] }> {
+/** The library entry of a kit. Only built-in kits have thumbnails. */
+export function kitLibraryItem(kit: Kit): LibraryItem {
+  const key = `kit:${kit.id}`;
+  return {
+    key,
+    action: "kit",
+    kit,
+    label: kit.name,
+    icon: Package,
+    tags: ["kit", ...kit.name.toLowerCase().split(/\s+/)],
+    thumbnail: kit.builtIn ? thumbnailFor(key) : undefined,
+  };
+}
+
+/** Every asset-browser entry, ungrouped: what the thumbnail script renders. */
+export function getAllLibraryItems(kits: Kit[]): LibraryItem[] {
+  return [...ASSET_CATEGORY_ORDER.flatMap((category) => assetsIn(category).flatMap(libraryItems)), ...kits.map(kitLibraryItem)];
+}
+
+function assetsIn(category: AssetCategory): AssetDefinition[] {
+  return Object.values(ASSET_REGISTRY).filter((asset) => asset.category === category);
+}
+
+/**
+ * Asset browser entries grouped by category, then the kits, optionally
+ * filtered by a label/tag search. Empty groups are left out.
+ */
+export function getLibraryItems(query: string, kits: Kit[]): Array<{ title: string; items: LibraryItem[] }> {
   const q = query.trim().toLowerCase();
   const matches = (item: LibraryItem) =>
     !q || item.label.toLowerCase().includes(q) || item.tags.some((tag) => tag.includes(q));
 
-  return ASSET_CATEGORY_ORDER.map((category) => ({
-    category,
-    items: Object.values(ASSET_REGISTRY)
-      .filter((asset) => asset.category === category)
-      .flatMap(libraryItems)
-      .filter(matches),
-  })).filter((group) => group.items.length > 0);
+  const groups = ASSET_CATEGORY_ORDER.map((category) => ({
+    title: category as string,
+    items: assetsIn(category).flatMap(libraryItems).filter(matches),
+  }));
+  groups.push({ title: "Kits", items: kits.map(kitLibraryItem).filter(matches) });
+  return groups.filter((group) => group.items.length > 0);
 }

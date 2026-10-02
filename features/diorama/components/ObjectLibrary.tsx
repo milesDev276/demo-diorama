@@ -1,25 +1,110 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import Image from "next/image";
+import { Paintbrush, Search, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { useDioramaStore } from "../store/dioramaStore";
+import { useKitStore } from "../store/kitStore";
 import { cn } from "@/lib/cn";
-import { getLibraryItems } from "../assets/assetRegistry";
+import { getLibraryItems, type LibraryItem } from "../assets/assetRegistry";
+import { BUILT_IN_KITS } from "../assets/builtInKits";
+import { scatterPatchParams } from "../utils/objectDefaults";
+
+/** Whether the item's placement or brush is the one running now. */
+function useIsActive(item: LibraryItem): boolean {
+  return useDioramaStore((s) => {
+    if (item.action === "brush") return s.brush?.kind === item.kind;
+    const placement = s.placement;
+    if (!placement) return false;
+    if (item.action === "kit") return "kit" in placement && placement.kit.id === item.kit.id;
+    return !("kit" in placement) && !placement.movingId && placement.type === item.type && placement.params === item.params;
+  });
+}
+
+function LibraryCard({ item }: { item: LibraryItem }) {
+  const isActive = useIsActive(item);
+  const deleteKit = useKitStore((s) => s.deleteKit);
+  const Icon = item.icon;
+  const userKit = item.action === "kit" && !item.kit.builtIn ? item.kit : null;
+
+  const activate = (fromKeyboard: boolean) => {
+    const store = useDioramaStore.getState();
+    if (fromKeyboard) {
+      // No pointer: add near the middle of the base instead of picking a surface.
+      if (item.action === "place") store.addObject(item.type, item.params);
+      else if (item.action === "brush") store.addObject("scatter", scatterPatchParams(item.kind));
+      else store.addKit(item.kit);
+      return;
+    }
+    if (isActive) {
+      if (item.action === "brush") store.stopBrush();
+      else store.cancelPlacement();
+      return;
+    }
+    if (item.action === "place") store.startPlacement({ type: item.type, params: item.params });
+    else if (item.action === "brush") store.startBrush(item.kind);
+    else store.startPlacement({ kit: item.kit });
+  };
+
+  return (
+    <div className="group relative">
+      <motion.button
+        type="button"
+        whileHover={{ scale: 1.03 }}
+        whileTap={{ scale: 0.97 }}
+        aria-pressed={isActive}
+        title={item.action === "brush" ? `${item.label} — paint with a brush` : item.label}
+        // detail is 0 when the button was activated from the keyboard.
+        onClick={(event) => activate(event.detail === 0)}
+        className={cn(
+          "flex w-full flex-col items-center gap-1 rounded-2xl border p-1.5 pb-2 text-center transition-colors cursor-pointer",
+          isActive
+            ? "border-[#F0B27A] bg-[#F0B27A]/25"
+            : "border-[#8b6f52]/10 bg-white/50 hover:border-[#8b6f52]/25 hover:bg-white"
+        )}
+      >
+        <span className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl bg-gradient-to-b from-[#f3ece0] to-[#e6dccb] text-[#4A3421]/70">
+          {item.thumbnail ? (
+            <Image src={item.thumbnail} alt="" width={192} height={192} unoptimized className="h-full w-full object-contain" />
+          ) : (
+            <Icon size={26} />
+          )}
+          {item.action === "brush" && (
+            <span className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white/85 text-[#4A3421]">
+              <Paintbrush size={11} aria-hidden />
+            </span>
+          )}
+        </span>
+        <span className="line-clamp-2 text-[11px] font-medium leading-tight text-[#4A3421]">{item.label}</span>
+      </motion.button>
+      {userKit && (
+        <button
+          type="button"
+          aria-label={`Delete kit ${userKit.name}`}
+          onClick={() => {
+            if (window.confirm(`Delete the kit “${userKit.name}”?`)) deleteKit(userKit.id);
+          }}
+          className="absolute right-1 top-1 rounded-full bg-white/90 p-1 text-red-400 opacity-0 shadow-sm transition-opacity hover:text-red-500 focus:opacity-100 group-hover:opacity-100 cursor-pointer"
+        >
+          <X size={11} />
+        </button>
+      )}
+    </div>
+  );
+}
 
 /**
  * Left panel: click an item, then click a surface in the scene to put it
- * there. Activating an item from the keyboard adds it near the middle of
- * the base instead, so no pointer is needed. Never touches Three.js
- * directly — it only dispatches to the store.
+ * there; a scatter item starts the brush instead, and a kit places a whole
+ * group. Activating an item from the keyboard adds it near the middle of
+ * the base, so no pointer is needed. Never touches Three.js directly — it
+ * only dispatches to the store.
  */
 export function ObjectLibrary() {
-  const addObject = useDioramaStore((s) => s.addObject);
-  const startPlacement = useDioramaStore((s) => s.startPlacement);
-  const cancelPlacement = useDioramaStore((s) => s.cancelPlacement);
-  const placement = useDioramaStore((s) => s.placement);
+  const userKits = useKitStore((s) => s.kits);
   const [query, setQuery] = useState("");
-  const groups = useMemo(() => getLibraryItems(query), [query]);
+  const groups = useMemo(() => getLibraryItems(query, [...userKits, ...BUILT_IN_KITS]), [query, userKits]);
 
   return (
     <motion.div
@@ -49,40 +134,13 @@ export function ObjectLibrary() {
         <p className="text-xs text-[#4A3421]/50">No assets match “{query.trim()}”.</p>
       )}
 
-      {groups.map(({ category, items }) => (
-        <div key={category} className="flex flex-col gap-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#4A3421]/40">{category}</p>
-          <div className="flex flex-col gap-1.5">
-            {items.map((item) => {
-              const Icon = item.icon;
-              const isPlacing = !!placement && !placement.movingId && placement.type === item.type && placement.params === item.params;
-              return (
-                <motion.button
-                  key={item.key}
-                  type="button"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  aria-pressed={isPlacing}
-                  onClick={(event) => {
-                    // detail is 0 when the button was activated from the keyboard.
-                    if (event.detail === 0) addObject(item.type, item.params);
-                    else if (isPlacing) cancelPlacement();
-                    else startPlacement({ type: item.type, params: item.params });
-                  }}
-                  className={cn(
-                    "flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-sm font-medium text-[#4A3421] transition-colors cursor-pointer",
-                    isPlacing
-                      ? "border-[#F0B27A] bg-[#F0B27A]/25"
-                      : "border-[#8b6f52]/10 bg-white/50 hover:border-[#8b6f52]/25 hover:bg-white"
-                  )}
-                >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#A7C4A0]/35 text-[#4A3421]">
-                    <Icon size={16} />
-                  </span>
-                  {item.label}
-                </motion.button>
-              );
-            })}
+      {groups.map(({ title, items }) => (
+        <div key={title} className="flex flex-col gap-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#4A3421]/40">{title}</p>
+          <div className="grid grid-cols-2 gap-2">
+            {items.map((item) => (
+              <LibraryCard key={item.key} item={item} />
+            ))}
           </div>
         </div>
       ))}

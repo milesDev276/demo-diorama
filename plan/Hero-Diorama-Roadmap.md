@@ -255,6 +255,7 @@ template, which also serves as the future Remix seed.
 | Vehicle | ≤ 10k |
 | Tree | ≤ 15k |
 | Building module | ≤ 3k each; assembled building ≤ 40k |
+| Scatter piece (leaves, grass, pebbles, weeds; added in Stage 6) | ≤ 200 |
 | Whole hero scene | ≤ 500k |
 | Draw calls per object | ≤ 3 |
 
@@ -464,6 +465,15 @@ buildings only, and attachments are one level deep.
   correct when parent/child links are involved.
 
 ### Stage 6 — Density tools
+
+**Status:** implemented and verified on branch `stage6-density`,
+2026-10-02. See [Stage-6-Implementation.md](Stage-6-Implementation.md) §7.
+Changes against the list below: thumbnails are rendered by the app
+(`scripts/capture-thumbnails.mjs`), not taken from the Blender previews,
+which show prints blank and miss legacy assets, presets and kits; three
+small props from the L7 list (recycling bin, A-frame sign, chair) were
+built so the built-in kits have content; R turns the ghost while placing;
+scatter layers live on the base only.
 
 * **Scatter brush** for fallen leaves, grass tufts, pebbles and small
   plants.

@@ -15,7 +15,7 @@ const BUTTON_CLASS =
  */
 export function SurfaceActions({ object }: { object: DioramaObject }) {
   const parentType = useDioramaStore((s) => s.objects.find((o) => o.id === object.parentId)?.type);
-  const isMoving = useDioramaStore((s) => s.placement?.movingId === object.id);
+  const isMoving = useDioramaStore((s) => !!s.placement && !("kit" in s.placement) && s.placement.movingId === object.id);
   const startPlacement = useDioramaStore((s) => s.startPlacement);
   const cancelPlacement = useDioramaStore((s) => s.cancelPlacement);
   const detachObject = useDioramaStore((s) => s.detachObject);

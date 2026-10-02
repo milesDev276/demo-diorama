@@ -21,6 +21,10 @@ export const DIORAMA_COLORS = {
   ginkgoLeafDeep: "#c28f34",
   ginkgoLeafGreen: "#aea24e",
   bark: "#6b6156",
+  // Fallen leaves and scatter (scatter pieces)
+  zelkovaLeaf: "#c8743f",
+  leafBrown: "#9a6d45",
+  pebble: "#b9b3a6",
 
   // Japanese building
   wallPlaster: "#efe6d3",

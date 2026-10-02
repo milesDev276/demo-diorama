@@ -6,6 +6,9 @@ import { getWorldPosition, indexObjects } from "../utils/sceneGraph";
 
 const EDITABLE_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 
+/** Factor one [ or ] press changes the brush radius by. */
+const BRUSH_STEP = 1.2;
+
 /**
  * Global editor keyboard shortcuts. Disabled entirely while typing in a
  * field, and while Preview mode is active (pass `enabled={false}`).
@@ -15,9 +18,11 @@ const EDITABLE_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
  * Ctrl+Shift+Z/Y    Redo
  * Ctrl+D            Duplicate selection
  * Ctrl+S            Save scene
- * Esc               Cancel placing, else clear selection
+ * Esc               Cancel placing, else end the brush, else clear selection
  * F                 Focus selected object(s)
  * W / E / R         Move / Rotate / Scale mode
+ * R / Shift+R       While placing: turn the ghost by 45°
+ * [ / ]             While brushing: smaller / larger brush
  */
 export function useEditorShortcuts(enabled: boolean) {
   const selectedObjectIds = useDioramaStore((s) => s.selectedObjectIds);
@@ -71,14 +76,26 @@ export function useEditorShortcuts(enabled: boolean) {
       }
 
       if (event.key === "Escape") {
-        // Esc first backs out of picking a surface, then clears the selection.
+        // Esc first backs out of picking a surface or brushing, then clears the selection.
         const state = useDioramaStore.getState();
         if (state.placement) state.cancelPlacement();
+        else if (state.brush) state.stopBrush();
         else clearSelection();
         return;
       }
 
       if (isMeta || event.altKey) return;
+
+      const state = useDioramaStore.getState();
+      if (state.brush && (event.key === "[" || event.key === "]")) {
+        state.setBrushRadius(state.brushRadius * (event.key === "]" ? BRUSH_STEP : 1 / BRUSH_STEP));
+        return;
+      }
+      // While placing, R turns the ghost: the transform mode means nothing until it lands.
+      if (state.placement && key === "r") {
+        state.rotatePlacement(((event.shiftKey ? -1 : 1) * Math.PI) / 4);
+        return;
+      }
 
       if (key === "f") {
         const state = useDioramaStore.getState();
