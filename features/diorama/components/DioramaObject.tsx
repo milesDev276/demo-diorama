@@ -54,7 +54,8 @@ interface DioramaObjectProps {
  */
 export function DioramaObject({ object, childrenByParent, gizmoOwnerId, onGizmoGroup }: DioramaObjectProps) {
   const [group, setGroup] = useState<Group | null>(null);
-  const isSelected = useDioramaStore((s) => s.selectedObjectIds.includes(object.id));
+  // Preview is for looking and photographing: the selection is not shown there.
+  const isSelected = useDioramaStore((s) => !s.isPreviewMode && s.selectedObjectIds.includes(object.id));
   const selectObject = useDioramaStore((s) => s.selectObject);
   const toggleObjectSelection = useDioramaStore((s) => s.toggleObjectSelection);
 
@@ -74,8 +75,9 @@ export function DioramaObject({ object, childrenByParent, gizmoOwnerId, onGizmoG
       rotation={object.rotation}
       scale={object.scale}
       onClick={(event) => {
-        // While a surface is being picked, clicks belong to PlacementLayer.
-        if (useDioramaStore.getState().placement) return;
+        // While a surface is being picked, clicks belong to PlacementLayer; in Preview, to the photo focus.
+        const { placement, isPreviewMode } = useDioramaStore.getState();
+        if (placement || isPreviewMode) return;
         event.stopPropagation();
         if (event.shiftKey) toggleObjectSelection(object.id);
         else selectObject(object.id);

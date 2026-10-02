@@ -1,6 +1,6 @@
 import { BlendFunction, Effect } from "postprocessing";
 import { Uniform, Vector3 } from "three";
-import { DIORAMA_COLORS } from "../utils/palette";
+import type { TimeOfDayLook } from "../utils/timeOfDay";
 
 const fragmentShader = /* glsl */ `
 uniform vec3 skyTop;
@@ -24,9 +24,9 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
 }
 `;
 
-function srgbVector(hex: string): Vector3 {
+function setSrgb(target: Vector3, hex: string): void {
   const value = parseInt(hex.slice(1), 16);
-  return new Vector3(((value >> 16) & 255) / 255, ((value >> 8) & 255) / 255, (value & 255) / 255);
+  target.set(((value >> 16) & 255) / 255, ((value >> 8) & 255) / 255, (value & 255) / 255);
 }
 
 /**
@@ -41,10 +41,17 @@ export class SkyBackdropEffect extends Effect {
     super("SkyBackdropEffect", fragmentShader, {
       blendFunction: BlendFunction.SRC,
       uniforms: new Map([
-        ["skyTop", new Uniform(srgbVector(DIORAMA_COLORS.skyTop))],
-        ["skyMiddle", new Uniform(srgbVector(DIORAMA_COLORS.skyMiddle))],
-        ["skyBottom", new Uniform(srgbVector(DIORAMA_COLORS.skyBottom))],
+        ["skyTop", new Uniform(new Vector3())],
+        ["skyMiddle", new Uniform(new Vector3())],
+        ["skyBottom", new Uniform(new Vector3())],
       ]),
     });
+  }
+
+  /** The gradient of a time of day (utils/timeOfDay.ts). */
+  setSky(sky: TimeOfDayLook["sky"]): void {
+    setSrgb(this.uniforms.get("skyTop")!.value, sky.top);
+    setSrgb(this.uniforms.get("skyMiddle")!.value, sky.middle);
+    setSrgb(this.uniforms.get("skyBottom")!.value, sky.bottom);
   }
 }

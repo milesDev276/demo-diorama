@@ -26,6 +26,11 @@ export const DIORAMA_OBJECT_TYPES = [
   "recycleBin",
   "aFrameSign",
   "chair",
+  "zelkovaTree",
+  "hedge",
+  "blockWall",
+  "postBox",
+  "meterBox",
 ] as const;
 
 export type DioramaObjectType = (typeof DIORAMA_OBJECT_TYPES)[number];
@@ -134,12 +139,24 @@ export const DIORAMA_BASES = ["street", "corner"] as const;
 
 export type DioramaBase = (typeof DIORAMA_BASES)[number];
 
+/** The light the scene is seen in (utils/timeOfDay.ts). */
+export const TIMES_OF_DAY = ["morning", "day", "goldenHour", "evening", "night"] as const;
+
+export type TimeOfDay = (typeof TIMES_OF_DAY)[number];
+
+/** What deciduous crowns, fallen leaves and grass look like (utils/seasons.ts). */
+export const SEASONS = ["spring", "summer", "autumn", "winter"] as const;
+
+export type Season = (typeof SEASONS)[number];
+
 /** Scene-level environment settings. `background` and `ground` have one
  *  variant each today; `base` selects the base template. */
 export interface DioramaEnvironment {
   background: string;
   ground: string;
   base: DioramaBase;
+  timeOfDay: TimeOfDay;
+  season: Season;
 }
 
 export interface DioramaCameraState {
@@ -161,6 +178,39 @@ export interface DioramaScene {
 export type CameraPreset = "isometric" | "front" | "side" | "top";
 
 export type SaveStatus = "saved" | "saving" | "unsaved";
+
+/** The shape of the photo frame in Preview (utils/photo.ts). */
+export const PHOTO_ASPECTS = ["free", "1:1", "4:5", "16:9"] as const;
+
+export type PhotoAspect = (typeof PHOTO_ASPECTS)[number];
+
+/** How Preview frames and exposes a photo. Editor state: not saved with the scene. */
+export interface PhotoSettings {
+  aspect: PhotoAspect;
+  /** World point the tilt-shift keeps sharp; null = the middle of the frame. */
+  focus: Vector3Tuple | null;
+  /** Strength of the tilt-shift blur away from the focus. */
+  blur: number;
+  /** Exposure compensation in stops. */
+  exposure: number;
+  /** Export size, as a multiple of the frame's size on screen. */
+  scale: number;
+}
+
+/** What a finished export reports back. */
+export interface PhotoExport {
+  width: number;
+  height: number;
+  fileName: string;
+}
+
+/** Imperative bridge from the photo bar to the live renderer (PhotoStudio). */
+export interface PhotoApi {
+  /** The size an export at `scale` would have, after clamping to what the GPU can do. */
+  exportSize: (scale: number) => { width: number; height: number };
+  /** Renders the frame at `scale` × its size on screen and downloads it as a PNG. */
+  savePhoto: (scale: number) => Promise<PhotoExport>;
+}
 
 /** Imperative bridge from UI/keyboard actions to the live R3F camera rig. */
 export interface CameraControlsApi {

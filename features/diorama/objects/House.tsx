@@ -1,3 +1,4 @@
+import { useTimeOfDayLook } from "../hooks/useSceneEnvironment";
 import { DIORAMA_COLORS } from "../utils/palette";
 import { AirConditionerUnit } from "./parts/AirConditionerUnit";
 
@@ -7,8 +8,10 @@ const DEPTH = 0.9;
 const FRONT = DEPTH / 2;
 const EAVE = 0.14;
 
-/** Sliding window: a glowing pane split by a wooden center bar. */
+/** Sliding window: a pane that glows with the time of day, split by a wooden center bar. */
 function SlidingWindow({ x, y, width, height }: { x: number; y: number; width: number; height: number }) {
+  const { emissive } = useTimeOfDayLook();
+
   return (
     <group position={[x, y, FRONT]}>
       <mesh position={[0, 0, 0.012]}>
@@ -20,7 +23,7 @@ function SlidingWindow({ x, y, width, height }: { x: number; y: number; width: n
         <meshStandardMaterial
           color={DIORAMA_COLORS.windowGlow}
           emissive={DIORAMA_COLORS.windowGlow}
-          emissiveIntensity={0.5}
+          emissiveIntensity={emissive}
           roughness={0.5}
         />
       </mesh>

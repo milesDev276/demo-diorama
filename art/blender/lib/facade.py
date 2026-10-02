@@ -16,6 +16,13 @@ FOUNDATION = 0.4
 PARAPET = 0.5
 RAILING = 0.6
 
+# A shop's interior behind its door frames: the lit room seen through the
+# glass. It runs from just inside the doors to a back wall of shelves, and
+# the shopfront bays and the end wall (building_shop_side_01) share it.
+SHOP_OPENING_TOP = 2.62
+SHOP_FRONT = 0.1
+SHOP_BACK = 0.67
+
 WALL = "wallPlaster"
 FRAME = "signPost"  # aluminium sash
 GLASS = "windowGlow"

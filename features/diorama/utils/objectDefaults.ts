@@ -160,9 +160,10 @@ function patchAt(
 }
 
 /**
- * The corner starter's small details (Stage 6 D10): fallen leaves under the
- * ginkgo drifting onto the sidewalk, weeds along the building's back walls
- * and grass in the lot's back corner. Kept off the roads and the building.
+ * The corner starter's small details: fallen leaves under both trees
+ * drifting onto the sidewalks, weeds along the building's back walls and the
+ * foot of the block wall, and grass in the lot's back corner. Kept off the
+ * roads and the building.
  */
 function cornerScatter(): DioramaObject[] {
   const inside = (x: number, z: number) => Math.max(Math.abs(x), Math.abs(z)) < CORNER.half - 0.15;
@@ -173,6 +174,8 @@ function cornerScatter(): DioramaObject[] {
   const leaves = [
     ...patchAt(11, "leaves", leavesOrigin, leavesOrigin, 2.4, offBuilding),
     ...patchAt(12, "leaves", leavesOrigin, [-5.4, 2.7], 1.3, offBuilding),
+    ...patchAt(13, "leaves", leavesOrigin, [-0.3, -6.2], 2.3, offBuilding),
+    ...patchAt(14, "leaves", leavesOrigin, [2.7, -5.2], 0.9, offBuilding),
   ];
 
   const weedsOrigin: [number, number] = [-3.95, -3.95];
@@ -194,13 +197,30 @@ function cornerScatter(): DioramaObject[] {
   ];
 }
 
+/** Pieces of a tiling asset (block wall, hedge) end to end from `from` to `to`, which lie along X or along Z. */
+function run(
+  type: DioramaObjectType,
+  pieceLength: number,
+  from: [number, number],
+  to: [number, number]
+): DioramaObject[] {
+  const alongX = Math.abs(to[0] - from[0]) >= Math.abs(to[1] - from[1]);
+  const count = Math.round(Math.hypot(to[0] - from[0], to[1] - from[1]) / pieceLength);
+  return Array.from({ length: count }, (_, i) => {
+    const t = (i + 0.5) / count;
+    return place(type, from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t, alongX ? 0 : Math.PI / 2);
+  });
+}
+
 /**
- * Street-corner starter, placed from plan/Hero-Layout.md with the assets
- * that exist so far: the three-floor corner shop-house with its balcony,
- * wall and rooftop attachments, vending machines and a customer under the
- * ginkgo, pots by the shop, a parked bicycle, a kei car at the curb of the
- * right road, a curve mirror watching the junction, and fallen leaves,
- * weeds and grass.
+ * Street-corner starter — the hero scene of plan/Hero-Layout.md: the
+ * three-floor corner liquor shop with its balcony, wall and rooftop
+ * attachments; vending machines, a recycling bin and a customer under the
+ * ginkgo; a utility pole with its transformer and wires, a post box, pots,
+ * a bicycle and an A-frame sign on the front sidewalk; a kei car at the
+ * curb of the right road, a stop sign, a pedestrian on the crosswalk and a
+ * curve mirror watching the junction; a zelkova, a hedge and a block wall
+ * closing the lot; and fallen leaves, weeds and grass.
  */
 function getCornerStarter(): DioramaObject[] {
   const { bay, groundFloor, upperFloor } = BUILDING_GRID;
@@ -224,15 +244,29 @@ function getCornerStarter(): DioramaObject[] {
     attach(building, "rooftopShed", [-1.27, roof, -1.57]),
     attach(building, "pottedPlant", [2.2, roof, 2.25], 0.6),
     attach(building, "pottedPlant", [1.75, roof, 2.3], 2.1, 0.8),
+    attach(building, "chair", [1.0, roof, 1.85], 0.5),
+    // Electricity meter on the blank bay of the right wall
+    attach(building, "meterBox", [wall, 1.25, -1.82], Math.PI / 2),
     place("pottedPlant", -3.45, 1.95, 1.2),
     place("pottedPlant", -3.05, 1.9, 4.0, 0.8),
     place("ginkgoTree", -6.6, -1.0, 0.4),
+    place("zelkovaTree", -0.3, -6.2, 1.1),
     place("vendingMachine", -5.8, 1.35),
     place("vendingMachine", -4.8, 1.35),
+    place("recycleBin", -6.7, 1.45),
     place("pedestrian", -5.3, 2.4, Math.PI),
+    place("utilityPole", -5.5, 3.2),
+    place("powerLine", -5.5, 3.2),
+    place("postBox", -7.2, 2.5),
     place("bicycle", -1.9, 2.45),
+    place("aFrameSign", 0.6, 2.6, -0.2),
     place("keiCar", 4.35, -5.6, Math.PI, undefined, CORNER.roadY),
+    place("sign", 7.8, -0.8, Math.PI, undefined, CORNER.roadY),
+    place("pedestrian", 5.6, 1.8, Math.PI / 2, undefined, CORNER.roadY),
     place("curveMirror", 3.2, 3.2, Math.PI / 4),
+    ...run("blockWall", 2, [-8, -7.925], [2, -7.925]),
+    ...run("blockWall", 2, [-7.925, -8], [-7.925, 2]),
+    ...run("hedge", 1.2, [1.6, -7.8], [1.6, -4.2]),
     ...cornerScatter(),
   ];
 }

@@ -1,7 +1,8 @@
 // Captures the /diorama editor at every camera preset, in edit mode and in
 // Preview, using headless Chrome/Edge over the DevTools protocol. No
 // dependencies (Node ≥ 22 for the global WebSocket). The dev server must be
-// running. A fresh browser profile is used, so the default scene is shown.
+// running. A fresh browser profile is used, so the scene of a first visit
+// (the hero starter) is shown unless --seed-scene gives another.
 //
 //   node scripts/capture-presets.mjs <outDir> [--url <url>] [--seed-scene <file>] [--save-scene <file>]
 //

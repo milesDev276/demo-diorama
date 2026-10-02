@@ -9,8 +9,10 @@ COLOR_ATTRIBUTE = "Col"
 
 # Slot order = face material_index used by MeshBuilder. "printed" faces carry
 # UVs into the app's graphics atlas; Blender has no atlas, so previews show
-# them as blank panels.
-MATERIAL_SLOTS = ("base", "emissive", "printed")
+# them as blank panels. "foliage" is the crown of a deciduous tree: the app
+# recolors it by season and hides it in winter, so it must be modeled in its
+# autumn colors and must not hold anything but leaves.
+MATERIAL_SLOTS = ("base", "emissive", "printed", "foliage")
 BASE_INDEX = MATERIAL_SLOTS.index("base")
 EMISSIVE_INDEX = MATERIAL_SLOTS.index("emissive")
 

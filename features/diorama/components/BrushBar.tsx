@@ -4,6 +4,7 @@ import { Eraser, Paintbrush } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { BRUSH_DENSITY_RANGE, BRUSH_RADIUS_RANGE, useDioramaStore } from "../store/dioramaStore";
 import { SCATTER_KIND_SPECS } from "../assets/scatterKinds";
+import { SEASON_LOOKS } from "../utils/seasons";
 
 function ModeButton({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: typeof Eraser; label: string }) {
   return (
@@ -52,6 +53,7 @@ export function BrushBar() {
   const setBrushDensity = useDioramaStore((s) => s.setBrushDensity);
   const setBrushErase = useDioramaStore((s) => s.setBrushErase);
   const stopBrush = useDioramaStore((s) => s.stopBrush);
+  const season = useDioramaStore((s) => s.environment.season);
   if (!brush) return null;
   const spec = SCATTER_KIND_SPECS[brush.kind];
   const Icon = spec.icon;
@@ -82,7 +84,9 @@ export function BrushBar() {
         </button>
       </div>
       <p className="pointer-events-none rounded-full bg-white/70 px-3 py-1 text-[11px] text-[#4A3421]/70 backdrop-blur">
-        Drag on the ground to paint · Alt+drag erases · [ ] size · Esc to finish
+        {SEASON_LOOKS[season].scatter[brush.kind]
+          ? "Drag on the ground to paint · Alt+drag erases · [ ] size · Esc to finish"
+          : `${spec.label} do not show in ${SEASON_LOOKS[season].label.toLowerCase()} — change the season to see what you paint`}
       </p>
     </div>
   );

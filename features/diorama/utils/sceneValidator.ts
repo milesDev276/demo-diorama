@@ -1,6 +1,5 @@
-import { DIORAMA_BASES, DIORAMA_OBJECT_TYPES } from "../types/diorama.types";
+import { DIORAMA_BASES, DIORAMA_OBJECT_TYPES, SEASONS, TIMES_OF_DAY } from "../types/diorama.types";
 import type {
-  DioramaBase,
   DioramaEnvironment,
   DioramaObject,
   DioramaObjectType,
@@ -80,11 +79,20 @@ export function normalizeObjects(rawObjects: unknown[]): DioramaObject[] {
   );
 }
 
-/** Keeps the file's base if it is one this app knows; everything else is the default. */
+/** `value` if it is one of `known`, else `fallback`. */
+function oneOf<T extends string>(known: readonly T[], value: unknown, fallback: T): T {
+  return (known as readonly unknown[]).includes(value) ? (value as T) : fallback;
+}
+
+/** Keeps the file's base, time of day and season where this app knows them; everything else is the default. */
 function normalizeEnvironment(raw: unknown): DioramaEnvironment {
-  const base = raw && typeof raw === "object" ? (raw as Record<string, unknown>).base : undefined;
-  const known = (DIORAMA_BASES as readonly unknown[]).includes(base);
-  return { ...DEFAULT_ENVIRONMENT, base: known ? (base as DioramaBase) : DEFAULT_ENVIRONMENT.base };
+  const r = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  return {
+    ...DEFAULT_ENVIRONMENT,
+    base: oneOf(DIORAMA_BASES, r.base, DEFAULT_ENVIRONMENT.base),
+    timeOfDay: oneOf(TIMES_OF_DAY, r.timeOfDay, DEFAULT_ENVIRONMENT.timeOfDay),
+    season: oneOf(SEASONS, r.season, DEFAULT_ENVIRONMENT.season),
+  };
 }
 
 /**

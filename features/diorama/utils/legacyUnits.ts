@@ -39,18 +39,3 @@ export const PLOT_Z = {
 
 /** The road surface sits slightly below the sidewalk, giving a real curb step. */
 export const ROAD_SURFACE_Y = -0.04;
-
-// ── Utility pole / power line ───────────────────────────────────────────
-// Shared so a PowerLine placed at a pole's position lines up with its
-// insulators with no manual height adjustment.
-
-export const POLE_HEIGHT = 2.0;
-export const CROSSARM_HEIGHT = 1.78;
-/** Horizontal distance a power line runs in each direction from its pole. */
-export const POWER_LINE_SPAN = 4.2;
-/** Wire attach points on a pole as [y, z]: two crossarm insulators + the pole top. */
-export const POWER_LINE_ATTACH: ReadonlyArray<readonly [number, number]> = [
-  [CROSSARM_HEIGHT + 0.05, -0.26],
-  [CROSSARM_HEIGHT + 0.05, 0.26],
-  [POLE_HEIGHT + 0.05, 0],
-];

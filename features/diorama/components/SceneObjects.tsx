@@ -96,6 +96,7 @@ export function SceneObjects() {
   const selectedObjectIds = useDioramaStore((s) => s.selectedObjectIds);
   // The gizmo would catch the brush's strokes; it comes back when the brush ends.
   const isBrushing = useDioramaStore((s) => s.brush !== null);
+  const isPreviewMode = useDioramaStore((s) => s.isPreviewMode);
   const [gizmoGroup, setGizmoGroup] = useState<Group | null>(null);
 
   const childrenByParent = useMemo(() => groupChildren(objects), [objects]);
@@ -125,7 +126,7 @@ export function SceneObjects() {
           />
         )
       )}
-      {gizmoOwner && gizmoGroup && !isBrushing && <TransformGizmo group={gizmoGroup} object={gizmoOwner} />}
+      {gizmoOwner && gizmoGroup && !isBrushing && !isPreviewMode && <TransformGizmo group={gizmoGroup} object={gizmoOwner} />}
     </>
   );
 }

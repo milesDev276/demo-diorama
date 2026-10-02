@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertTriangle, X } from "lucide-react";
 import { EditorToolbar } from "./EditorToolbar";
@@ -10,6 +10,7 @@ import { ObjectList } from "./ObjectList";
 import { PropertiesPanel } from "./PropertiesPanel";
 import { DioramaCanvas } from "./DioramaCanvas";
 import { NewSceneDialog } from "./NewSceneDialog";
+import { PhotoBar } from "./PhotoBar";
 import { useDioramaStore } from "../store/dioramaStore";
 import { useEditorShortcuts } from "../hooks/useEditorShortcuts";
 import { useAutoSave } from "../hooks/useAutoSave";
@@ -17,13 +18,15 @@ import { readFileAsText } from "../utils/sceneSerializer";
 
 /**
  * Main page: composes the toolbar, object library + scene list, 3D canvas,
- * and properties panel. Preview mode hides everything but the Diorama itself.
+ * and properties panel. Preview mode hides everything but the Diorama and
+ * the photo bar.
  */
 export function DioramaEditor() {
   const isPreview = useDioramaStore((s) => s.isPreviewMode);
   const setPreviewMode = useDioramaStore((s) => s.setPreviewMode);
   const saveStatus = useDioramaStore((s) => s.saveStatus);
   const newScene = useDioramaStore((s) => s.newScene);
+  const newSceneFromTemplate = useDioramaStore((s) => s.newSceneFromTemplate);
   const importScene = useDioramaStore((s) => s.importScene);
   const importError = useDioramaStore((s) => s.importError);
   const clearImportError = useDioramaStore((s) => s.clearImportError);
@@ -34,6 +37,7 @@ export function DioramaEditor() {
   useEditorShortcuts(!isPreview);
   useAutoSave();
 
+  const exitPreview = useCallback(() => setPreviewMode(false), [setPreviewMode]);
 
   const handleImportClick = () => fileInputRef.current?.click();
 
@@ -137,18 +141,7 @@ export function DioramaEditor() {
         </AnimatePresence>
       </main>
 
-      {isPreview && (
-        <motion.button
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.15 }}
-          type="button"
-          onClick={() => setPreviewMode(false)}
-          className="absolute bottom-6 left-1/2 z-20 -translate-x-1/2 rounded-full bg-white/80 px-5 py-2.5 text-sm font-medium text-[#4A3421] shadow-[0_8px_32px_rgba(139,111,82,0.2)] backdrop-blur-xl transition-colors hover:bg-white cursor-pointer"
-        >
-          ← Exit Preview
-        </motion.button>
-      )}
+      {isPreview && <PhotoBar onExit={exitPreview} />}
 
       <NewSceneDialog
         open={newDialogOpen}
@@ -157,6 +150,10 @@ export function DioramaEditor() {
         onCreate={(base) => {
           setNewDialogOpen(false);
           newScene(base);
+        }}
+        onCreateFromTemplate={(templateId) => {
+          setNewDialogOpen(false);
+          newSceneFromTemplate(templateId);
         }}
       />
     </div>

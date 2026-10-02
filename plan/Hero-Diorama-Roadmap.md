@@ -162,7 +162,8 @@ How:
   * the result is exported as `COLOR_0`
 * **Material slots** use fixed names: `base`, `emissive` (windows, signs,
   vending fronts) and `printed` (surfaces that receive the Canvas
-  graphics atlas).
+  graphics atlas). Stage 7 added a fourth, `foliage`, for the crowns of
+  deciduous trees, which the season recolors.
 * **In the app**, those names are remapped to three shared materials:
   * a vertex-color `MeshStandardMaterial`
   * an emissive material
@@ -496,6 +497,17 @@ scatter layers live on the base only.
 * 300+ instances cause no frame-rate drop.
 
 ### Stage 7 — Environment and Photo
+
+**Status:** implemented and verified on branch `stage7-environment`,
+2026-10-02. See [Stage-7-Implementation.md](Stage-7-Implementation.md) §7.
+Changes against the list below: Photo mode lives in Preview (a photo bar,
+no third mode); there are four seasons, and winter bares the crowns; the
+after-dark lights come from buildings with shopfronts and from vending
+machines, as a pool of eight shadowless lights that is always in the
+scene; the open L7 hero items were built here (utility pole and
+transformer in meters, metric wires, zelkova, block wall, hedge, post box,
+meter box); a first visit opens the hero scene. The side-by-side
+comparison with the reference photo is left to the user.
 
 * `environment.timeOfDay` has 5 presets: morning, day, golden hour,
   evening, night. Each preset drives:

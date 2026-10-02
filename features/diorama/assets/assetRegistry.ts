@@ -4,6 +4,7 @@ import {
   AlignJustify,
   Armchair,
   Bike,
+  BrickWall,
   Building2,
   Cable,
   CarFront,
@@ -11,14 +12,17 @@ import {
   CircleDot,
   CupSoda,
   Cylinder,
+  Gauge,
   Gem,
   House as HouseIcon,
+  Mailbox,
   Package,
   PersonStanding,
   Presentation,
   RectangleVertical,
   Recycle,
   Shirt,
+  Shrub,
   Signpost,
   Sparkles,
   Sprout,
@@ -54,7 +58,6 @@ import { Rock } from "../objects/Rock";
 import { Shop } from "../objects/Shop";
 import { Sign } from "../objects/Sign";
 import { Tree } from "../objects/Tree";
-import { UtilityPole } from "../objects/UtilityPole";
 
 export type AssetCategory = "Buildings" | "Street" | "Infrastructure" | "Props" | "Nature" | "Vehicles" | "People";
 
@@ -69,6 +72,19 @@ export const ASSET_CATEGORY_ORDER: AssetCategory[] = [
   "People",
 ];
 
+/** A shadowless point light in the asset's own frame (meters). */
+export interface GlowLight {
+  position: Vector3Tuple;
+  color: string;
+  /** Candela, before the time of day's `glow` factor. */
+  intensity: number;
+  /** Reach in meters. */
+  distance: number;
+}
+
+/** The warm light of a shop, also used for the lights a building gives its shopfronts. */
+export const SHOP_GLOW = { color: "#ffd9a0", intensity: 8, distance: 6.5 } as const;
+
 interface AssetBase {
   type: DioramaObjectType;
   label: string;
@@ -82,6 +98,8 @@ interface AssetBase {
   /** Set if the asset can hang on a wall: `offset` is how far its origin
    *  stands off the wall, `only` means it cannot stand on a flat surface. */
   wallMount?: { offset: number; only?: boolean };
+  /** The light this asset gives off after dark (components/SceneGlowLights.tsx). */
+  glow?: GlowLight;
   /** Natural things whose repeats should not look stamped: duplicates and
    *  Shift+click placements get a random heading and a size within ± this fraction. */
   jitter?: number;
@@ -146,6 +164,7 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     defaultScale: [1, 1, 1],
     footprintRadius: 5.1,
     randomSpawnRotation: false,
+    glow: { ...SHOP_GLOW, position: [0, 1.9, 3.3] },
     tags: ["store", "shop", "commercial", "building"],
   },
   utilityPole: {
@@ -153,10 +172,9 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     label: "Utility Pole",
     category: "Infrastructure",
     icon: UtilityPoleIcon,
-    component: UtilityPole,
-    legacyUnits: true,
+    modelUrl: "/models/infrastructure/infra_utility_pole_01.glb",
     defaultScale: [1, 1, 1],
-    footprintRadius: 1.2,
+    footprintRadius: 0.6,
     randomSpawnRotation: false,
     tags: ["pole", "electric", "transformer", "denchu"],
   },
@@ -166,9 +184,9 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     category: "Infrastructure",
     icon: Cable,
     component: PowerLine,
-    legacyUnits: true,
+    legacyUnits: false,
     defaultScale: [1, 1, 1],
-    footprintRadius: 1.2,
+    footprintRadius: 0.9,
     randomSpawnRotation: false,
     tags: ["wire", "cable", "electric", "overhead"],
   },
@@ -181,6 +199,7 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     defaultScale: [1, 1, 1],
     footprintRadius: 0.8,
     randomSpawnRotation: false,
+    glow: { position: [0, 1.15, 0.6], color: "#f1f5ff", intensity: 2.4, distance: 5 },
     tags: ["drink", "jihanki", "machine"],
   },
   airConditioner: {
@@ -228,6 +247,17 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     footprintRadius: 0.4,
     randomSpawnRotation: false,
     tags: ["manhole", "cover", "road", "sewer"],
+  },
+  blockWall: {
+    type: "blockWall",
+    label: "Block Wall",
+    category: "Street",
+    icon: BrickWall,
+    modelUrl: "/models/street/street_block_wall_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 1.1,
+    randomSpawnRotation: false,
+    tags: ["wall", "block", "burokku-bei", "concrete", "boundary", "fence"],
   },
   gutterGrate: {
     type: "gutterGrate",
@@ -296,6 +326,29 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     footprintRadius: 1.6,
     randomSpawnRotation: false,
     tags: ["shed", "storage", "prefab", "monooki", "rooftop"],
+  },
+  postBox: {
+    type: "postBox",
+    label: "Post Box",
+    category: "Props",
+    icon: Mailbox,
+    modelUrl: "/models/props/prop_post_box_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 0.4,
+    randomSpawnRotation: false,
+    tags: ["post", "mail", "mailbox", "posuto", "letter"],
+  },
+  meterBox: {
+    type: "meterBox",
+    label: "Electric Meter",
+    category: "Props",
+    icon: Gauge,
+    modelUrl: "/models/props/prop_meter_box_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 0.3,
+    randomSpawnRotation: false,
+    wallMount: { offset: 0, only: true },
+    tags: ["meter", "electric", "box", "wall", "denryoku"],
   },
   recycleBin: {
     type: "recycleBin",
@@ -390,6 +443,29 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     randomSpawnRotation: true,
     jitter: 0.12,
     tags: ["tree", "ginkgo", "icho", "autumn", "street tree"],
+  },
+  zelkovaTree: {
+    type: "zelkovaTree",
+    label: "Zelkova Tree",
+    category: "Nature",
+    icon: TreeDeciduous,
+    modelUrl: "/models/nature/nature_tree_zelkova_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 3,
+    randomSpawnRotation: true,
+    jitter: 0.12,
+    tags: ["tree", "zelkova", "keyaki", "autumn", "street tree"],
+  },
+  hedge: {
+    type: "hedge",
+    label: "Hedge",
+    category: "Nature",
+    icon: Shrub,
+    modelUrl: "/models/nature/nature_hedge_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 0.75,
+    randomSpawnRotation: false,
+    tags: ["hedge", "ikegaki", "bush", "green", "boundary"],
   },
   keiCar: {
     type: "keiCar",

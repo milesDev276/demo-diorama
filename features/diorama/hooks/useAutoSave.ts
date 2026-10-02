@@ -15,7 +15,7 @@ export function useAutoSave() {
   // A primitive string fingerprint is a safe Zustand selector: two calls with
   // equal content are `===`, so this doesn't cause extra renders on its own.
   const fingerprint = useDioramaStore((s) =>
-    JSON.stringify({ name: s.sceneName, base: s.environment.base, objects: s.objects })
+    JSON.stringify({ name: s.sceneName, environment: s.environment, objects: s.objects })
   );
   const setSaveStatus = useDioramaStore((s) => s.setSaveStatus);
   const saveScene = useDioramaStore((s) => s.saveScene);
