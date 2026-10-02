@@ -13,6 +13,7 @@ import {
   setSideFacade,
   sideFacade,
 } from "../utils/buildingParams";
+import { buildingParamsOf } from "../utils/objectParams";
 
 const FACADE_LABELS: Record<FacadeKind, string> = {
   blank: "Wall",
@@ -71,7 +72,7 @@ function Stepper({ label, value, min, max, disabled, onStep }: StepperProps) {
  */
 export function BuildingPanel({ object }: { object: DioramaObject }) {
   const setBuildingParams = useDioramaStore((s) => s.setBuildingParams);
-  const params = object.params ?? DEFAULT_BUILDING_PARAMS;
+  const params = buildingParamsOf(object) ?? DEFAULT_BUILDING_PARAMS;
   const { width, depth, wallHeight } = buildingSize(params);
   const { minBays, maxBays, minFloors, maxFloors } = BUILDING_LIMITS;
   const disabled = object.locked;

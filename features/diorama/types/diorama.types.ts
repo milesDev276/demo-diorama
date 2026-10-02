@@ -22,6 +22,10 @@ export const DIORAMA_OBJECT_TYPES = [
   "rooftopShed",
   "pottedPlant",
   "kanbanSign",
+  "scatter",
+  "recycleBin",
+  "aFrameSign",
+  "chair",
 ] as const;
 
 export type DioramaObjectType = (typeof DIORAMA_OBJECT_TYPES)[number];
@@ -50,6 +54,24 @@ export interface BuildingParams {
   roof: RoofKind;
 }
 
+/** What a scatter layer is painted with (assets/scatterKinds.ts). */
+export const SCATTER_KINDS = ["leaves", "grass", "pebbles", "weeds"] as const;
+export type ScatterKind = (typeof SCATTER_KINDS)[number];
+
+/** A `scatter` object: many small pieces of one kind, drawn instanced
+ *  (objects/scatter). Each piece's heading, size and tint come from the seed
+ *  and its position, so they are not stored. */
+export interface ScatterParams {
+  kind: ScatterKind;
+  /** Integer; a new seed gives every piece a new heading, size and tint. */
+  seed: number;
+  /** Piece positions in the layer's own frame, in meters. */
+  points: Vector3Tuple[];
+}
+
+/** `BuildingParams` on a `building`, `ScatterParams` on a `scatter` layer (utils/objectParams.ts). */
+export type ObjectParams = BuildingParams | ScatterParams;
+
 export interface DioramaObject {
   id: string;
   type: DioramaObjectType;
@@ -63,18 +85,48 @@ export interface DioramaObject {
   /** The building this object is attached to. Position, rotation and scale
    *  are then in that building's frame (utils/sceneGraph.ts). */
   parentId?: string;
-  /** Only on `building` objects. */
-  params?: BuildingParams;
+  /** Only on parametric objects: `building` and `scatter`. */
+  params?: ObjectParams;
+}
+
+/** Props of an asset component written in app code. */
+export interface AssetComponentProps {
+  object: Pick<DioramaObject, "type" | "params">;
+  /** Scene object id, if other objects may be placed on this one. Ghosts have none. */
+  surfaceId?: string;
 }
 
 export type TransformMode = "translate" | "rotate" | "scale";
 
-/** Editor state while the user is choosing where an object goes: a new one
- *  of `type`, or the existing object `movingId` being put somewhere else. */
-export interface Placement {
+/** A saved group of objects that is placed in one go (utils/kits.ts). */
+export interface Kit {
+  id: string;
+  name: string;
+  /** Shipped with the app (assets/builtInKits.ts); cannot be deleted. */
+  builtIn?: boolean;
+  /** Scene objects in the kit's frame: the anchor is the origin, on the ground. */
+  objects: DioramaObject[];
+}
+
+/** Choosing where a new object of `type` goes, or where the existing object `movingId` goes. */
+export interface ObjectPlacement {
   type: DioramaObjectType;
-  params?: BuildingParams;
+  params?: ObjectParams;
   movingId?: string;
+}
+
+/** Choosing where a kit goes. */
+export interface KitPlacement {
+  kit: Kit;
+}
+
+/** Editor state while the user is picking a surface for something. */
+export type Placement = ObjectPlacement | KitPlacement;
+
+/** Editor state while the scatter brush is active. `layerId` is the layer it paints into. */
+export interface BrushState {
+  kind: ScatterKind;
+  layerId?: string;
 }
 
 /** The miniature base the scene is built on (utils/baseTemplates.ts). */

@@ -21,11 +21,16 @@ export function canBeParent(object: DioramaObject): boolean {
   return object.type === "building" && !object.parentId;
 }
 
+/** Whether this object may be attached to a building. Buildings and scatter layers stand on the base only. */
+export function canBeChild(object: Pick<DioramaObject, "type">): boolean {
+  return object.type !== "building" && object.type !== "scatter";
+}
+
 export function getParent(object: DioramaObject, byId: Map<string, DioramaObject>): DioramaObject | undefined {
   return object.parentId ? byId.get(object.parentId) : undefined;
 }
 
-function toMatrix(transform: Transform): Matrix4 {
+export function toMatrix(transform: Transform): Matrix4 {
   return new Matrix4().compose(
     new Vector3(...transform.position),
     new Quaternion().setFromEuler(new Euler(...transform.rotation)),
@@ -33,7 +38,7 @@ function toMatrix(transform: Transform): Matrix4 {
   );
 }
 
-function fromMatrix(matrix: Matrix4): Transform {
+export function fromMatrix(matrix: Matrix4): Transform {
   const position = new Vector3();
   const quaternion = new Quaternion();
   const scale = new Vector3();
@@ -106,7 +111,8 @@ export function groupChildren(objects: DioramaObject[]): Map<string, DioramaObje
 
 /**
  * Drops every `parentId` that breaks the rules: the parent is missing, is
- * not a building, or is itself attached to something. Used on import, so a
+ * not a building, or is itself attached to something; or the object is a
+ * building or a scatter layer, which are never attached. Used on import, so a
  * hand-edited or damaged file can never produce a cycle or a deep tree.
  */
 export function repairParentLinks(objects: DioramaObject[]): DioramaObject[] {
@@ -114,7 +120,7 @@ export function repairParentLinks(objects: DioramaObject[]): DioramaObject[] {
   return objects.map((object) => {
     if (!object.parentId) return object;
     const parent = byId.get(object.parentId);
-    if (parent && parent.id !== object.id && canBeParent(parent) && object.type !== "building") return object;
+    if (parent && parent.id !== object.id && canBeParent(parent) && canBeChild(object)) return object;
     const detached = { ...object };
     delete detached.parentId;
     return detached;

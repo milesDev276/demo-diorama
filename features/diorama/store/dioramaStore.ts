@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type {
   CameraControlsApi,
+  BrushState,
   BuildingParams,
   DioramaBase,
   DioramaCameraState,
@@ -8,11 +9,15 @@ import type {
   DioramaObject,
   DioramaObjectType,
   DioramaScene,
+  Kit,
+  ObjectParams,
   Placement,
   SaveStatus,
+  ScatterKind,
   TransformMode,
   Vector3Tuple,
 } from "../types/diorama.types";
+import { ASSET_REGISTRY } from "../assets/assetRegistry";
 import {
   deltaToParentFrame,
   getSubtreeIds,
@@ -22,7 +27,16 @@ import {
   toParentFrame,
   type Transform,
 } from "../utils/sceneGraph";
-import { createDioramaObject, DEFAULT_SCENE_NAME, getDefaultScene } from "../utils/objectDefaults";
+import {
+  createDioramaObject,
+  DEFAULT_SCENE_NAME,
+  getDefaultScene,
+  jitteredScale,
+  nextSpawnPosition,
+} from "../utils/objectDefaults";
+import { instantiateKit } from "../utils/kits";
+import { buildingParamsOf, scatterParamsOf } from "../utils/objectParams";
+import { newScatterSeed, roundPoint } from "../utils/scatterParams";
 import { createId } from "../utils/id";
 import { DEFAULT_CAMERA_STATE, DEFAULT_ENVIRONMENT } from "../utils/sceneDefaults";
 import { buildScene, downloadSceneAsJson, serializeScene, STORAGE_KEY } from "../utils/sceneSerializer";
@@ -63,24 +77,59 @@ interface DioramaState {
   saveStatus: SaveStatus;
   importError: string | null;
   cameraApi: CameraControlsApi | null;
-  /** Set while the user is picking a surface for a new or an existing object. */
+  /** Set while the user is picking a surface for a new or an existing object, or a kit. */
   placement: Placement | null;
+  /** Extra heading (radians) given to the placement ghost with R / Shift+R. */
+  placementYaw: number;
+  /** Set while the scatter brush is active. */
+  brush: BrushState | null;
+  /** Brush ring radius in meters. Kept between brush sessions. */
+  brushRadius: number;
+  /** 0.25 … 1: how close together the brush puts pieces. */
+  brushDensity: number;
+  /** The brush removes pieces instead of adding them (Alt does the same while held). */
+  brushErase: boolean;
 
   // --- Object CRUD ---
   /** Adds an object on the spawn spiral. Removing a building removes what is attached to it. */
-  addObject: (type: DioramaObjectType, params?: BuildingParams) => void;
+  addObject: (type: DioramaObjectType, params?: ObjectParams) => void;
+  /** Places a kit on the spawn spiral (the keyboard path of the library). */
+  addKit: (kit: Kit) => void;
   removeObject: (id: string) => void;
   removeObjects: (ids: string[]) => void;
 
   // --- Placement on surfaces ---
   startPlacement: (placement: Placement) => void;
   cancelPlacement: () => void;
+  /** Turns the placement ghost by `radians`. */
+  rotatePlacement: (radians: number) => void;
   /** Finishes the current placement at a world transform, attached to `parentId` if given. */
   placeObject: (world: Transform, parentId: string | undefined, keepPlacing: boolean) => void;
   /** Frees an attached object from its building without moving it. */
   detachObject: (id: string) => void;
   /** Changes a building through a function of its current params. One undo step. */
   setBuildingParams: (id: string, update: (current: BuildingParams) => BuildingParams) => void;
+
+  // --- Scatter brush ---
+  /** Starts the brush for `kind`, painting into `layerId` if given. Ends any placement. */
+  startBrush: (kind: ScatterKind, layerId?: string) => void;
+  stopBrush: () => void;
+  setBrushRadius: (radius: number) => void;
+  setBrushDensity: (density: number) => void;
+  setBrushErase: (erase: boolean) => void;
+  /**
+   * Starts a paint stroke at a world point on the base and returns the layer
+   * it paints into: the brush's layer, else the selected layer of the same
+   * kind, else a new layer created there and selected. Not on the undo stack
+   * until endScatterStroke.
+   */
+  beginScatterStroke: (origin: Vector3Tuple) => string | null;
+  /** Replaces a layer's points without an undo step (during a stroke). */
+  setScatterPoints: (id: string, points: Vector3Tuple[]) => void;
+  /** Ends a stroke: layers left empty are removed, and the stroke becomes one undo step. */
+  endScatterStroke: () => void;
+  /** Gives a layer a new seed: every piece gets a new heading, size and tint. One undo step. */
+  shuffleScatter: (id: string) => void;
 
   // Silent transform updates (no history) — call commitTransform() to snapshot.
   updateObject: (id: string, changes: DioramaObjectChanges) => void;
@@ -144,6 +193,22 @@ function clampTransformMode(selectionSize: number, mode: TransformMode): Transfo
 
 /** How far (meters, along X and Z) a duplicate lands from its source. */
 const DUPLICATE_OFFSET = 3;
+
+export const BRUSH_RADIUS_RANGE = { min: 0.25, max: 3 } as const;
+export const BRUSH_DENSITY_RANGE = { min: 0.25, max: 1 } as const;
+
+const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
+
+/** The object a placement moves, if it moves an existing one. */
+function movingIdOf(placement: Placement | null): string | undefined {
+  return placement && !("kit" in placement) ? placement.movingId : undefined;
+}
+
+/** A duplicate of a natural asset gets its own heading and size, so repeats never look stamped. */
+function varied(object: DioramaObject): DioramaObject {
+  if (!ASSET_REGISTRY[object.type].jitter) return object;
+  return { ...object, rotation: [0, Math.random() * Math.PI * 2, 0], scale: jitteredScale(object.type, object.scale) };
+}
 /** The same for an attached object, which has to stay on its building. */
 const ATTACHED_DUPLICATE_OFFSET = 0.5;
 
@@ -168,7 +233,7 @@ function duplicateWithChildren(objects: DioramaObject[], ids: string[]): { copie
     const position: Vector3Tuple = source.parentId
       ? [x + ATTACHED_DUPLICATE_OFFSET, y, z]
       : [x + DUPLICATE_OFFSET, y, z + DUPLICATE_OFFSET];
-    copies.push({ ...source, id, position });
+    copies.push(varied({ ...source, id, position }));
   }
   for (const source of objects) {
     const parentCopy = source.parentId && copyIdOf.get(source.parentId);
@@ -231,6 +296,11 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   importError: null,
   cameraApi: null,
   placement: null,
+  placementYaw: 0,
+  brush: null,
+  brushRadius: 0.8,
+  brushDensity: 0.7,
+  brushErase: false,
 
   addObject: (type, params) =>
     set((state) => {
@@ -240,6 +310,22 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
         objects,
         selectedObjectIds: [object.id],
         placement: null,
+        brush: null,
+        ...commit(state, objects),
+      };
+    }),
+
+  addKit: (kit) =>
+    set((state) => {
+      const position = nextSpawnPosition(state.objects.length, state.environment.base);
+      const placed = instantiateKit(kit, { position, rotation: [0, 0, 0], scale: [1, 1, 1] });
+      const objects = [...state.objects, ...placed.objects];
+      return {
+        objects,
+        selectedObjectIds: placed.rootIds,
+        transformMode: clampTransformMode(placed.rootIds.length, state.transformMode),
+        placement: null,
+        brush: null,
         ...commit(state, objects),
       };
     }),
@@ -253,22 +339,38 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
       return {
         objects,
         selectedObjectIds: state.selectedObjectIds.filter((sid) => !idSet.has(sid)),
-        placement: state.placement?.movingId && idSet.has(state.placement.movingId) ? null : state.placement,
+        placement: idSet.has(movingIdOf(state.placement) ?? "") ? null : state.placement,
         ...commit(state, objects),
       };
     }),
 
-  startPlacement: (placement) => set({ placement }),
+  startPlacement: (placement) => set({ placement, placementYaw: 0, brush: null }),
 
   cancelPlacement: () => set({ placement: null }),
+
+  rotatePlacement: (radians) =>
+    set((state) => (state.placement ? { placementYaw: (state.placementYaw + radians) % (Math.PI * 2) } : state)),
 
   placeObject: (world, parentId, keepPlacing) =>
     set((state) => {
       const { placement } = state;
       if (!placement) return state;
       const byId = indexObjects(state.objects);
-      const transform = toParentFrame(world, parentId ? byId.get(parentId) : undefined);
+      const parent = parentId ? byId.get(parentId) : undefined;
 
+      if ("kit" in placement) {
+        const placed = instantiateKit(placement.kit, world, parent);
+        const objects = [...state.objects, ...placed.objects];
+        return {
+          objects,
+          selectedObjectIds: placed.rootIds,
+          transformMode: clampTransformMode(placed.rootIds.length, state.transformMode),
+          placement: keepPlacing ? placement : null,
+          ...commit(state, objects),
+        };
+      }
+
+      const transform = toParentFrame(world, parent);
       if (placement.movingId) {
         const moving = byId.get(placement.movingId);
         if (!moving) return { placement: null };
@@ -306,9 +408,82 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
 
   setBuildingParams: (id, update) =>
     set((state) => {
-      const objects = state.objects.map((o) =>
-        o.id === id && o.params && !o.locked ? { ...o, params: normalizeBuildingParams(update(o.params)) ?? o.params } : o
-      );
+      const objects = state.objects.map((o) => {
+        const params = buildingParamsOf(o);
+        return o.id === id && params && !o.locked ? { ...o, params: normalizeBuildingParams(update(params)) ?? params } : o;
+      });
+      return { objects, ...commit(state, objects) };
+    }),
+
+  startBrush: (kind, layerId) => set({ brush: { kind, layerId }, placement: null }),
+
+  stopBrush: () => set({ brush: null }),
+
+  setBrushRadius: (radius) => set({ brushRadius: clamp(radius, BRUSH_RADIUS_RANGE.min, BRUSH_RADIUS_RANGE.max) }),
+
+  setBrushDensity: (density) =>
+    set({ brushDensity: clamp(density, BRUSH_DENSITY_RANGE.min, BRUSH_DENSITY_RANGE.max) }),
+
+  setBrushErase: (erase) => set({ brushErase: erase }),
+
+  beginScatterStroke: (origin) => {
+    const state = get();
+    const { brush } = state;
+    if (!brush) return null;
+    const paintable = (id: string | undefined) => {
+      const layer = id ? state.objects.find((o) => o.id === id) : undefined;
+      return layer && scatterParamsOf(layer)?.kind === brush.kind && !layer.locked && layer.visible ? layer : undefined;
+    };
+    const selected = state.selectedObjectIds.length === 1 ? state.selectedObjectIds[0] : undefined;
+    const target = paintable(brush.layerId) ?? paintable(selected);
+    if (target) {
+      set({ brush: { ...brush, layerId: target.id }, selectedObjectIds: [target.id] });
+      return target.id;
+    }
+    const layer = createDioramaObject("scatter", 0, state.environment.base, {
+      position: roundPoint(origin),
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1],
+      params: { kind: brush.kind, seed: newScatterSeed(), points: [] },
+    });
+    set({
+      objects: [...state.objects, layer],
+      brush: { ...brush, layerId: layer.id },
+      selectedObjectIds: [layer.id],
+      transformMode: "translate",
+    });
+    return layer.id;
+  },
+
+  setScatterPoints: (id, points) =>
+    set((state) => ({
+      objects: state.objects.map((o) => {
+        const params = scatterParamsOf(o);
+        return o.id === id && params ? { ...o, params: { ...params, points } } : o;
+      }),
+    })),
+
+  endScatterStroke: () =>
+    set((state) => {
+      const emptied = new Set(state.objects.filter((o) => scatterParamsOf(o)?.points.length === 0).map((o) => o.id));
+      const objects = emptied.size ? state.objects.filter((o) => !emptied.has(o.id)) : state.objects;
+      const cleanup = {
+        brush: state.brush?.layerId && emptied.has(state.brush.layerId) ? { kind: state.brush.kind } : state.brush,
+        selectedObjectIds: state.selectedObjectIds.filter((id) => !emptied.has(id)),
+      };
+      // A stroke that changed nothing (a click on bare ground) leaves no undo step.
+      const top = state.history[state.historyIndex];
+      const unchanged = objects.length === top.length && objects.every((o, i) => o === top[i]);
+      if (unchanged) return { objects: top, ...cleanup };
+      return { objects, ...cleanup, ...commit(state, objects) };
+    }),
+
+  shuffleScatter: (id) =>
+    set((state) => {
+      const objects = state.objects.map((o) => {
+        const params = scatterParamsOf(o);
+        return o.id === id && params && !o.locked ? { ...o, params: { ...params, seed: newScatterSeed() } } : o;
+      });
       return { objects, ...commit(state, objects) };
     }),
 
@@ -400,6 +575,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
         objects,
         selectedObjectIds: [],
         placement: null,
+        brush: null,
         transformMode: "translate",
         ...commit(state, objects),
       };
@@ -415,6 +591,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
         sceneName: DEFAULT_SCENE_NAME,
         selectedObjectIds: [],
         placement: null,
+        brush: null,
         transformMode: "translate" as TransformMode,
         ...createInitialHistory(objects),
       };
@@ -447,6 +624,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
       camera: scene.camera,
       selectedObjectIds: [],
       placement: null,
+      brush: null,
       transformMode: "translate" as TransformMode,
       ...createInitialHistory(scene.objects),
       saveStatus: "saved" as SaveStatus,
@@ -518,7 +696,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   setGridSize: (size) => set({ gridSize: size }),
   setRotationSnapEnabled: (enabled) => set({ rotationSnapEnabled: enabled }),
   setRotationSnapDegrees: (degrees) => set({ rotationSnapDegrees: degrees }),
-  setPreviewMode: (enabled) => set({ isPreviewMode: enabled, placement: null }),
+  setPreviewMode: (enabled) => set({ isPreviewMode: enabled, placement: null, brush: null }),
   registerCameraApi: (api) => set({ cameraApi: api }),
   setSaveStatus: (status) => set({ saveStatus: status }),
 }));

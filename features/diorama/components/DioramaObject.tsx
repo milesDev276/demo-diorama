@@ -6,7 +6,9 @@ import type { DioramaObject as DioramaObjectData } from "../types/diorama.types"
 import { useDioramaStore } from "../store/dioramaStore";
 import { ASSET_REGISTRY, getFootprintRadius } from "../assets/assetRegistry";
 import { GltfAsset } from "../objects/GltfAsset";
+import { ScatterSelection } from "../objects/scatter/ScatterSelection";
 import { LEGACY_UNIT_SCALE } from "../utils/legacyUnits";
+import { scatterParamsOf } from "../utils/objectParams";
 import { SelectionRing } from "./SelectionRing";
 
 interface AssetVisualProps {
@@ -22,11 +24,18 @@ export function AssetVisual({ object, surfaceId }: AssetVisualProps) {
   const Visual = asset.component;
   return asset.legacyUnits ? (
     <group scale={LEGACY_UNIT_SCALE}>
-      <Visual />
+      <Visual object={object} />
     </group>
   ) : (
-    <Visual params={object.params} surfaceId={surfaceId} />
+    <Visual object={object} surfaceId={surfaceId} />
   );
+}
+
+/** A ring under a selected object; a scatter layer marks each of its pieces instead. */
+function SelectionMarker({ object }: { object: DioramaObjectData }) {
+  const scatter = scatterParamsOf(object);
+  if (scatter) return <ScatterSelection params={scatter} locked={object.locked} />;
+  return <SelectionRing locked={object.locked} radius={getFootprintRadius(object)} />;
 }
 
 interface DioramaObjectProps {
@@ -73,7 +82,7 @@ export function DioramaObject({ object, childrenByParent, gizmoOwnerId, onGizmoG
       }}
     >
       <AssetVisual object={object} surfaceId={object.id} />
-      {isSelected && <SelectionRing locked={object.locked} radius={getFootprintRadius(object)} />}
+      {isSelected && <SelectionMarker object={object} />}
       {childrenByParent.get(object.id)?.map((child) => (
         <DioramaObject
           key={child.id}

@@ -4,7 +4,8 @@ import { Suspense, useEffect, useMemo } from "react";
 import { useGLTF } from "@react-three/drei";
 import type { Material, Mesh, Object3D } from "three";
 import { DEFAULT_BUILDING_PARAMS } from "../../assets/buildingPresets";
-import type { BuildingParams } from "../../types/diorama.types";
+import type { AssetComponentProps, BuildingParams } from "../../types/diorama.types";
+import { buildingParamsOf } from "../../utils/objectParams";
 import { buildingSize } from "../../utils/buildingParams";
 import { DIORAMA_COLORS } from "../../utils/palette";
 import { BASE_SURFACE } from "../../utils/surfaceSnap";
@@ -31,7 +32,7 @@ function slotGeometries(scene: Object3D): SlotGeometries {
   return slots;
 }
 
-export interface BuildingProps {
+interface BuildingProps {
   params?: BuildingParams;
   /** Id of the scene object, if props can be placed on this building. Ghosts have none. */
   surfaceId?: string;
@@ -105,4 +106,9 @@ export function Building({ params = DEFAULT_BUILDING_PARAMS, surfaceId }: Buildi
       </Suspense>
     </ModelErrorBoundary>
   );
+}
+
+/** The registry's component for `building` objects: reads the object's params. */
+export function BuildingAsset({ object, surfaceId }: AssetComponentProps) {
+  return <Building params={buildingParamsOf(object)} surfaceId={surfaceId} />;
 }

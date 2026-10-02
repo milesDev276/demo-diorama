@@ -4,7 +4,8 @@ import { useMemo } from "react";
 import { Eye, EyeOff, Lock, Unlock, Trash2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useDioramaStore } from "../store/dioramaStore";
-import { ASSET_REGISTRY } from "../assets/assetRegistry";
+import { objectIcon, objectLabel } from "../assets/assetRegistry";
+import { scatterParamsOf } from "../utils/objectParams";
 import { groupChildren } from "../utils/sceneGraph";
 
 /**
@@ -43,7 +44,8 @@ export function ObjectList() {
       ) : (
         <div className="flex flex-1 flex-col gap-1 overflow-y-auto">
           {rows.map((object) => {
-            const Icon = ASSET_REGISTRY[object.type].icon;
+            const Icon = objectIcon(object);
+            const pieces = scatterParamsOf(object)?.points.length;
             const isSelected = selectedObjectIds.includes(object.id);
             return (
               <div
@@ -62,7 +64,8 @@ export function ObjectList() {
               >
                 <Icon size={14} className={cn("shrink-0", !object.visible && "opacity-40")} />
                 <span className={cn("flex-1 truncate", !object.visible && "italic opacity-50")}>
-                  {ASSET_REGISTRY[object.type].label}
+                  {objectLabel(object)}
+                  {pieces !== undefined && <span className="ml-1 text-[11px] tabular-nums text-[#4A3421]/40">{pieces}</span>}
                 </span>
                 {object.locked && <Lock size={11} className="shrink-0 text-[#4A3421]/40" />}
 

@@ -1,47 +1,47 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { Group } from "three";
-import type { DioramaObject as DioramaObjectData, Placement } from "../types/diorama.types";
+import type { Placement, Vector3Tuple } from "../types/diorama.types";
 import { useDioramaStore } from "../store/dioramaStore";
 import { ASSET_REGISTRY, getFootprintRadius } from "../assets/assetRegistry";
-import { spawnYaw } from "../utils/objectDefaults";
-import { canBeParent, getWorldTransform, indexObjects, type Transform } from "../utils/sceneGraph";
+import { jitteredScale, spawnYaw } from "../utils/objectDefaults";
+import { kitNeedsBase, kitRadius } from "../utils/kits";
+import { canBeChild, canBeParent, getWorldTransform, indexObjects, type Transform } from "../utils/sceneGraph";
+import { collectSurfaces, isSliver, surfaceOwnerId, toPointer, worldNormal } from "../utils/surfacePicking";
 import { resolvePlacement, type SurfaceHit } from "../utils/surfaceSnap";
 import { AssetVisual } from "./DioramaObject";
+import { KitVisual } from "./KitVisual";
 import { SelectionRing } from "./SelectionRing";
 
 /** A press that travels further than this (pixels) is an orbit drag, not a placing click. */
 const CLICK_TOLERANCE = 5;
 
-/** The scene object a surface mesh belongs to, read from the `placementSurface` tag on it or an ancestor. */
-function surfaceOwnerId(object: THREE.Object3D | null): string | undefined {
-  for (let node = object; node; node = node.parent) {
-    if (node.userData.placementSurface) return node.userData.objectId;
-  }
-  return undefined;
+/** The heading and scale a new object starts from; varied again after every Shift+click for jittered assets. */
+function freshPose(placement: Placement): { yaw: number; scale: Vector3Tuple } {
+  if ("kit" in placement) return { yaw: 0, scale: [1, 1, 1] };
+  const asset = ASSET_REGISTRY[placement.type];
+  return { yaw: spawnYaw(placement.type), scale: jitteredScale(placement.type, asset.defaultScale) };
 }
 
-/** Faces narrower than this (meters) are not surfaces: rails, posts, sills and frames. */
-const MIN_SURFACE_WIDTH = 0.1;
-
-/**
- * True if the hit triangle is a sliver — the face of a rail, a post or a
- * frame. Skipping those lets a click aimed at the roof behind a railing
- * reach the roof instead of balancing the object on the handrail.
- */
-function isSliver(hit: THREE.Intersection): boolean {
-  const mesh = hit.object as THREE.Mesh;
-  const position = mesh.geometry?.getAttribute("position");
-  if (!hit.face || !position) return false;
-  const [a, b, c] = [hit.face.a, hit.face.b, hit.face.c].map((index) =>
-    new THREE.Vector3().fromBufferAttribute(position, index).applyMatrix4(mesh.matrixWorld)
+function PlacementGhost({ placement }: { placement: Placement }) {
+  if ("kit" in placement) {
+    return (
+      <>
+        <KitVisual kit={placement.kit} />
+        <SelectionRing radius={kitRadius(placement.kit)} />
+      </>
+    );
+  }
+  const object = { type: placement.type, params: placement.params };
+  return (
+    <>
+      <AssetVisual object={object} />
+      <SelectionRing radius={getFootprintRadius(object)} />
+    </>
   );
-  const longest = Math.max(a.distanceTo(b), b.distanceTo(c), c.distanceTo(a));
-  const doubleArea = b.clone().sub(a).cross(c.clone().sub(a)).length();
-  return doubleArea / longest < MIN_SURFACE_WIDTH;
 }
 
 function ActivePlacement({ placement }: { placement: Placement }) {
@@ -50,34 +50,29 @@ function ActivePlacement({ placement }: { placement: Placement }) {
   const scene = useThree((s) => s.scene);
   const placeObject = useDioramaStore((s) => s.placeObject);
   const ghostRef = useRef<Group>(null);
-  // A new object keeps one heading for the whole placement; a moved one keeps its own.
-  const [newYaw] = useState(() => spawnYaw(placement.type));
 
   useEffect(() => {
     const element = gl.domElement;
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
+    const movingId = "kit" in placement ? undefined : placement.movingId;
+    const wallMount = "kit" in placement ? undefined : ASSET_REGISTRY[placement.type].wallMount;
+    // Buildings, scatter layers and kits holding either go on the base only.
+    const baseOnly = "kit" in placement ? kitNeedsBase(placement.kit) : !canBeChild(placement);
+    // A new object keeps one pose until it is placed; a moved one keeps its own.
+    let pose = freshPose(placement);
     let pressed: { x: number; y: number } | null = null;
+    let lastEvent: PointerEvent | null = null;
     let resolved: { world: Transform; parentId?: string } | null = null;
 
     const resolve = (event: PointerEvent) => {
-      const { objects, snapEnabled, gridSize } = useDioramaStore.getState();
+      lastEvent = event;
+      const { objects, snapEnabled, gridSize, placementYaw } = useDioramaStore.getState();
       const byId = indexObjects(objects);
-      const moving = placement.movingId ? byId.get(placement.movingId) : undefined;
-      const isBuilding = placement.type === "building";
+      const moving = movingId ? byId.get(movingId) : undefined;
 
-      // Surfaces: the base and the buildings. A building only goes on the base.
-      const surfaces: THREE.Object3D[] = [];
-      scene.traverse((node) => {
-        if (!node.userData.placementSurface) return;
-        const ownerId: string | undefined = node.userData.objectId;
-        if (ownerId && (isBuilding || ownerId === placement.movingId)) return;
-        surfaces.push(node);
-      });
-
-      const rect = element.getBoundingClientRect();
-      pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
-      raycaster.setFromCamera(pointer, camera);
+      const surfaces = collectSurfaces(scene, (ownerId) => !!ownerId && (baseOnly || ownerId === movingId));
+      raycaster.setFromCamera(toPointer(event, element, pointer), camera);
       const hit = raycaster.intersectObjects(surfaces, true).find((candidate) => !isSliver(candidate));
       resolved = null;
       if (hit?.face) {
@@ -85,16 +80,16 @@ function ActivePlacement({ placement }: { placement: Placement }) {
         const owner = ownerId ? byId.get(ownerId) : undefined;
         const surface: SurfaceHit = {
           point: hit.point.toArray(),
-          normal: hit.face.normal.clone().transformDirection(hit.object.matrixWorld).toArray(),
+          normal: worldNormal(hit).toArray(),
           owner: owner && canBeParent(owner) ? owner : undefined,
         };
         const current = moving ? getWorldTransform(moving, byId) : undefined;
         const world = resolvePlacement(surface, byId, {
           grid: snapEnabled ? gridSize : null,
-          wallMount: ASSET_REGISTRY[placement.type].wallMount,
-          yaw: current ? current.rotation[1] : newYaw,
+          wallMount,
+          yaw: (current ? current.rotation[1] : pose.yaw) + placementYaw,
           yawFollowsOwner: !current,
-          scale: current ? current.scale : ASSET_REGISTRY[placement.type].defaultScale,
+          scale: current ? current.scale : pose.scale,
         });
         if (world) resolved = { world, parentId: surface.owner?.id };
       }
@@ -123,44 +118,58 @@ function ActivePlacement({ placement }: { placement: Placement }) {
       if (travelled > CLICK_TOLERANCE) return;
       // The object lands exactly where the ghost is; a tap with no hover before it resolves here.
       if (!resolved) resolve(event);
-      if (resolved) placeObject(resolved.world, resolved.parentId, event.shiftKey);
+      if (!resolved) return;
+      placeObject(resolved.world, resolved.parentId, event.shiftKey);
+      if (event.shiftKey) {
+        // The next one gets its own heading and size, so a row of pots or trees never looks stamped.
+        if (!("kit" in placement) && ASSET_REGISTRY[placement.type].jitter) pose = freshPose(placement);
+        resolve(event);
+      }
     };
     const handleLeave = () => {
       resolved = null;
+      lastEvent = null;
       if (ghostRef.current) ghostRef.current.visible = false;
     };
+    // R / Shift+R turn the ghost; show it at once, without waiting for the pointer to move.
+    const unsubscribe = useDioramaStore.subscribe((state, previous) => {
+      if (state.placementYaw !== previous.placementYaw && lastEvent) resolve(lastEvent);
+    });
 
     element.addEventListener("pointermove", resolve);
     element.addEventListener("pointerdown", handleDown);
     element.addEventListener("click", handleClick as EventListener, true);
     element.addEventListener("pointerleave", handleLeave);
     return () => {
+      unsubscribe();
       element.removeEventListener("pointermove", resolve);
       element.removeEventListener("pointerdown", handleDown);
       element.removeEventListener("click", handleClick as EventListener, true);
       element.removeEventListener("pointerleave", handleLeave);
     };
-  }, [gl, camera, scene, placement, newYaw, placeObject]);
-
-  const ghostObject: Pick<DioramaObjectData, "type" | "params"> = { type: placement.type, params: placement.params };
+  }, [gl, camera, scene, placement, placeObject]);
 
   return (
     <group ref={ghostRef} visible={false}>
-      <AssetVisual object={ghostObject} />
-      <SelectionRing radius={getFootprintRadius(ghostObject)} />
+      <PlacementGhost placement={placement} />
     </group>
   );
 }
 
+/** Identifies a placement session, so a new one starts with a fresh ghost. */
+function placementKey(placement: Placement): string {
+  return "kit" in placement ? `kit:${placement.kit.id}` : `${placement.type}:${placement.movingId ?? "new"}`;
+}
+
 /**
  * Click-to-place: while the store holds a `placement`, a ghost of the asset
- * follows the pointer over the base and the buildings, snapped by
- * utils/surfaceSnap, and a click puts the object there — attached to the
- * building if it landed on one. The ghost's transform is written straight to
- * its group; the store only changes on the click.
+ * (or of a whole kit) follows the pointer over the base and the buildings,
+ * snapped by utils/surfaceSnap, and a click puts it there — attached to the
+ * building if it landed on one. R turns the ghost. The ghost's transform is
+ * written straight to its group; the store only changes on the click.
  */
 export function PlacementLayer() {
   const placement = useDioramaStore((s) => s.placement);
   if (!placement) return null;
-  return <ActivePlacement key={`${placement.type}:${placement.movingId ?? "new"}`} placement={placement} />;
+  return <ActivePlacement key={placementKey(placement)} placement={placement} />;
 }

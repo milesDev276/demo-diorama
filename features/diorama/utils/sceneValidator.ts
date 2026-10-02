@@ -9,6 +9,7 @@ import type {
 } from "../types/diorama.types";
 import { DEFAULT_BUILDING_PARAMS } from "../assets/buildingPresets";
 import { normalizeBuildingParams } from "./buildingParams";
+import { normalizeScatterParams } from "./scatterParams";
 import { createId } from "./id";
 import { DEFAULT_SCENE_NAME } from "./objectDefaults";
 import { repairParentLinks } from "./sceneGraph";
@@ -59,7 +60,24 @@ function normalizeObject(raw: unknown, seenIds: Set<string>): DioramaObject | nu
   // Optional fields are only written when present, so files without them round-trip unchanged.
   if (typeof r.parentId === "string" && r.parentId) object.parentId = r.parentId;
   if (object.type === "building") object.params = normalizeBuildingParams(r.params) ?? DEFAULT_BUILDING_PARAMS;
+  if (object.type === "scatter") {
+    // A layer of an unknown kind cannot be drawn; drop it like an unknown type.
+    const params = normalizeScatterParams(r.params);
+    if (!params) return null;
+    object.params = params;
+  }
   return object;
+}
+
+/**
+ * Normalizes a raw object list: unknown or broken objects dropped, ids made
+ * unique, values clamped, parent links repaired. Used for scenes and kits.
+ */
+export function normalizeObjects(rawObjects: unknown[]): DioramaObject[] {
+  const seenIds = new Set<string>();
+  return repairParentLinks(
+    rawObjects.map((o) => normalizeObject(o, seenIds)).filter((o): o is DioramaObject => o !== null)
+  );
 }
 
 /** Keeps the file's base if it is one this app knows; everything else is the default. */
@@ -97,11 +115,7 @@ export function validateAndNormalizeScene(data: unknown): { scene: DioramaScene 
     }
 
     const name = typeof root.name === "string" && root.name.trim() ? root.name.trim().slice(0, 80) : DEFAULT_SCENE_NAME;
-    const rawObjects = migrateRawObjects(Array.isArray(root.objects) ? root.objects : [], version);
-    const seenIds = new Set<string>();
-    const objects = repairParentLinks(
-      rawObjects.map((o) => normalizeObject(o, seenIds)).filter((o): o is DioramaObject => o !== null)
-    );
+    const objects = normalizeObjects(migrateRawObjects(Array.isArray(root.objects) ? root.objects : [], version));
 
     const scene: DioramaScene = {
       id: typeof root.id === "string" && root.id.trim() ? root.id : createId("scene"),

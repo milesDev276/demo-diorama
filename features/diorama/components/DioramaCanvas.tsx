@@ -10,6 +10,8 @@ import { Ground } from "./Ground";
 import { SceneLighting } from "./SceneLighting";
 import { SceneObjects } from "./SceneObjects";
 import { PlacementLayer } from "./PlacementLayer";
+import { BrushLayer } from "./BrushLayer";
+import { BrushBar } from "./BrushBar";
 import { CameraControls } from "./CameraControls";
 import { PostEffects } from "./PostEffects";
 import { SceneFog } from "./SceneFog";
@@ -41,6 +43,7 @@ function getDevFlag(): string | null {
 export function DioramaCanvas() {
   const isEmpty = useDioramaStore((s) => s.objects.length === 0);
   const placement = useDioramaStore((s) => s.placement);
+  const isBrushing = useDioramaStore((s) => s.brush !== null);
   const gridSize = useDioramaStore((s) => s.gridSize);
   const isPreviewMode = useDioramaStore((s) => s.isPreviewMode);
   const base = useDioramaStore((s) => s.environment.base);
@@ -56,7 +59,7 @@ export function DioramaCanvas() {
 
   return (
     <div
-      className={cn("relative h-full w-full overflow-hidden rounded-3xl", placement && "cursor-crosshair")}
+      className={cn("relative h-full w-full overflow-hidden rounded-3xl", (placement || isBrushing) && "cursor-crosshair")}
       style={SKY_BACKDROP_STYLE}
     >
       <Canvas
@@ -101,18 +104,21 @@ export function DioramaCanvas() {
 
         {!showBlockout && <SceneObjects />}
         {!showBlockout && !isPreviewMode && <PlacementLayer />}
+        {!showBlockout && !isPreviewMode && <BrushLayer />}
 
         {isPreviewMode && <PostEffects />}
       </Canvas>
 
       {placement && (
         <p className="pointer-events-none absolute left-1/2 top-4 -translate-x-1/2 rounded-full bg-white/80 px-4 py-1.5 text-xs font-medium text-[#4A3421] shadow-[0_8px_24px_rgba(139,111,82,0.15)] backdrop-blur">
-          {ASSET_REGISTRY[placement.type].label}: click a surface to place it · Shift+click to place several · Esc
-          to cancel
+          {"kit" in placement ? placement.kit.name : ASSET_REGISTRY[placement.type].label}: click a surface to place it ·
+          R to turn · Shift+click to place several · Esc to cancel
         </p>
       )}
 
-      {isEmpty && !isPreviewMode && !placement && (
+      {isBrushing && !isPreviewMode && <BrushBar />}
+
+      {isEmpty && !isPreviewMode && !placement && !isBrushing && (
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 text-center">
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/70 text-[#8B6F52] shadow-[0_8px_24px_rgba(139,111,82,0.15)] backdrop-blur">
             <Trees size={26} />
