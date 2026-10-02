@@ -158,12 +158,48 @@ function paintKanbanSakaya(ctx: CanvasRenderingContext2D, w: number, h: number) 
   [..."山田酒店"].forEach((glyph, i) => ctx.fillText(glyph, w / 2, h * 0.34 + i * size * 1.22));
 }
 
+/** Front of a post box: the 〒 mark, a label under each slot and the collection-times plate. */
+function paintPostFront(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  ctx.fillStyle = DIORAMA_COLORS.postRed;
+  ctx.fillRect(0, 0, w, h);
+
+  // Slot labels (the slots themselves are modeled above them)
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const labels = ["手紙・はがき", "その他郵便物"];
+  labels.forEach((label, i) => {
+    const cx = w * (0.27 + i * 0.46);
+    ctx.fillStyle = "#fff8ec";
+    roundRect(ctx, cx - w * 0.2, h * 0.26, w * 0.4, h * 0.075, h * 0.012);
+    ctx.fill();
+    ctx.fillStyle = "#3b322c";
+    ctx.font = font(700, h * 0.042);
+    ctx.fillText(label, cx, h * 0.3, w * 0.37);
+  });
+
+  // 〒 mark
+  ctx.fillStyle = "#fff8ec";
+  ctx.font = font(900, h * 0.3);
+  ctx.fillText("〒", w / 2, h * 0.56);
+
+  // Collection-times plate
+  roundRect(ctx, w * 0.2, h * 0.76, w * 0.6, h * 0.16, h * 0.015);
+  ctx.fill();
+  ctx.fillStyle = "#3b322c";
+  ctx.font = font(700, h * 0.04);
+  ctx.fillText("取集時刻", w / 2, h * 0.795);
+  ctx.font = font(600, h * 0.034);
+  ctx.fillText("平日 9:30 / 15:00", w / 2, h * 0.845, w * 0.54);
+  ctx.fillText("休日 10:00", w / 2, h * 0.89, w * 0.54);
+}
+
 /** One painter per cell; the Record type fails the build if the layout gains a cell with no painter. */
 const PAINTERS: Record<CellName, CellPainter> = {
   vending_ad: paintVendingAd,
   plate_kei: paintKeiPlate,
   road_tomare: paintTomare,
   kanban_sakaya: paintKanbanSakaya,
+  post_front: paintPostFront,
 };
 
 /** Cells that keep their alpha, for the `decal` material. Everything else is opaque print. */

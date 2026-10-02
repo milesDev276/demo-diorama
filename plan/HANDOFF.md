@@ -18,14 +18,17 @@ comes next. Details live in the linked plan files.
 | Stage 3: Blender GLB pipeline in the app, first six hero assets | Done | `main` (PR #6) |
 | Stage 4: base templates and road surface | Done | `main` (PR #7) |
 | Stage 5: modular building and surface attachment | Done | `main` (PR #8) |
-| **Stage 6: density tools** | **Implemented and verified (2026-10-02); NOT committed; waiting for the user's review** | branch **`stage6-density`** (cut from `main`) |
-| Stage 7: environment and Photo | Next | — |
+| Stage 6: density tools | Done | `main` (PR #9) |
+| **Stage 7: environment and Photo** | **Implemented and verified (2026-10-02); NOT committed; waiting for the user's review** | branch **`stage7-environment`** (cut from `main`) |
 
-**Immediate next action:** the user reviews Stage 6, then commits
-`stage6-density`, pushes and opens a PR. The user merges PRs themselves,
-one branch per stage. (For Stage 6 the user handed every decision to
-Claude, so the plan was settled with its defaults and implemented without
-a separate approval round. That was a one-off, not a standing rule.)
+Stage 7 is the last stage of the roadmap.
+
+**Immediate next action:** the user reviews Stage 7, then commits
+`stage7-environment`, pushes and opens a PR. The user merges PRs themselves,
+one branch per stage. (For Stages 6 and 7 the user handed every decision to
+Claude, so the plan was settled with its defaults and implemented without a
+separate approval round. Ask again at the start of new work; it is not a
+standing rule.)
 
 **A stash to know about.** `git stash list` holds "stage5 draft slice by
 another tool": six edited files and a box-shaped `Building.tsx` that
@@ -45,6 +48,7 @@ can be dropped once the user agrees.
 | [Stage-4-Implementation.md](Stage-4-Implementation.md) | Base templates and the corner base: decisions D1–D8, deviations and verification results (§7) |
 | [Stage-5-Implementation.md](Stage-5-Implementation.md) | Modular building, parent/child rules (D4) and click-to-place: decisions D1–D8, deviations, asset table and verification results (§7) |
 | [Stage-6-Implementation.md](Stage-6-Implementation.md) | Scatter brush, kits, rotate while placing, jitter, app-rendered thumbnails: decisions D1–D11, deviations, asset table and verification results (§7) |
+| [Stage-7-Implementation.md](Stage-7-Implementation.md) | Time of day, season, after-dark lights, shop interior, Photo mode, the hero's last assets and the starter template: decisions D1–D10, deviations, asset table and verification results (§7) |
 | `Phase-*.md` | Earlier phases, kept for history |
 
 ## 3. Decisions That Must Not Be Re-litigated
@@ -74,9 +78,9 @@ can be dropped once the user agrees.
   * Runtime cast shadows in the app are not affected.
 * **Keep assets simple.** For organic shapes the user wants a plain foam
   look, not fine detail. Do not over-iterate.
-* **GLB assets render with three shared materials** (`objects/materials.ts`),
-  remapped from the Blender slot names `base`, `emissive`, `printed`.
-  `EMISSIVE_INTENSITY` there is the single emissive level for the scene.
+* **GLB assets render with shared materials** (`objects/materials.ts`),
+  remapped from the Blender slot names `base`, `emissive`, `printed` and
+  `foliage`. An asset still uses at most three of them.
 * **A scene's base is scene data:** `environment.base`, `"street"` or
   `"corner"`. It is additive (files stay v2); anything missing or unknown
   loads as `"street"`.
@@ -135,6 +139,55 @@ can be dropped once the user agrees.
 * **`@react-three/postprocessing` is pinned to exactly `3.0.4`.** Anything
   newer needs `@react-three/fiber >= 9.7`, and fiber stays at 9.6.1.
 
+Stage 7:
+
+* **`environment.timeOfDay` and `environment.season` are scene data,**
+  additive (files stay v2). Missing or unknown values load as `"day"` and
+  `"autumn"`, which is the look every asset is modeled in. Neither is on
+  the undo stack.
+* **One record per time of day, in `utils/timeOfDay.ts`:** sun, ambient,
+  hemisphere, Lightformers, sky stops, emissive level, glow strength. No
+  other file holds a lighting number. `utils/seasons.ts` does the same for
+  seasons.
+* **Inside a canvas, read the environment from the context**
+  (`hooks/useSceneEnvironment.ts`: `useTimeOfDayLook`, `useSeasonLook`).
+  **Nothing the asset registry imports may import the store:** the store
+  builds its first scene from the registry while it loads, so such an
+  import is a cycle (it broke the thumbnail page once).
+* **The shared materials are pushed, not pulled:** `EnvironmentDriver`
+  calls `setEmissiveLevel`, `setFoliageSeason` and `setWireBounds` in
+  `objects/materials.ts` when the environment changes.
+* **The glow-light pool always has eight lights in the scene**
+  (`SceneGlowLights`), dark by day. Never mount or unmount lights with the
+  time of day or with objects: the light count is in every lit shader, and
+  changing it recompiles them all (1.7 s measured).
+* **After-dark lights are derived, not stored:** `glow` in the registry
+  (vending machine, legacy shop) and `shopLightPositions()` for buildings.
+* **The `foliage` slot is for deciduous crowns only.** The season recolors
+  it (brightness kept, hue replaced) and hides it in winter; whatever is in
+  that slot disappears then. Evergreens stay in `base`.
+* **A shop is one room:** shopfront bays share an interior
+  (`facade.SHOP_FRONT`, `SHOP_BACK`), and `layoutBuilding` closes a run
+  with `building_shop_side_01` except where it turns a corner into another
+  shopfront.
+* **The utility pole and its wires share `objects/poleLayout.json`,** read
+  by `PowerLine.tsx` and by the pole's Blender script. Wires are cut at the
+  base's outline by the `wire` material's clipping planes, and the wire
+  mesh's own `raycast` ignores the cut-off part.
+* **Photo mode is Preview.** `photo` in the store (frame, focus, blur,
+  exposure, scale) is editor state and is not saved. With a ratio chosen
+  the canvas itself takes that shape, so an export is never cropped.
+* **The focus band and blur go to the tilt-shift shader's uniforms every
+  frame,** not through the effect's props: the wrapper rebuilds the pass
+  when a prop changes, and it serializes its props, so it gets a callback
+  ref.
+* **An export resizes the composer for one synchronous frame**
+  (`PhotoStudio.savePhoto`): set the pixel ratio, render, copy the canvas,
+  restore — all in one task, so no `preserveDrawingBuffer`.
+* **Built-in starters are `assets/sceneTemplates.ts`.** A first visit opens
+  the first one; the hero's objects come from `getCornerStarter()` in
+  `utils/objectDefaults.ts`, which Reset on the corner base also uses.
+
 ## 4. How to Run and Verify
 
 The platform is Windows. Node 22.14, Chrome, and Blender 5.2.2 LTS at
@@ -155,6 +208,9 @@ node scripts/measure-scene.mjs --types keiCar,bicycle --count 100 [--seconds 5] 
 # Library thumbnails (dev server must run): every item, or some keys
 node scripts/capture-thumbnails.mjs [--only vendingMachine,kit:vending-corner]
 
+# Preview image of every built-in starter scene (dev server must run)
+node scripts/capture-template.mjs
+
 # Blender: build one asset, several, or `all` (GLB → public/models/<category>/, previews → art/previews/)
 # Exits non-zero if an asset is over its triangle budget or over 3 draw calls.
 "<blender.exe>" --background --factory-startup --python art/blender/build.py -- prop_vending_machine_01
@@ -169,8 +225,11 @@ node scripts/capture-thumbnails.mjs [--only vendingMachine,kit:vending-corner]
     camera presets frame the 16 m base.
   * `/diorama?dev=stats` exposes the R3F state as `window.__dioramaThree()`
     (renderer, scene, camera) and the store as `window.__dioramaStore`, for
-    the measurement and verification scripts.
-  * **Preview** turns on the perspective camera and the effect stack.
+    the measurement and verification scripts. Time of day, season, photo
+    settings and exports can all be driven through the store
+    (`setTimeOfDay`, `setSeason`, `setPhoto`, `photoApi.savePhoto(scale)`).
+  * **Preview** turns on the perspective camera, the effect stack and the
+    photo bar.
   * `/diorama/thumbnails?item=<key>` is the thumbnail studio the capture
     script drives (`window.__thumbnails.show(key)`).
 * **Verification method used so far:**
@@ -181,9 +240,12 @@ node scripts/capture-thumbnails.mjs [--only vendingMachine,kit:vending-corner]
      objects.
 
   The fps and draw-call check is now `scripts/measure-scene.mjs`. The
-  diff, crop, close-up and round-trip helpers were one-off scripts and are
-  **not** in the repo. Recreate them from the `Cdp` and `launchBrowser`
-  exports of `capture-presets.mjs`.
+  diff, crop, close-up, round-trip and scenario helpers were one-off
+  scripts and are **not** in the repo. Recreate them from the `Cdp` and
+  `launchBrowser` exports of `capture-presets.mjs`.
+* **A fresh browser profile now opens the hero scene** at golden hour.
+  Seed a scene to test anything else. A seed without an environment is the
+  street strip by day.
 
 ## 5. Gotchas Learned the Hard Way
 
@@ -210,13 +272,17 @@ node scripts/capture-thumbnails.mjs [--only vendingMachine,kit:vending-corner]
 * **`renderer.info` counts the main pass only.** three r184 resets it
   after the shadow pass.
 * **Headless fps is capped at 180** on this machine. An empty scene and
-  100 objects both report 180, so use a heavier scene to see headroom.
+  100 objects both report 180, so use a heavier scene or a 4K viewport to
+  see headroom.
 * **Close-up screenshots:** `__dioramaThree()` gives `camera` and
   `controls` (the OrbitControls). Set `controls.target`, the camera
   position and `camera.zoom`, then call `updateProjectionMatrix()` and
   `controls.update()`.
-* **`capture-presets.mjs` sometimes frames the first Preview shot small**
-  (a resize/screenshot race, about one run in four). Re-run it.
+* **In headless Chrome the canvas takes its new size late** after entering
+  Preview or changing the photo frame. A screenshot or a click that comes
+  first sees the old size: this is why `capture-presets.mjs` sometimes
+  frames the first Preview shot small. Poll the canvas's bounding box (and
+  send a mouse move) before going on.
 * **`measure-scene.mjs --types` builds a street scene.** For the corner
   base, write a scene file with `environment.base` and pass
   `--seed-scene`.
@@ -243,9 +309,21 @@ node scripts/capture-thumbnails.mjs [--only vendingMachine,kit:vending-corner]
   the stored params.
 * **The transform gizmo must stay at the scene root** (`SceneObjects.tsx`).
   Inside an object's group it would inherit the parent's transform.
-* **The emissive material patches three's shader** after
-  `<emissivemap_fragment>` (`materials.ts`). Re-check it on a three
-  upgrade.
+* **Two materials patch three's shaders** (`materials.ts`): the emissive
+  one after `<emissivemap_fragment>`, the foliage one after
+  `<color_fragment>`. Re-check both on a three upgrade.
+* **three's picking ignores clipping planes.** A mesh that a material cuts
+  off is still hit where nothing is drawn; give it its own `raycast`
+  (`PowerLine.tsx`).
+* **The effect wrappers of `@react-three/postprocessing` call
+  `JSON.stringify` on their props and rebuild the effect when a prop
+  changes.** Pass a callback ref, not an object ref, and drive values that
+  change often through the effect's uniforms.
+* **`renderer.toneMappingExposure` also drives the composer's tone-mapping
+  effect** (its shader declares the same uniform), so exposure is one
+  renderer property in the editor and in Preview.
+* **drei's `<Environment frames={1}>` re-renders the map whenever its
+  children change,** so changing the Lightformers' props is enough.
 * **A `main` baseline from a git worktree:** Turbopack refuses a
   `node_modules` junction that points outside the project. Run the worktree
   with `npx next dev --webpack -p 3001`. Remove the junction with
@@ -267,24 +345,30 @@ node scripts/capture-thumbnails.mjs [--only vendingMachine,kit:vending-corner]
   flex row.
 * **Test points hidden behind the building** (seen from the preset camera)
   make placing fail silently: the ray hits a wall. Pick visible points.
+* **A background dev server started by the agent is stopped after its time
+  limit,** but its Next child keeps serving on port 3000 (see the first
+  item). Check the port before starting another.
 
 ## 6. Known Limitations and Existing Behaviors (not bugs of these stages)
 
 * **The street strip is still legacy geometry** (≈ 6 m units, 43 draw
   calls). Only the corner base is authored in meters.
-* **Base changes are not on the undo stack.**
+* **Base, time-of-day and season changes are not on the undo stack.**
 * **Attachments do not follow a building resize;** the inspector edits a
   facade side at once, not per bay; the gizmo neither snaps to surfaces
   nor re-parents. The full list is in Stage-5-Implementation.md §7.
 * **Scatter only on the base; erase acts on every layer of the kind; kits
   cannot be renamed or exported; a placed kit cannot be turned afterwards.**
   The full list is in Stage-6-Implementation.md §7.
-* **Building windows glow in daylight** until Stage 7 drives
-  `EMISSIVE_INTENSITY` from the time of day.
+* **Glow lights cast no shadows and shine through walls** within their
+  reach; printed faces (the kanban sign) are not lit at night; shop doors
+  have no glass; photo settings are not saved with the scene. The full
+  list is in Stage-7-Implementation.md §7.
 * **Redo does not restore the selection.**
 * **Duplicates are not clamped to the plot.**
-* **Lighting was re-checked with the first GLBs** in Stage 3 and left
-  unchanged.
+* **The editing camera does not fit the scene to a small window.**
+* **Old scenes changed with Stage 7:** emissive surfaces no longer glow by
+  day; the utility pole is 10 m (was 12 m) and carries six wires.
 * **Legacy vending machines in old scenes got smaller** (1.32 → 1.0 m
   wide): the GLB is at real scale.
 * **Blender previews show printed faces blank.** Prints only exist in the
@@ -292,39 +376,30 @@ node scripts/capture-thumbnails.mjs [--only vendingMachine,kit:vending-corner]
 * **`npm audit` reports 10 findings.** They all predate this work (next,
   tailwind, sharp, …) and were not addressed.
 
-## 7. Next: Stage 7 — Environment and Photo
+## 7. Next
 
-From the roadmap. Write `Stage-7-Implementation.md` first and get it
-approved.
+The roadmap's seven stages are implemented. Nothing further is planned or
+approved; ask the user what comes next.
 
-* **`environment.timeOfDay`**, five presets (morning, day, golden hour,
-  evening, night), each driving sun color, angle and intensity, the sky
-  gradient and Lightformers, and `EMISSIVE_INTENSITY` in
-  `objects/materials.ts` (windows glow in daylight until then).
-* **Evening and night:** a few non-shadow shop lights; an interior
-  backplate (shelves, goods) behind the shop glass, from Blender.
-* **`environment.season`:** foliage tint and whether fallen leaves show.
-  Scatter leaves take their colors from the piece's vertex colors times a
-  per-instance brightness (`ScatterLayer.tsx`, `setColorAt`); a season
-  tint can multiply that instance color.
-* **Photo mode:** 1:1 / 4:5 / 16:9 frames, click-to-focus tilt-shift,
-  exposure, PNG export at 2–4×.
-* **The hero scene becomes a built-in starter template.**
-* Both environment fields are additive (files stay v2); the validator gives
-  them defaults.
-* **Still open from the hero list (L7):** utility pole and transformer in
-  meters, zelkova, block wall, hedge, post box, meter box. (Recycling bin,
-  A-frame sign and chair were built in Stage 6.) Decide with the user
-  where they go.
-* **Done when:** at golden hour and at dusk, the hero scene passes the §49
-  gate next to the reference.
+* **Open from Stage 7:** the hero scene was not put side by side with the
+  reference photo (the photo is not in the repository). That comparison —
+  the roadmap's "done when" — is the user's to make.
+* **Candidates that came up, none decided:**
+  * lit signs at night (an emissive mask for printed faces)
+  * a transparent material slot for shop and car glass
+  * the street strip rebuilt in meters; a metric stop sign
+  * more figures (the hero uses one figure twice; no shopkeeper)
+  * a saved camera and photo settings per scene (CLAUDE.md §12)
+  * weather (CLAUDE.md §25; outside the hero roadmap)
+* CLAUDE.md Phases 6–7 (cloud, community) need an explicit request.
 
 ## 8. Working With This User
 
 * **Language:** the user writes in Vietnamese. Reply in Vietnamese; repo
   docs are in English.
 * **Plan first:** at the start of each stage, write the plan doc and get it
-  approved, then implement.
+  approved, then implement — unless the user hands over the decisions, as
+  for Stages 6 and 7.
 * **Git:** the user commits, pushes and merges through GitHub PRs
   themselves. When asked, provide a commit message and a PR description.
 * **Reporting:** follow CLAUDE.md §46 — implemented, files, verification

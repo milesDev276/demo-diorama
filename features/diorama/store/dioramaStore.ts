@@ -11,13 +11,18 @@ import type {
   DioramaScene,
   Kit,
   ObjectParams,
+  PhotoApi,
+  PhotoSettings,
   Placement,
   SaveStatus,
   ScatterKind,
+  Season,
+  TimeOfDay,
   TransformMode,
   Vector3Tuple,
 } from "../types/diorama.types";
 import { ASSET_REGISTRY } from "../assets/assetRegistry";
+import { FIRST_VISIT_TEMPLATE, SCENE_TEMPLATES } from "../assets/sceneTemplates";
 import {
   deltaToParentFrame,
   getSubtreeIds,
@@ -38,6 +43,7 @@ import { instantiateKit } from "../utils/kits";
 import { buildingParamsOf, scatterParamsOf } from "../utils/objectParams";
 import { newScatterSeed, roundPoint } from "../utils/scatterParams";
 import { createId } from "../utils/id";
+import { DEFAULT_PHOTO_SETTINGS } from "../utils/photo";
 import { DEFAULT_CAMERA_STATE, DEFAULT_ENVIRONMENT } from "../utils/sceneDefaults";
 import { buildScene, downloadSceneAsJson, serializeScene, STORAGE_KEY } from "../utils/sceneSerializer";
 import { normalizeBuildingParams } from "../utils/buildingParams";
@@ -89,6 +95,9 @@ interface DioramaState {
   brushDensity: number;
   /** The brush removes pieces instead of adding them (Alt does the same while held). */
   brushErase: boolean;
+  /** How Preview frames, focuses and exposes a photo. Kept between Preview sessions. */
+  photo: PhotoSettings;
+  photoApi: PhotoApi | null;
 
   // --- Object CRUD ---
   /** Adds an object on the spawn spiral. Removing a building removes what is attached to it. */
@@ -156,9 +165,15 @@ interface DioramaState {
   setSceneName: (name: string) => void;
   /** Switches the base under the existing objects. Not on the undo stack: switch back to undo. */
   setBase: (base: DioramaBase) => void;
+  /** Changes the light the scene is seen in. Not on the undo stack. */
+  setTimeOfDay: (timeOfDay: TimeOfDay) => void;
+  /** Changes the season. Not on the undo stack. */
+  setSeason: (season: Season) => void;
   resetScene: () => void;
-  /** Starts an empty scene on the given base (default: the current one). */
+  /** Starts an empty scene on the given base (default: the current one), by day, in autumn. */
   newScene: (base?: DioramaBase) => void;
+  /** Starts a scene from a built-in starter (assets/sceneTemplates.ts). */
+  newSceneFromTemplate: (templateId: string) => void;
   saveScene: () => void;
   loadScene: (scene: DioramaScene) => void;
   exportScene: () => void;
@@ -177,6 +192,8 @@ interface DioramaState {
   setRotationSnapDegrees: (degrees: number) => void;
   setPreviewMode: (enabled: boolean) => void;
   registerCameraApi: (api: CameraControlsApi | null) => void;
+  setPhoto: (changes: Partial<PhotoSettings>) => void;
+  registerPhotoApi: (api: PhotoApi | null) => void;
   setSaveStatus: (status: SaveStatus) => void;
 }
 
@@ -266,11 +283,12 @@ function loadInitialState(): {
       // Corrupted localStorage — fall through to the default scene.
     }
   }
+  // A first visit opens the hero scene rather than an empty base.
   return {
-    objects: getDefaultScene(DEFAULT_ENVIRONMENT.base),
+    objects: FIRST_VISIT_TEMPLATE.objects(),
     sceneId: createId("scene"),
-    sceneName: DEFAULT_SCENE_NAME,
-    environment: DEFAULT_ENVIRONMENT,
+    sceneName: FIRST_VISIT_TEMPLATE.name,
+    environment: FIRST_VISIT_TEMPLATE.environment,
   };
 }
 
@@ -301,6 +319,8 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   brushRadius: 0.8,
   brushDensity: 0.7,
   brushErase: false,
+  photo: DEFAULT_PHOTO_SETTINGS,
+  photoApi: null,
 
   addObject: (type, params) =>
     set((state) => {
@@ -568,6 +588,12 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   setBase: (base) =>
     set((state) => (state.environment.base === base ? state : { environment: { ...state.environment, base } })),
 
+  setTimeOfDay: (timeOfDay) =>
+    set((state) => (state.environment.timeOfDay === timeOfDay ? state : { environment: { ...state.environment, timeOfDay } })),
+
+  setSeason: (season) =>
+    set((state) => (state.environment.season === season ? state : { environment: { ...state.environment, season } })),
+
   resetScene: () =>
     set((state) => {
       const objects = getDefaultScene(state.environment.base);
@@ -586,9 +612,27 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
       const objects: DioramaObject[] = [];
       return {
         objects,
-        environment: { ...state.environment, base: base ?? state.environment.base },
+        environment: { ...DEFAULT_ENVIRONMENT, base: base ?? state.environment.base },
         sceneId: createId("scene"),
         sceneName: DEFAULT_SCENE_NAME,
+        selectedObjectIds: [],
+        placement: null,
+        brush: null,
+        transformMode: "translate" as TransformMode,
+        ...createInitialHistory(objects),
+      };
+    }),
+
+  newSceneFromTemplate: (templateId) =>
+    set((state) => {
+      const template = SCENE_TEMPLATES.find((candidate) => candidate.id === templateId);
+      if (!template) return state;
+      const objects = template.objects();
+      return {
+        objects,
+        environment: template.environment,
+        sceneId: createId("scene"),
+        sceneName: template.name,
         selectedObjectIds: [],
         placement: null,
         brush: null,
@@ -698,5 +742,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   setRotationSnapDegrees: (degrees) => set({ rotationSnapDegrees: degrees }),
   setPreviewMode: (enabled) => set({ isPreviewMode: enabled, placement: null, brush: null }),
   registerCameraApi: (api) => set({ cameraApi: api }),
+  setPhoto: (changes) => set((state) => ({ photo: { ...state.photo, ...changes } })),
+  registerPhotoApi: (api) => set({ photoApi: api }),
   setSaveStatus: (status) => set({ saveStatus: status }),
 }));

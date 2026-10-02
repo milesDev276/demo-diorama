@@ -9,12 +9,15 @@ import {
   Vector3,
   type Group,
   type InstancedMesh,
+  type Material,
   type Mesh,
   type Object3D,
   type OrthographicCamera as OrthographicCameraImpl,
 } from "three";
 import { getAllLibraryItems, thumbnailFileName, type LibraryItem } from "../../assets/assetRegistry";
 import { BUILT_IN_KITS } from "../../assets/builtInKits";
+import { setWireBounds } from "../../objects/materials";
+import { BASE_TEMPLATES } from "../../utils/baseTemplates";
 import { CAMERA_PRESETS } from "../../utils/cameraPresets";
 import { scatterPatchParams } from "../../utils/objectDefaults";
 import { AssetVisual } from "../DioramaObject";
@@ -38,6 +41,8 @@ const STABLE_FRAMES = 20;
 const FILL = 0.84;
 /** Thumbnails of scatter kinds show a small round patch, the same every time. */
 const PATCH_SEED = 7;
+/** Overhead wires are shown as the stretch that crosses this base. */
+const WIRE_BASE = BASE_TEMPLATES.corner;
 
 const DIRECTION = new Vector3(...CAMERA_PRESETS.isometric.position).normalize();
 
@@ -55,7 +60,8 @@ function ItemVisual({ item }: { item: LibraryItem }) {
 /**
  * Tight world bounds of everything drawn under `root`: from the vertices of
  * plain meshes (a rotated geometry's own box would overstate it — a hipped
- * roof turned 45° doubles), from the instances of instanced ones.
+ * roof turned 45° doubles), from the instances of instanced ones. A mesh
+ * that its material cuts off (overhead wires) counts only up to the cut.
  */
 function contentBounds(root: Object3D): Box3 {
   const box = new Box3();
@@ -73,6 +79,13 @@ function contentBounds(root: Object3D): Box3 {
       part.makeEmpty();
       const position = mesh.geometry.getAttribute("position");
       for (let i = 0; i < position.count; i++) part.expandByPoint(vertex.fromBufferAttribute(position, i).applyMatrix4(mesh.matrixWorld));
+      // Axis-aligned clipping planes (objects/materials.ts): keep the side their normal points to.
+      for (const plane of (mesh.material as Material).clippingPlanes ?? []) {
+        for (const axis of ["x", "y", "z"] as const) {
+          if (plane.normal[axis] < -0.99) part.max[axis] = Math.min(part.max[axis], plane.constant);
+          if (plane.normal[axis] > 0.99) part.min[axis] = Math.max(part.min[axis], -plane.constant);
+        }
+      }
     }
     box.union(part);
   });
@@ -150,8 +163,9 @@ function fit(camera: OrthographicCameraImpl, box: Box3, size: { width: number; h
 /**
  * Dev page for scripts/capture-thumbnails.mjs (`/diorama/thumbnails`): one
  * library item alone on a transparent canvas, lit and shaded like the
- * editor, seen from the isometric preset's direction with a soft contact
- * shadow. User kits are not included — they have no fixed look.
+ * editor by day in autumn (the canvas has no scene environment, so it gets
+ * the defaults), seen from the isometric preset's direction with a soft
+ * contact shadow. User kits are not included — they have no fixed look.
  */
 export function ThumbnailStudio() {
   const items = useMemo(() => getAllLibraryItems(BUILT_IN_KITS), []);
@@ -161,6 +175,8 @@ export function ThumbnailStudio() {
   const readyKey = useRef<string | null>(null);
   const [shadow, setShadow] = useState<ShadowSpot | null>(null);
   const item = items.find((candidate) => candidate.key === key) ?? items[0];
+
+  useEffect(() => setWireBounds(WIRE_BASE.width, WIRE_BASE.depth), []);
 
   useEffect(() => {
     document.documentElement.style.background = "transparent";
@@ -189,7 +205,13 @@ export function ThumbnailStudio() {
 
   return (
     <div className="h-screen w-screen">
-      <Canvas shadows="percentage" gl={{ alpha: true, antialias: true, toneMapping: NeutralToneMapping, preserveDrawingBuffer: true }}>
+      <Canvas
+        shadows="percentage"
+        gl={{ alpha: true, antialias: true, toneMapping: NeutralToneMapping, preserveDrawingBuffer: true }}
+        onCreated={({ gl }) => {
+          gl.localClippingEnabled = true; // the wire material's cut
+        }}
+      >
         <OrthographicCamera makeDefault near={0.1} far={400} position={CAMERA_PRESETS.isometric.position} zoom={20} />
         <SceneLighting />
         {/* A soft shadow straight under the item; the sun's shadow would be cut off by the frame. */}

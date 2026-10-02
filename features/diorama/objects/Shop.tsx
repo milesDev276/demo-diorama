@@ -1,3 +1,4 @@
+import { useTimeOfDayLook } from "../hooks/useSceneEnvironment";
 import { DIORAMA_COLORS } from "../utils/palette";
 import { AirConditionerUnit } from "./parts/AirConditionerUnit";
 
@@ -12,6 +13,8 @@ const FRONT = DEPTH / 2;
  * Front faces local +Z.
  */
 export function Shop() {
+  const { emissive } = useTimeOfDayLook();
+
   return (
     <group>
       <mesh position={[0, HEIGHT / 2, 0]} castShadow receiveShadow>
@@ -31,7 +34,7 @@ export function Shop() {
         <meshStandardMaterial
           color={DIORAMA_COLORS.windowGlow}
           emissive={DIORAMA_COLORS.windowGlow}
-          emissiveIntensity={0.3}
+          emissiveIntensity={emissive * 0.6}
           roughness={0.3}
         />
       </mesh>

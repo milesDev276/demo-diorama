@@ -1,11 +1,5 @@
 /** Shared low-poly material palette — keeps every procedural object visually consistent. */
 export const DIORAMA_COLORS = {
-  // Sky backdrop, top → middle → bottom. Drawn by CSS behind the editor
-  // canvas and by SkyBackdrop in Preview; the fog fades toward the middle.
-  skyTop: "#bfe3ff",
-  skyMiddle: "#e3f0dd",
-  skyBottom: "#ecdfc2",
-
   // Nature
   grassTop: "#9fbf84",
   dirt: "#a9764f",
@@ -21,6 +15,12 @@ export const DIORAMA_COLORS = {
   ginkgoLeafDeep: "#c28f34",
   ginkgoLeafGreen: "#aea24e",
   bark: "#6b6156",
+  // Autumn zelkova (ケヤキ): orange turning to rust
+  zelkovaLeafLight: "#d99149",
+  zelkovaLeafDeep: "#a85c35",
+  // Evergreen hedge
+  hedgeLeaf: "#567a45",
+  hedgeLeafDark: "#456539",
   // Fallen leaves and scatter (scatter pieces)
   zelkovaLeaf: "#c8743f",
   leafBrown: "#9a6d45",
@@ -68,6 +68,10 @@ export const DIORAMA_COLORS = {
   signRed: "#b8433a",
   signBoard: "#f4f1ea",
   signPost: "#a9adb0",
+  postRed: "#c0392f",
+  concreteBlock: "#a9a59a",
+  mortar: "#7e7a71",
+  meterGray: "#b9bcb8",
   plateYellow: "#e6c34f",
   terracotta: "#b8734f",
   tankCream: "#e3dcc4",

@@ -1,6 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
+import { SCENE_TEMPLATES } from "../assets/sceneTemplates";
 import type { DioramaBase } from "../types/diorama.types";
 import { BASE_ORDER, BASE_TEMPLATES } from "../utils/baseTemplates";
 import { DIORAMA_COLORS } from "../utils/palette";
@@ -32,11 +34,15 @@ interface NewSceneDialogProps {
   /** Adds a warning that the current, unsaved Diorama will be discarded. */
   hasUnsavedChanges: boolean;
   onCreate: (base: DioramaBase) => void;
+  onCreateFromTemplate: (templateId: string) => void;
   onCancel: () => void;
 }
 
-/** "New Diorama": pick the base to build on. Choosing a card creates the empty scene. */
-export function NewSceneDialog({ open, hasUnsavedChanges, onCreate, onCancel }: NewSceneDialogProps) {
+const CARD =
+  "rounded-2xl border border-[#8b6f52]/15 bg-white/60 p-3 text-left transition-colors hover:border-[#F0B27A] hover:bg-white focus-visible:border-[#F0B27A] focus-visible:outline-none cursor-pointer";
+
+/** "New Diorama": start from a built-in scene, or pick an empty base to build on. Choosing a card creates the scene. */
+export function NewSceneDialog({ open, hasUnsavedChanges, onCreate, onCreateFromTemplate, onCancel }: NewSceneDialogProps) {
   return (
     <AnimatePresence>
       {open && (
@@ -62,18 +68,42 @@ export function NewSceneDialog({ open, hasUnsavedChanges, onCreate, onCancel }: 
             <h3 id="new-scene-title" className="text-sm font-semibold text-[#4A3421]">
               New Diorama
             </h3>
-            <p className="mt-1 text-sm text-[#4A3421]/60">Choose a base to build on.</p>
+            <p className="mt-1 text-sm text-[#4A3421]/60">Start from a finished scene, or choose an empty base.</p>
 
-            <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="mt-4 flex flex-col gap-3">
+              {SCENE_TEMPLATES.map((template) => (
+                <button
+                  key={template.id}
+                  type="button"
+                  onClick={() => onCreateFromTemplate(template.id)}
+                  className={`flex items-center gap-3 ${CARD}`}
+                >
+                  <Image
+                    src={template.thumbnail}
+                    alt=""
+                    width={320}
+                    height={200}
+                    unoptimized
+                    className="h-20 w-32 shrink-0 rounded-xl object-cover"
+                  />
+                  <span className="flex flex-col gap-1">
+                    <span className="text-sm font-semibold text-[#4A3421]">{template.name}</span>
+                    <span className="text-xs text-[#4A3421]/55">{template.description}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-3">
               {BASE_ORDER.map((base) => (
                 <button
                   key={base}
                   type="button"
                   onClick={() => onCreate(base)}
-                  className="flex flex-col gap-2 rounded-2xl border border-[#8b6f52]/15 bg-white/60 p-3 text-left transition-colors hover:border-[#F0B27A] hover:bg-white focus-visible:border-[#F0B27A] focus-visible:outline-none cursor-pointer"
+                  className={`flex flex-col gap-2 ${CARD}`}
                 >
                   <BasePlan base={base} />
-                  <span className="text-sm font-semibold text-[#4A3421]">{BASE_TEMPLATES[base].label}</span>
+                  <span className="text-sm font-semibold text-[#4A3421]">Empty {BASE_TEMPLATES[base].label.toLowerCase()}</span>
                   <span className="text-xs text-[#4A3421]/55">{BASE_TEMPLATES[base].description}</span>
                 </button>
               ))}

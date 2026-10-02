@@ -1,9 +1,11 @@
 """Street ginkgo (イチョウ) in autumn, ≈ 8 m tall with a Ø 5 m crown.
 
-A straight, tapering trunk with ascending branches, carrying a conical-oval
-crown of overlapping bumpy foam clumps — like a model-railway foam tree —
-in close autumn yellows. Baked AO darkens the crevices between clumps.
-Symmetric enough to have no real front.
+A straight, tapering trunk with ascending branches and twigs, carrying a
+conical-oval crown of overlapping bumpy foam clumps — like a model-railway
+foam tree — in close autumn yellows. The crown is in the `foliage` slot:
+the app recolors it by season and leaves the branches bare in winter.
+Baked AO darkens the crevices between clumps. Symmetric enough to have no
+real front.
 """
 
 import math
@@ -59,6 +61,7 @@ def _trunk(b) -> None:
 
 def _branches(b, rng: random.Random) -> None:
     golden = math.pi * (3 - math.sqrt(5))
+    twig_rng = random.Random(f"{NAME}-twigs")  # its own stream: the crown keeps the shape it was approved with
     count = 11
     for i in range(count):
         z = 2.5 + i * (3.8 / (count - 1))
@@ -70,6 +73,21 @@ def _branches(b, rng: random.Random) -> None:
         mid = (dx * length * 0.5 * math.sin(pitch), dy * length * 0.5 * math.sin(pitch), z + length * 0.5 * math.cos(pitch))
         end = (dx * length * math.sin(pitch) * 0.9, dy * length * math.sin(pitch) * 0.9, z + length * math.cos(pitch) * 1.1)
         b.tube(smooth_path([start, mid, end], samples=2), [0.07, 0.06, 0.05, 0.035, 0.02], "bark", shade=0.95, sides=5)
+        _twigs(b, twig_rng, mid, end, heading)
+
+
+def _twigs(b, rng: random.Random, mid, end, heading: float) -> None:
+    """Thin shoots off a branch, hidden inside the crown until winter bares it."""
+    for origin, reach in ((mid, 0.8), (end, 0.65), (end, 0.5)):
+        a = heading + rng.uniform(-1.1, 1.1)
+        rise = reach * rng.uniform(0.7, 1.1)
+        tip = (origin[0] + math.cos(a) * reach * 0.6, origin[1] + math.sin(a) * reach * 0.6, origin[2] + rise)
+        knee = (
+            origin[0] + (tip[0] - origin[0]) * 0.55,
+            origin[1] + (tip[1] - origin[1]) * 0.55,
+            origin[2] + rise * 0.4,
+        )
+        b.tube([origin, knee, tip], [0.028, 0.02, 0.008], "bark", shade=0.92, sides=4)
 
 
 def _leaf_color(rng: random.Random) -> str:
@@ -102,6 +120,7 @@ def _crown(b, rng: random.Random) -> None:
             frequency=1.2,
             bumps=0.07,
             seed=f"{NAME}-{i}",
+            material="foliage",
         )
     b.blob((0.05, 0, HEIGHT - 0.6), (0.62, 0.62, 0.68), "ginkgoLeafLight", subdivisions=3,
-           roughness=0.12, bumps=0.07, seed=f"{NAME}-top")
+           roughness=0.12, bumps=0.07, seed=f"{NAME}-top", material="foliage")

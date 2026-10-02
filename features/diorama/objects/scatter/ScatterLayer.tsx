@@ -3,8 +3,9 @@
 import { Suspense, useLayoutEffect, useMemo, useRef } from "react";
 import { useGLTF } from "@react-three/drei";
 import { Color, Matrix4, Quaternion, Vector3, type BufferGeometry, type InstancedMesh, type Mesh, type Object3D } from "three";
-import type { AssetComponentProps, ScatterParams } from "../../types/diorama.types";
+import type { AssetComponentProps, ScatterParams, Vector3Tuple } from "../../types/diorama.types";
 import { SCATTER_KIND_SPECS } from "../../assets/scatterKinds";
+import { useSeasonLook } from "../../hooks/useSceneEnvironment";
 import { scatterParamsOf } from "../../utils/objectParams";
 import { ModelErrorBoundary } from "../GltfAsset";
 import { getSlotMaterial } from "../materials";
@@ -27,7 +28,7 @@ function capacityFor(count: number): number {
   return Math.max(16, 2 ** Math.ceil(Math.log2(Math.max(1, count))));
 }
 
-function ScatterInstances({ params }: { params: ScatterParams }) {
+function ScatterInstances({ params, tint }: { params: ScatterParams; tint: Vector3Tuple }) {
   const spec = SCATTER_KIND_SPECS[params.kind];
   const { scene } = useGLTF(spec.modelUrl);
   const geometry = useMemo(() => pieceGeometry(scene), [scene]);
@@ -49,7 +50,7 @@ function ScatterInstances({ params }: { params: ScatterParams }) {
       scale.setScalar(piece.scale);
       matrix.compose(position.set(...point), rotation, scale);
       mesh.setMatrixAt(i, matrix);
-      mesh.setColorAt(i, color.setScalar(piece.brightness));
+      mesh.setColorAt(i, color.setRGB(...tint).multiplyScalar(piece.brightness));
     });
     mesh.count = params.points.length;
     mesh.instanceMatrix.needsUpdate = true;
@@ -57,7 +58,7 @@ function ScatterInstances({ params }: { params: ScatterParams }) {
     // Bounds over the instances, for frustum culling, click picking and framing.
     mesh.computeBoundingSphere();
     mesh.computeBoundingBox();
-  }, [params.points, params.seed, spec, capacity, geometry]);
+  }, [params.points, params.seed, spec, capacity, geometry, tint]);
 
   if (!geometry) return null;
   return (
@@ -74,16 +75,20 @@ function ScatterInstances({ params }: { params: ScatterParams }) {
 /**
  * A scatter layer: every piece of one kind (fallen leaves, grass, pebbles,
  * weeds) as one InstancedMesh — one draw call however many pieces. Heading,
- * size and brightness per piece come from objects/scatter/scatterVariation.
+ * size and brightness per piece come from objects/scatter/scatterVariation;
+ * the season tints the pieces, and in a season without fallen leaves a leaf
+ * layer stays in the scene but is not drawn.
  */
 export function ScatterLayer({ object }: AssetComponentProps) {
+  const season = useSeasonLook();
   const params = scatterParamsOf(object);
-  if (!params) return null;
+  const tint = params ? season.scatter[params.kind] : null;
+  if (!params || !tint) return null;
   const url = SCATTER_KIND_SPECS[params.kind].modelUrl;
   return (
     <ModelErrorBoundary url={url} fallback={null}>
       <Suspense fallback={null}>
-        <ScatterInstances params={params} />
+        <ScatterInstances params={params} tint={tint} />
       </Suspense>
     </ModelErrorBoundary>
   );
