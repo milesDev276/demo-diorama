@@ -1,10 +1,11 @@
 import type { DioramaCameraState, DioramaEnvironment, Vector3Tuple } from "../types/diorama.types";
 
-/** What a scene file without an environment loads as; each missing field takes its value from here. */
+/** Where a new scene starts, and what a scene file's missing fields load as. A file without a base is
+ *  not this default: it is an old street strip (utils/streetStrip.ts). */
 export const DEFAULT_ENVIRONMENT: DioramaEnvironment = {
   background: "sky-cozy",
   ground: "street-corner",
-  base: "street",
+  base: "corner",
   timeOfDay: "day",
   season: "autumn",
   plinth: "dark",

@@ -141,7 +141,7 @@ export interface BrushState {
 }
 
 /** The miniature base the scene is built on (utils/baseTemplates.ts). */
-export const DIORAMA_BASES = ["street", "corner", "plot"] as const;
+export const DIORAMA_BASES = ["corner", "plot"] as const;
 
 export type DioramaBase = (typeof DIORAMA_BASES)[number];
 

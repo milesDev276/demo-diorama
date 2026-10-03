@@ -20,7 +20,7 @@ import { Cdp, launchBrowser } from "./capture-presets.mjs";
 
 const VIEWPORT = { width: 1920, height: 1080 };
 const STORAGE_KEY = "diorama-scene";
-/** Usable area of the street-strip plot (meters), kept clear of its edges. */
+/** Area of the grid (meters). A seed without an environment loads as the converted street strip, a 51 × 27 m plot. */
 const GRID_AREA = { width: 46, depth: 22 };
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

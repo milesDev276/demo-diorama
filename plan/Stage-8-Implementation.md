@@ -287,8 +287,8 @@ No new npm dependencies. No Blender work.
 
 ## 7. Status — Implemented 2026-10-03
 
-All milestones M1–M5 are done on branch `stage8-surface`. Nothing is
-committed yet.
+All milestones M1–M5 are done on branch `stage8-surface`, merged into
+`main` with PR #11.
 
 ### Deviations from the plan
 

@@ -21,14 +21,21 @@ comes next. Details live in the linked plan files.
 | Stage 6: density tools | Done | `main` (PR #9) |
 | Stage 7: environment and Photo | Done | `main` (PR #10) |
 | Stage 8: ground surface and platform | Done | `main` (PR #11) |
-| **Stage 9: finished streets on a plot** (and a hydration-warning fix) | **Implemented and verified (2026-10-03); NOT committed; waiting for the user's review** | branch **`stage9-streets`** (cut from `main`) |
+| Stage 9: finished streets on a plot (and a hydration-warning fix) | Done | `main` (PR #12) |
+| Stage 10: legacy cleanup | Implemented and verified; **not committed** | branch `stage10-legacy` (working tree) |
 
 Stage 7 was the last stage of the original roadmap; Stages 8 and 9 were added
 at the user's request.
 
-**Immediate next action:** the user reviews Stage 9, then commits
-`stage9-streets`, pushes and opens a PR. The user merges PRs themselves,
-one branch per stage. (For Stages 6 to 9 the user handed every decision
+**`main` holds Stages 0–9** (last merge: PR #12, `f5245a0`). Stage 10 is
+in the working tree of `stage10-legacy`, uncommitted, together with the
+earlier uncommitted edits to the plan files.
+
+**Immediate next action:** the user commits Stage 10 and opens its PR; then
+ask what comes next (§7 lists the candidates). The user merges PRs themselves, one branch per stage; cut the
+next branch from an up-to-date `main` (`git fetch`, then fast-forward —
+the local `main` has been behind the remote at the start of each stage).
+(For Stages 6 to 9 the user handed every decision
 to Claude, so the plan was settled with its defaults and implemented without
 a separate approval round. Ask again at the start of new work; it is not a
 standing rule.)
@@ -54,15 +61,14 @@ can be dropped once the user agrees.
 | [Stage-7-Implementation.md](Stage-7-Implementation.md) | Time of day, season, after-dark lights, shop interior, Photo mode, the hero's last assets and the starter template: decisions D1–D10, deviations, asset table and verification results (§7) |
 | [Stage-8-Implementation.md](Stage-8-Implementation.md) | The free plot and its surface map, ground brush, ground grain, platform styles, road markings: decisions D1–D11, deviations and verification results (§7) |
 | [Stage-9-Implementation.md](Stage-9-Implementation.md) | The hydration fix, curb ramps, marking alignment, runs, stop sign / guard rail / fence, the Back Street starter, the retired street strip: decisions D1–D8, deviations and verification results (§7) |
+| [Stage-10-Implementation.md](Stage-10-Implementation.md) | The house, shop, garden tree and stone as GLBs, the street strip read into a plot, the legacy unit deleted: decisions D1–D4 and results (§6) |
 | `Phase-*.md` | Earlier phases, kept for history |
 
 ## 3. Decisions That Must Not Be Re-litigated
 
-* **World scale is 1 unit = 1 m.**
-  * Old procedural geometry still uses the legacy unit (≈ 6 m). It is
-    rendered through `legacyUnits: true` in `assetRegistry.ts` and the
-    `LEGACY_UNIT_SCALE` group in `Ground.tsx`.
-  * Never import `utils/legacyUnits.ts` from new code.
+* **World scale is 1 unit = 1 m,** everywhere since Stage 10: no geometry
+  is authored in the old unit (≈ 6 m) any more. The number 6 survives only
+  in `sceneSerializer.ts`, to read v1 files.
 * **Scene file v2.**
   * `migrateRawObjects()` in `sceneSerializer.ts` handles v1 by
     multiplying positions × 6.
@@ -86,9 +92,9 @@ can be dropped once the user agrees.
 * **GLB assets render with shared materials** (`objects/materials.ts`),
   remapped from the Blender slot names `base`, `emissive`, `printed` and
   `foliage`. An asset still uses at most three of them.
-* **A scene's base is scene data:** `environment.base`, `"street"`,
-  `"corner"` or (since Stage 8) `"plot"`. It is additive (files stay v2);
-  anything missing or unknown loads as `"street"`.
+* **A scene's base is scene data:** `environment.base`, `"corner"` or
+  `"plot"`. A file whose base is `"street"`, missing or unknown is an old
+  street strip and is read into a plot (Stage 10, below).
 * **Everything sized to the base comes from `utils/baseTemplates.ts`:**
   spawn area, grid, preset zooms, focus radius, shadow frustum. Never add
   a new plot-sized constant elsewhere.
@@ -167,7 +173,7 @@ Stage 7:
   time of day or with objects: the light count is in every lit shader, and
   changing it recompiles them all (1.7 s measured).
 * **After-dark lights are derived, not stored:** `glow` in the registry
-  (vending machine, legacy shop) and `shopLightPositions()` for buildings.
+  (vending machine, shop) and `shopLightPositions()` for buildings.
 * **The `foliage` slot is for deciduous crowns only.** The season recolors
   it (brightness kept, hue replaced) and hides it in winter; whatever is in
   that slot disappears then. Evergreens stay in `base`.
@@ -195,13 +201,13 @@ Stage 7:
 
 Stage 8:
 
-* **A scene's base is `"street"`, `"corner"` or `"plot"`.** Only a plot's
-  ground can be painted; the other two keep their own geometry.
+* **Only a plot's ground can be painted;** the corner keeps its own
+  geometry.
 * **A plot's ground is `environment.surface`:** `{ cols, rows }`, one letter
   per 0.5 m cell, rows back to front (`utils/surfaceMap.ts`). Additive (files
   stay v2). The plot's size is the map's size; nothing else stores it. A map
   on another base is kept and ignored.
-* **The letters are forever:** `a s t c g r d` in `assets/surfaceKinds.ts`,
+* **The letters are forever:** `a s t c g r d` (and `p`, the Stage 9 ramp) in `assets/surfaceKinds.ts`,
   the one table of ground kinds (color, level, curb, grain, joints). They
   are in saved scenes; add kinds, never reuse a letter.
 * **Curbs, steps, joints and the skirt are derived** from the map by
@@ -226,15 +232,16 @@ Stage 8:
   one generated 128² noise texture; its mipmaps fade the speckle.
 * **The platform is `environment.plinth`** (`dark`, `wood`, `earth`), drawn
   by `objects/ground/Plinth.tsx` under the corner and the plot base.
-  Additive; unknown values load as `dark`. The street strip has its own.
+  Additive; unknown values load as `dark`.
 * **One of placement, scatter brush and ground brush is active at a time**
   (`placement`, `brush`, `groundBrush` in the store; each start clears the
   other two).
 * **The ground brush raycasts only the mesh tagged `userData.groundPaint`,**
   so objects never block it. The library's Ground group is drawn by
   `ObjectLibrary` itself and is not in the asset registry.
-* **Road markings are objects** (`crosswalk`, `stopLine`, `roadLine`,
-  `objects/RoadMarking.tsx`), sized from `utils/cornerLayout.ts`.
+* **Road markings are objects** (`crosswalk`, `stopLine`, `roadLine`, and
+  since Stage 9 `parkingBay`; `objects/RoadMarking.tsx`), sized from
+  `utils/cornerLayout.ts`.
 
 Stage 9:
 
@@ -251,15 +258,27 @@ Stage 9:
 * **Road markings say how they line up:** `road: { along, center? }` in the
   registry, resolved with `roadFrameAt` (`utils/surfaceMap.ts`) while
   placing on a plot's asphalt.
-* **The street strip is not offered any more** (`BASE_ORDER` is plot,
-  corner). It still loads; the Scene panel shows it only on a scene that
-  stands on it. Do not delete its geometry.
 * **Built-in starters may be plots:** a template's `environment` carries the
   `surface`. Back Street is built in `utils/plotStarter.ts` from a list of
   rectangles. Re-run `scripts/capture-template.mjs` after changing one.
-* **The legacy `sign` type renders `street_sign_stop_01`.** The only legacy
-  geometry left is the house, the shop, the tree, the rock and the street
-  strip.
+* **The `sign` type renders `street_sign_stop_01`.**
+
+Stage 10:
+
+* **The types `house`, `shop`, `tree` and `rock` are GLBs**
+  (`building_house_01`, `building_shop_01`, `nature_tree_garden_01`,
+  `nature_rock_01`). The type names are in saved scenes; do not rename them.
+* **A street-strip scene is converted when it is read**
+  (`utils/streetStrip.ts`, called by the validator): a 102 × 54 plot with
+  the strip's bands, the earth platform, and whatever stood on the strip's
+  road (y = −0.24) put on the ground under it. The numbers there describe
+  old files; never change them.
+* **`MAX_CELLS` is 104** for those plots; the Scene panel still offers at
+  most 24 m.
+* **`DEFAULT_ENVIRONMENT.base` is `"corner"`,** but a file without a base
+  is not the default: it is a strip.
+* **`liftObjects`** (`utils/surfaceMap.ts`) is the one place that moves
+  objects and scatter pieces vertically with the ground.
 
 ## 4. How to Run and Verify
 
@@ -307,7 +326,8 @@ node scripts/capture-template.mjs
     script drives (`window.__thumbnails.show(key)`).
 * **Verification method used so far:**
   1. Capture before and after with `capture-presets.mjs`.
-  2. Pixel-diff the images with numpy inside Blender.
+  2. Pixel-diff the images (numpy inside Blender in the early stages; a
+     canvas in the headless browser since Stage 8, see below).
   3. For migrations, use `--seed-scene` to simulate an old autosave.
   4. For fps, count `requestAnimationFrame` at 1920×1080 with 100 seeded
      objects.
@@ -324,8 +344,8 @@ node scripts/capture-template.mjs
 * **Comparing two folders of screenshots** needs no image library: load both
   PNGs into a canvas in the headless browser and compare the pixels there.
 * **A fresh browser profile now opens the hero scene** at golden hour.
-  Seed a scene to test anything else. A seed without an environment is the
-  street strip by day.
+  Seed a scene to test anything else. A seed without an environment is a
+  converted street strip (a 51 × 27 m plot) by day.
 
 ## 5. Gotchas Learned the Hard Way
 
@@ -363,8 +383,9 @@ node scripts/capture-template.mjs
   first sees the old size: this is why `capture-presets.mjs` sometimes
   frames the first Preview shot small. Poll the canvas's bounding box (and
   send a mouse move) before going on.
-* **`measure-scene.mjs --types` builds a street scene.** For the corner
-  base, write a scene file with `environment.base` and pass
+* **`measure-scene.mjs --types` builds a scene without an environment,**
+  which loads as the converted street strip (a 51 × 27 m plot). For the
+  corner base, write a scene file with `environment.base` and pass
   `--seed-scene`.
 * **A printed face needs interior vertices** (`cuts=`) when AO is baked.
   A single quad takes the AO of its four corners and the whole print goes
@@ -455,16 +476,18 @@ node scripts/capture-template.mjs
 
 ## 6. Known Limitations and Existing Behaviors (not bugs of these stages)
 
-* **The street strip is still legacy geometry** (≈ 6 m units, 43 draw
-  calls). Only the corner base is authored in meters.
+* **Old street-strip scenes changed with Stage 10:** they are 51 × 27 m
+  plots now (larger than any size the Scene panel offers), without the
+  dashed center line; the tree and the stone are at real size, so much
+  smaller. The full list is in Stage-10-Implementation.md §6.
 * **Base, platform, time-of-day and season changes are not on the undo
   stack.** Ground painting is.
 * **A run is separate objects, on the base only; markings align only when
   placed with the pointer on a plot.** The full list is in
   Stage-9-Implementation.md §7.
 * **Only a plot can be painted; it has two levels and straight edges;**
-  objects follow a level change only if their origin stood on the ground;
-  markings do not snap to the road. The full list is in
+  objects follow a level change only if their origin stood on the ground.
+  The full list is in
   Stage-8-Implementation.md §7.
 * **Attachments do not follow a building resize;** the inspector edits a
   facade side at once, not per bay; the gizmo neither snaps to surfaces
@@ -490,23 +513,32 @@ node scripts/capture-template.mjs
 
 ## 7. Next
 
-The roadmap's seven stages and Stages 8 and 9 are implemented. Nothing
+The roadmap's seven stages and Stages 8 to 10 are implemented. Nothing
 further is planned or approved; ask the user what comes next.
 
+* **Open from Stage 10:** not committed yet; not tried with the user's own
+  autosave.
+
+* **Open from Stage 9:** the hydration fix was verified by reproduction
+  only (attributes injected on `<body>`), not in the user's own browser. If
+  the warning comes back there, ask for the attribute diff printed under it.
 * **Open from Stage 7:** the hero scene was not put side by side with the
   reference photo (the photo is not in the repository). That comparison —
   the roadmap's "done when" — is the user's to make.
 * **Candidates that came up, none decided:**
   * lit signs at night (an emissive mask for printed faces)
   * a transparent material slot for shop and car glass
-  * converting old street-strip scenes to plots, then deleting the strip
-  * the legacy house, shop, tree and rock rebuilt in meters
   * ground: more levels or slopes, curved roads, arrow markings
   * a parametric wall or fence (one object by length) instead of runs
   * more figures (the hero uses one figure twice; no shopkeeper)
   * a saved camera and photo settings per scene (CLAUDE.md §12)
   * weather (CLAUDE.md §25; outside the hero roadmap)
-* CLAUDE.md Phases 6–7 (cloud, community) need an explicit request.
+* **Backend (CLAUDE.md Phase 6):** the user raised it after Stage 9
+  (2026-10-03), worried about file sizes. `public/` was 3.7 MB, so assets
+  stay in the repo; the proposal made was Supabase (Postgres + Auth +
+  Storage), scenes as `jsonb`, local-first with cloud as a sync layer, and
+  a saved camera per scene first. Nothing was decided or written down as a
+  design; Phases 6–7 still need an explicit request.
 
 ## 8. Working With This User
 

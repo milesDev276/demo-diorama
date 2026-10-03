@@ -9,8 +9,6 @@ import { SegmentedControl } from "./SegmentedControl";
 
 const baseOption = (value: DioramaBase) => ({ value, label: BASE_TEMPLATES[value].label });
 const BASE_OPTIONS = BASE_ORDER.map(baseOption);
-/** An old scene on the retired street strip still shows it, so it can be switched away from and back. */
-const LEGACY_BASE_OPTIONS = [...BASE_OPTIONS, baseOption("street")];
 const TIME_OPTIONS = timeOfDayOptions(true);
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -47,7 +45,7 @@ export function ScenePanel() {
       </Section>
 
       <Section title="Scene base">
-        <SegmentedControl label="Scene base" options={base === "street" ? LEGACY_BASE_OPTIONS : BASE_OPTIONS} value={base} onChange={setBase} />
+        <SegmentedControl label="Scene base" options={BASE_OPTIONS} value={base} onChange={setBase} />
         <p className="text-xs text-[#4A3421]/50">
           {BASE_TEMPLATES[base].description} Switching keeps every object where it is.
         </p>
