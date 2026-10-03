@@ -14,6 +14,7 @@ import { DEFAULT_SCENE_NAME } from "./objectDefaults";
 import { repairParentLinks } from "./sceneGraph";
 import { DEFAULT_CAMERA_STATE, DEFAULT_ENVIRONMENT } from "./sceneDefaults";
 import { migrateRawObjects, SCENE_FILE_VERSION } from "./sceneSerializer";
+import { createStripSurface, isStreetStrip, seatStripObjects } from "./streetStrip";
 import { createSurface, DEFAULT_PLOT_LAYOUT, normalizeSurface } from "./surfaceMap";
 
 const VALID_TYPES: ReadonlySet<DioramaObjectType> = new Set(DIORAMA_OBJECT_TYPES);
@@ -88,19 +89,22 @@ function oneOf<T extends string>(known: readonly T[], value: unknown, fallback: 
 /**
  * Keeps the file's base, time of day, season, plinth and painted ground
  * where this app knows them; everything else is the default. A plot
- * without a usable ground gets the default one.
+ * without a usable ground gets the default one. A scene on the retired
+ * street strip (`strip`) becomes a plot with the strip's ground, on the
+ * earth platform the strip had.
  */
-function normalizeEnvironment(raw: unknown): DioramaEnvironment {
-  const r = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+function normalizeEnvironment(raw: Record<string, unknown>, strip: boolean): DioramaEnvironment {
   const environment: DioramaEnvironment = {
     ...DEFAULT_ENVIRONMENT,
-    base: oneOf(DIORAMA_BASES, r.base, DEFAULT_ENVIRONMENT.base),
-    timeOfDay: oneOf(TIMES_OF_DAY, r.timeOfDay, DEFAULT_ENVIRONMENT.timeOfDay),
-    season: oneOf(SEASONS, r.season, DEFAULT_ENVIRONMENT.season),
-    plinth: oneOf(PLINTH_STYLES, r.plinth, DEFAULT_ENVIRONMENT.plinth),
+    base: strip ? "plot" : oneOf(DIORAMA_BASES, raw.base, DEFAULT_ENVIRONMENT.base),
+    timeOfDay: oneOf(TIMES_OF_DAY, raw.timeOfDay, DEFAULT_ENVIRONMENT.timeOfDay),
+    season: oneOf(SEASONS, raw.season, DEFAULT_ENVIRONMENT.season),
+    plinth: oneOf(PLINTH_STYLES, raw.plinth, strip ? "earth" : DEFAULT_ENVIRONMENT.plinth),
   };
   // Optional fields are only written when present, so files without them round-trip unchanged.
-  const surface = normalizeSurface(r.surface) ?? (environment.base === "plot" ? createSurface(DEFAULT_PLOT_LAYOUT) : undefined);
+  const surface = strip
+    ? createStripSurface()
+    : (normalizeSurface(raw.surface) ?? (environment.base === "plot" ? createSurface(DEFAULT_PLOT_LAYOUT) : undefined));
   if (surface) environment.surface = surface;
   return environment;
 }
@@ -110,7 +114,8 @@ function normalizeEnvironment(raw: unknown): DioramaEnvironment {
  * throws — always returns either the scene or a human-readable error.
  * Tolerant of both `{ version, scene: {...} }` (save/export format) and a bare
  * scene object; a missing version means v1, the only format that predates it.
- * Older versions are migrated to the current one before validation.
+ * Older versions are migrated to the current one before validation, and a
+ * scene on the retired street strip is read into a plot (utils/streetStrip.ts).
  */
 export function validateAndNormalizeScene(data: unknown): { scene: DioramaScene } | { error: string } {
   try {
@@ -135,11 +140,15 @@ export function validateAndNormalizeScene(data: unknown): { scene: DioramaScene 
     const name = typeof root.name === "string" && root.name.trim() ? root.name.trim().slice(0, 80) : DEFAULT_SCENE_NAME;
     const objects = normalizeObjects(migrateRawObjects(Array.isArray(root.objects) ? root.objects : [], version));
 
+    const rawEnvironment = (root.environment && typeof root.environment === "object" ? root.environment : {}) as Record<string, unknown>;
+    const strip = isStreetStrip(rawEnvironment.base, DIORAMA_BASES);
+    const environment = normalizeEnvironment(rawEnvironment, strip);
+
     const scene: DioramaScene = {
       id: typeof root.id === "string" && root.id.trim() ? root.id : createId("scene"),
       name,
-      objects,
-      environment: normalizeEnvironment(root.environment),
+      objects: strip && environment.surface ? seatStripObjects(objects, environment.surface) : objects,
+      environment,
       camera: DEFAULT_CAMERA_STATE,
     };
 

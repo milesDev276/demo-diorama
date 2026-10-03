@@ -552,7 +552,7 @@ a plot, and it reads as the same miniature as the corner base.
 ### Stage 9 — Finished streets on a plot
 
 **Status:** implemented and verified on branch `stage9-streets`,
-2026-10-03. See [Stage-9-Implementation.md](Stage-9-Implementation.md) §7.
+2026-10-03; merged (PR #12). See [Stage-9-Implementation.md](Stage-9-Implementation.md) §7.
 
 * A **curb ramp** ground kind: a dropped curb at crosswalks and driveways.
 * **Markings line up with the road** they are placed on; a parking bay.
@@ -564,6 +564,19 @@ a plot, and it reads as the same miniature as the corner base.
 * The legacy **street strip is no longer offered**; old scenes still load.
 
 **Done when:** the Back Street starter reads as finished as the hero corner.
+
+### Stage 10 — Legacy cleanup
+
+**Status:** implemented and verified on branch `stage10-legacy`,
+2026-10-03; not merged yet. See [Stage-10-Implementation.md](Stage-10-Implementation.md) §6.
+
+* From Blender, in meters: the **house**, the **small shop**, the **garden
+  tree** and the **garden stone**. Their object types are unchanged.
+* A scene on the **street strip is read into a plot** when it is loaded.
+* The strip's geometry and `legacyUnits.ts` are **deleted**: nothing in the
+  app is authored in the pre-meter unit any more.
+
+**Done when:** no legacy-unit geometry is left and old scenes still load.
 
 ---
 

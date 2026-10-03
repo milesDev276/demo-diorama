@@ -15,9 +15,6 @@ import { BUILDING_GRID } from "./buildingParams";
 import { CORNER } from "./cornerLayout";
 import { createId } from "./id";
 import { newScatterSeed, roundPoint, scatterLine, scatterPatch } from "./scatterParams";
-import { STREET_PLOT } from "./worldScale";
-
-const PLOT_Z = STREET_PLOT.z;
 
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
 
@@ -92,7 +89,7 @@ export function createDioramaObject(
 
 /** An object of a starter scene at a world position on the ground (or at height `y`). */
 export function place(type: DioramaObjectType, x: number, z: number, rotationY = 0, scale?: number, y = 0): DioramaObject {
-  return createDioramaObject(type, 0, BASE_TEMPLATES.street, {
+  return createDioramaObject(type, 0, BASE_TEMPLATES.corner, {
     position: [x, y, z],
     rotation: [0, rotationY, 0],
     scale: scale === undefined ? undefined : [scale, scale, scale],
@@ -112,29 +109,7 @@ function attach(
 
 /** The starter scene of a base: what "Reset" shows. A plot starts empty. */
 export function getDefaultScene(base: DioramaBase): DioramaObject[] {
-  if (base === "plot") return [];
-  return base === "corner" ? getCornerStarter() : getStreetStarter();
-}
-
-/**
- * The vertical-slice street strip: house and shop on the lot facing the
- * road, a utility pole carrying power lines at the curb, a vending machine
- * by the shop, a stop sign, and garden trees along the back.
- */
-function getStreetStarter(): DioramaObject[] {
-  const curbLine = PLOT_Z.road - 0.72;
-
-  return [
-    place("house", -13.2, PLOT_Z.lot + 6),
-    place("shop", 5.4, PLOT_Z.lot + 5.7),
-    place("vendingMachine", 10.5, PLOT_Z.sidewalk - 0.84),
-    place("utilityPole", 0, curbLine),
-    place("powerLine", 0, curbLine),
-    place("sign", 17.4, curbLine),
-    place("tree", -21, PLOT_Z.back + 1.8),
-    place("tree", 20.4, PLOT_Z.back + 2.1, 0.8, 0.85),
-    place("rock", -7.2, PLOT_Z.back + 1.5, 0.4, 0.6),
-  ];
+  return base === "plot" ? [] : getCornerStarter();
 }
 
 /** A scatter layer at a world position, with points in its own frame. */

@@ -185,8 +185,8 @@ No new npm dependencies.
 
 ## 7. Status — Implemented 2026-10-03
 
-All milestones M1–M6 are done on branch `stage9-streets`. Nothing is
-committed yet.
+All milestones M1–M6 are done on branch `stage9-streets`, merged into
+`main` with PR #12.
 
 ### Deviations from the plan
 

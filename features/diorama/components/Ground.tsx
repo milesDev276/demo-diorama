@@ -3,7 +3,6 @@
 import { useDioramaStore } from "../store/dioramaStore";
 import { CornerBase } from "../objects/ground/CornerBase";
 import { PlotBase } from "../objects/ground/PlotBase";
-import { StreetBase } from "../objects/ground/StreetBase";
 
 /**
  * The diorama's miniature base, chosen per scene (`environment.base`), on
@@ -17,5 +16,5 @@ export function Ground({ blockout = false }: { blockout?: boolean }) {
   const plinth = useDioramaStore((s) => s.environment.plinth);
   if (blockout) return <CornerBase />;
   if (base === "plot" && surface) return <PlotBase surface={surface} plinth={plinth} />;
-  return base === "corner" ? <CornerBase plinth={plinth} /> : <StreetBase />;
+  return <CornerBase plinth={plinth} />;
 }

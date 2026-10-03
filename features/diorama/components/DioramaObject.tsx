@@ -7,7 +7,6 @@ import { useDioramaStore } from "../store/dioramaStore";
 import { ASSET_REGISTRY, getFootprintRadius } from "../assets/assetRegistry";
 import { GltfAsset } from "../objects/GltfAsset";
 import { ScatterSelection } from "../objects/scatter/ScatterSelection";
-import { LEGACY_UNIT_SCALE } from "../utils/legacyUnits";
 import { scatterParamsOf } from "../utils/objectParams";
 import { SelectionRing } from "./SelectionRing";
 
@@ -22,13 +21,7 @@ export function AssetVisual({ object, surfaceId }: AssetVisualProps) {
   const asset = ASSET_REGISTRY[object.type];
   if ("modelUrl" in asset) return <GltfAsset url={asset.modelUrl} footprintRadius={asset.footprintRadius} />;
   const Visual = asset.component;
-  return asset.legacyUnits ? (
-    <group scale={LEGACY_UNIT_SCALE}>
-      <Visual object={object} />
-    </group>
-  ) : (
-    <Visual object={object} surfaceId={surfaceId} />
-  );
+  return <Visual object={object} surfaceId={surfaceId} />;
 }
 
 /** A ring under a selected object; a scatter layer marks each of its pieces instead. */

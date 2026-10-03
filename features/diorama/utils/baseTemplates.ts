@@ -1,6 +1,5 @@
 import type { CameraPreset, DioramaBase, DioramaEnvironment } from "../types/diorama.types";
 import { DEFAULT_PLOT_SIZE, SURFACE_CELL, surfaceSize } from "./surfaceMap";
-import { STREET_PLOT } from "./worldScale";
 
 /**
  * Everything the editor sizes to the diorama's base. One record per base,
@@ -80,29 +79,11 @@ function createPlotTemplate(width: number, depth: number): BaseTemplate {
 
 /** One template per base. The `plot` entry is the default plot size; a scene's own plot comes from getBaseTemplate. */
 export const BASE_TEMPLATES: Record<DioramaBase, BaseTemplate> = {
-  street: {
-    id: "street",
-    label: "Street strip",
-    description: "A long lot along a straight road, about 50 × 27 m.",
-    width: STREET_PLOT.width,
-    depth: STREET_PLOT.depth,
-    spawnBounds: {
-      minX: -STREET_PLOT.width / 2 + 2.1,
-      maxX: STREET_PLOT.width / 2 - 2.1,
-      minZ: STREET_PLOT.z.lot + 1.5,
-      maxZ: STREET_PLOT.z.road - 0.6,
-    },
-    spawnSpread: { start: 3.6, step: 2.1, max: 18, jitter: 1.8 },
-    gridY: 0.072,
-    presetZoom: { isometric: 12, front: 88 / 6, side: 88 / 6, top: 100 / 6 },
-    focusRadius: 9,
-    shadowExtent: 32,
-  },
   corner: CORNER_TEMPLATE,
   plot: createPlotTemplate(DEFAULT_PLOT_SIZE.cols * SURFACE_CELL, DEFAULT_PLOT_SIZE.rows * SURFACE_CELL),
 };
 
-/** The bases offered for new scenes. The legacy street strip still loads, but is no longer offered. */
+/** The bases, in the order they are offered. */
 export const BASE_ORDER: DioramaBase[] = ["plot", "corner"];
 
 const plotTemplates = new Map<string, BaseTemplate>();

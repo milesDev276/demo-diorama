@@ -58,12 +58,8 @@ import { scatterRadius } from "../utils/scatterParams";
 import { BUILDING_PRESETS, DEFAULT_BUILDING_PARAMS } from "./buildingPresets";
 import { SCATTER_KIND_SPECS } from "./scatterKinds";
 import thumbnailKeys from "./thumbnails.json";
-import { House } from "../objects/House";
 import { PowerLine } from "../objects/PowerLine";
 import { RoadMarking } from "../objects/RoadMarking";
-import { Rock } from "../objects/Rock";
-import { Shop } from "../objects/Shop";
-import { Tree } from "../objects/Tree";
 
 export type AssetCategory = "Buildings" | "Street" | "Infrastructure" | "Props" | "Nature" | "Vehicles" | "People";
 
@@ -119,13 +115,10 @@ interface AssetBase {
   tags: string[];
 }
 
-/** Geometry written as JSX, origin at the ground contact point. */
+/** Geometry written as JSX, in meters, origin at the ground contact point. */
 export interface ProceduralAsset extends AssetBase {
   /** Parametric assets (building, scatter) read the object's params; the others ignore their props. */
   component: ComponentType<AssetComponentProps>;
-  /** True if `component` is authored in the pre-meter unit (≈ 6 m) and must be
-   *  rendered scaled by LEGACY_UNIT_SCALE. */
-  legacyUnits: boolean;
 }
 
 /** A GLB built by art/blender/build.py: meters, origin at the ground contact
@@ -149,7 +142,6 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     category: "Buildings",
     icon: Building2,
     component: BuildingAsset,
-    legacyUnits: false,
     defaultScale: [1, 1, 1],
     footprintRadius: 4.2,
     randomSpawnRotation: false,
@@ -160,10 +152,9 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     label: "House",
     category: "Buildings",
     icon: HouseIcon,
-    component: House,
-    legacyUnits: true,
+    modelUrl: "/models/buildings/building_house_01.glb",
     defaultScale: [1, 1, 1],
-    footprintRadius: 5.1,
+    footprintRadius: 4.6,
     randomSpawnRotation: false,
     tags: ["home", "residential", "building"],
   },
@@ -172,12 +163,11 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     label: "Small Shop",
     category: "Buildings",
     icon: Store,
-    component: Shop,
-    legacyUnits: true,
+    modelUrl: "/models/buildings/building_shop_01.glb",
     defaultScale: [1, 1, 1],
-    footprintRadius: 5.1,
+    footprintRadius: 4,
     randomSpawnRotation: false,
-    glow: { ...SHOP_GLOW, position: [0, 1.9, 3.3] },
+    glow: { ...SHOP_GLOW, position: [0, 1.9, 3.2] },
     tags: ["store", "shop", "commercial", "building"],
   },
   utilityPole: {
@@ -197,7 +187,6 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     category: "Infrastructure",
     icon: Cable,
     component: PowerLine,
-    legacyUnits: false,
     defaultScale: [1, 1, 1],
     footprintRadius: 0.9,
     randomSpawnRotation: false,
@@ -289,7 +278,6 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     category: "Street",
     icon: Footprints,
     component: RoadMarking,
-    legacyUnits: false,
     defaultScale: [1, 1, 1],
     footprintRadius: 2.2,
     randomSpawnRotation: false,
@@ -302,7 +290,6 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     category: "Street",
     icon: OctagonX,
     component: RoadMarking,
-    legacyUnits: false,
     defaultScale: [1, 1, 1],
     footprintRadius: 1.6,
     randomSpawnRotation: false,
@@ -315,7 +302,6 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     category: "Street",
     icon: Minus,
     component: RoadMarking,
-    legacyUnits: false,
     defaultScale: [1, 1, 1],
     footprintRadius: 2.1,
     randomSpawnRotation: false,
@@ -329,7 +315,6 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     category: "Street",
     icon: SquareParking,
     component: RoadMarking,
-    legacyUnits: false,
     defaultScale: [1, 1, 1],
     footprintRadius: 2.8,
     randomSpawnRotation: false,
@@ -479,7 +464,6 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     category: "Nature",
     icon: Sparkles,
     component: ScatterLayer,
-    legacyUnits: false,
     defaultScale: [1, 1, 1],
     footprintRadius: 1,
     randomSpawnRotation: false,
@@ -487,29 +471,27 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
   },
   tree: {
     type: "tree",
-    label: "Tree",
+    label: "Garden Tree",
     category: "Nature",
     icon: TreePine,
-    component: Tree,
-    legacyUnits: true,
+    modelUrl: "/models/nature/nature_tree_garden_01.glb",
     defaultScale: [1, 1, 1],
-    footprintRadius: 3,
+    footprintRadius: 1.8,
     randomSpawnRotation: true,
     jitter: 0.12,
-    tags: ["plant", "green", "garden"],
+    tags: ["tree", "evergreen", "niwaki", "plant", "green", "garden"],
   },
   rock: {
     type: "rock",
     label: "Garden Stone",
     category: "Nature",
     icon: Gem,
-    component: Rock,
-    legacyUnits: true,
-    defaultScale: [0.9, 0.9, 0.9],
-    footprintRadius: 2.7,
+    modelUrl: "/models/nature/nature_rock_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 0.9,
     randomSpawnRotation: true,
     jitter: 0.12,
-    tags: ["rock", "stone", "garden"],
+    tags: ["rock", "stone", "niwaishi", "garden"],
   },
   bicycle: {
     type: "bicycle",

@@ -14,9 +14,10 @@ import { getWorldMatrix, indexObjects } from "./sceneGraph";
 /** Edge length of a cell in meters: the editor's default grid. */
 export const SURFACE_CELL = 0.5;
 
-/** Smallest and largest plot edge, in cells (8 … 32 m). */
+/** Smallest and largest plot edge, in cells (8 … 52 m). The Scene panel offers up to 24 m; the rest is
+ *  for converted street strips (utils/streetStrip.ts). */
 const MIN_CELLS = 16;
-const MAX_CELLS = 64;
+const MAX_CELLS = 104;
 
 export interface PlotSize {
   id: string;
@@ -228,12 +229,19 @@ const ON_GROUND = 0.005;
  */
 export function reseatObjects(objects: DioramaObject[], before: SurfaceMap, after: SurfaceMap): DioramaObject[] {
   if (before === after) return objects;
-  const lift = (x: number, y: number, z: number): number => {
+  return liftObjects(objects, (x, y, z) => {
     const from = levelAt(before, x, z);
     const to = levelAt(after, x, z);
     return from === undefined || to === undefined || from === to || Math.abs(y - from) > ON_GROUND ? 0 : to - from;
-  };
+  });
+}
 
+/**
+ * Objects with every top-level object (by its origin) and every scatter
+ * piece raised by `lift` of its world position. Attachments of buildings
+ * are left alone. Returns the same array if nothing moved.
+ */
+export function liftObjects(objects: DioramaObject[], lift: (x: number, y: number, z: number) => number): DioramaObject[] {
   const byId = indexObjects(objects);
   const point = new Vector3();
   let moved = false;

@@ -15,7 +15,7 @@ const HINT = "text-xs text-[#4A3421]/50";
 /**
  * What the diorama stands on, below the base switch of the Scene panel: on
  * a plot its size and a starting layout for the ground; on a plot and on
- * the corner the finish of the platform. The street strip has neither.
+ * the corner the finish of the platform.
  */
 export function GroundPanel() {
   const base = useDioramaStore((s) => s.environment.base);
@@ -24,7 +24,6 @@ export function GroundPanel() {
   const setPlinth = useDioramaStore((s) => s.setPlinth);
   const resizePlot = useDioramaStore((s) => s.resizePlot);
   const applySurfaceLayout = useDioramaStore((s) => s.applySurfaceLayout);
-  if (base === "street") return null;
 
   const size = surface && PLOT_SIZES.find((option) => option.cols === surface.cols && option.rows === surface.rows.length);
 
