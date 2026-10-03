@@ -102,7 +102,8 @@ export const BASE_TEMPLATES: Record<DioramaBase, BaseTemplate> = {
   plot: createPlotTemplate(DEFAULT_PLOT_SIZE.cols * SURFACE_CELL, DEFAULT_PLOT_SIZE.rows * SURFACE_CELL),
 };
 
-export const BASE_ORDER: DioramaBase[] = ["plot", "corner", "street"];
+/** The bases offered for new scenes. The legacy street strip still loads, but is no longer offered. */
+export const BASE_ORDER: DioramaBase[] = ["plot", "corner"];
 
 const plotTemplates = new Map<string, BaseTemplate>();
 

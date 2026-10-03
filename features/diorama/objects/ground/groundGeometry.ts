@@ -43,6 +43,16 @@ export type WallSide = "left" | "right" | "back" | "front";
 const WALL_NORMALS: Record<WallSide, Rgb> = { left: [-1, 0, 0], right: [1, 0, 0], back: [0, 0, -1], front: [0, 0, 1] };
 const UP: Rgb = [0, 1, 0];
 
+/** The ends [px, pz, qx, qz] of a wall's edge, ordered so that the face winds counter-clockwise seen from outside. */
+export function wallEnds(side: WallSide, x0: number, x1: number, z0: number, z1: number): [number, number, number, number] {
+  return [
+    side === "right" || side === "back" ? x1 : x0,
+    side === "right" || side === "front" ? z1 : z0,
+    side === "left" || side === "back" ? x0 : x1,
+    side === "left" || side === "front" ? z1 : z0,
+  ];
+}
+
 /**
  * Collects flat quads and writes them out as one indexed geometry. Used
  * for surfaces made of thousands of small faces, where a BoxGeometry per
@@ -111,21 +121,57 @@ export class QuadWriter {
     p[o + 1] = p[o + 4] = p[o + 7] = p[o + 10] = y;
   }
 
-  /** A vertical quad on one side of the rectangle x0 … x1, z0 … z1, from `yTop` down to `yBottom`, facing outward. */
-  wall(side: WallSide, x0: number, x1: number, z0: number, z1: number, yTop: number, yBottom: number, color: Rgb, grain: Grain): void {
-    // The edge runs from p to q so that the face winds counter-clockwise seen from outside.
-    const px = side === "right" || side === "back" ? x1 : x0;
-    const pz = side === "right" || side === "front" ? z1 : z0;
-    const qx = side === "left" || side === "back" ? x0 : x1;
-    const qz = side === "left" || side === "front" ? z1 : z0;
+  /** A quad over the rectangle x0 … x1, z0 … z1 with a height of its own at each corner, facing up: a ramp. */
+  slope(x0: number, x1: number, z0: number, z1: number, y00: number, y01: number, y11: number, y10: number, color: Rgb, grain: Grain): void {
+    // The normal of the plane through the corners' average slopes along X and Z.
+    const slopeX = (y10 + y11 - y00 - y01) / 2 / (x1 - x0);
+    const slopeZ = (y01 + y11 - y00 - y10) / 2 / (z1 - z0);
+    const length = Math.hypot(slopeX, 1, slopeZ);
+    const p = this.positions;
+    const o = this.begin([-slopeX / length, 1 / length, -slopeZ / length], color, grain);
+    p[o] = x0;
+    p[o + 1] = y00;
+    p[o + 2] = z0;
+    p[o + 3] = x0;
+    p[o + 4] = y01;
+    p[o + 5] = z1;
+    p[o + 6] = x1;
+    p[o + 7] = y11;
+    p[o + 8] = z1;
+    p[o + 9] = x1;
+    p[o + 10] = y10;
+    p[o + 11] = z0;
+  }
+
+  /**
+   * A vertical quad on one side of the rectangle x0 … x1, z0 … z1, facing
+   * outward. Its edge runs from p to q (wallEnds); the top and the bottom
+   * each have a height at p and at q, so the wall can follow a slope.
+   */
+  wall(
+    side: WallSide,
+    x0: number,
+    x1: number,
+    z0: number,
+    z1: number,
+    yTopP: number,
+    yTopQ: number,
+    yBottomP: number,
+    yBottomQ: number,
+    color: Rgb,
+    grain: Grain
+  ): void {
+    const [px, pz, qx, qz] = wallEnds(side, x0, x1, z0, z1);
     const p = this.positions;
     const o = this.begin(WALL_NORMALS[side], color, grain);
     p[o] = p[o + 3] = px;
     p[o + 2] = p[o + 5] = pz;
     p[o + 6] = p[o + 9] = qx;
     p[o + 8] = p[o + 11] = qz;
-    p[o + 1] = p[o + 10] = yTop;
-    p[o + 4] = p[o + 7] = yBottom;
+    p[o + 1] = yTopP;
+    p[o + 10] = yTopQ;
+    p[o + 4] = yBottomP;
+    p[o + 7] = yBottomQ;
   }
 
   build(): BufferGeometry {

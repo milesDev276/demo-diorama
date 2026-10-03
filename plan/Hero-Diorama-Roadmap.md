@@ -549,6 +549,22 @@ Added after the original seven stages, at the user's request (2026-10-03).
 **Done when:** a street layout of one's own can be painted and furnished on
 a plot, and it reads as the same miniature as the corner base.
 
+### Stage 9 — Finished streets on a plot
+
+**Status:** implemented and verified on branch `stage9-streets`,
+2026-10-03. See [Stage-9-Implementation.md](Stage-9-Implementation.md) §7.
+
+* A **curb ramp** ground kind: a dropped curb at crosswalks and driveways.
+* **Markings line up with the road** they are placed on; a parking bay.
+* **Runs:** a drag lays walls, hedges, guard rails, fences and road lines
+  end to end.
+* From Blender: the **stop sign in meters**, a **guard rail**, a **mesh
+  fence**.
+* A second starter, **Back Street**, on a painted plot.
+* The legacy **street strip is no longer offered**; old scenes still load.
+
+**Done when:** the Back Street starter reads as finished as the hero corner.
+
 ---
 
 ## 4. Scope Boundaries
@@ -563,6 +579,7 @@ a plot, and it reads as the same miniature as the corner base.
 | 6 | Editor extension (Phase 2/3 tooling) |
 | 7 | Phase 4 (time of day) and Phase 5 (photo) |
 | 8 | Phase 4 (roads, sidewalks) and §20 (rectangular plot); not a terrain editor |
+| 9 | Phase 4 (roads, street props) and Phase 3 (assets) |
 
 Not in this roadmap:
 

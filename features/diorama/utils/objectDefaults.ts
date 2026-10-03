@@ -90,7 +90,8 @@ export function createDioramaObject(
   return object;
 }
 
-function place(type: DioramaObjectType, x: number, z: number, rotationY = 0, scale?: number, y = 0): DioramaObject {
+/** An object of a starter scene at a world position on the ground (or at height `y`). */
+export function place(type: DioramaObjectType, x: number, z: number, rotationY = 0, scale?: number, y = 0): DioramaObject {
   return createDioramaObject(type, 0, BASE_TEMPLATES.street, {
     position: [x, y, z],
     rotation: [0, rotationY, 0],
@@ -199,7 +200,7 @@ function cornerScatter(): DioramaObject[] {
 }
 
 /** Pieces of a tiling asset (block wall, hedge) end to end from `from` to `to`, which lie along X or along Z. */
-function run(
+export function run(
   type: DioramaObjectType,
   pieceLength: number,
   from: [number, number],
@@ -223,11 +224,16 @@ function run(
  * curve mirror watching the junction; a zelkova, a hedge and a block wall
  * closing the lot; and fallen leaves, weeds and grass.
  */
-function getCornerStarter(): DioramaObject[] {
+/**
+ * The three-floor corner shop-house (the first building preset) centered on
+ * (`x`, `z`), with what hangs on it and stands on its roof: AC units,
+ * laundry, the vertical shop sign, a meter, a water tank, a shed, pots and
+ * a chair. The attachments are in the building's frame.
+ */
+export function shopHouse(x: number, z: number): DioramaObject[] {
   const { bay, groundFloor, upperFloor } = BUILDING_GRID;
-  // Footprint x, z −3.76 … 1.7 (Hero-Layout §3); attachments are in its frame.
   const building = createDioramaObject("building", 0, BASE_TEMPLATES.corner, {
-    position: [-1.03, 0, -1.03],
+    position: [x, 0, z],
     rotation: [0, 0, 0],
     params: BUILDING_PRESETS[0].params,
   });
@@ -248,6 +254,13 @@ function getCornerStarter(): DioramaObject[] {
     attach(building, "chair", [1.0, roof, 1.85], 0.5),
     // Electricity meter on the blank bay of the right wall
     attach(building, "meterBox", [wall, 1.25, -1.82], Math.PI / 2),
+  ];
+}
+
+function getCornerStarter(): DioramaObject[] {
+  return [
+    // Footprint x, z −3.76 … 1.7 (Hero-Layout §3).
+    ...shopHouse(-1.03, -1.03),
     place("pottedPlant", -3.45, 1.95, 1.2),
     place("pottedPlant", -3.05, 1.9, 4.0, 0.8),
     place("ginkgoTree", -6.6, -1.0, 0.4),

@@ -131,6 +131,8 @@ interface DioramaState {
   rotatePlacement: (radians: number) => void;
   /** Finishes the current placement at a world transform, attached to `parentId` if given. */
   placeObject: (world: Transform, parentId: string | undefined, keepPlacing: boolean) => void;
+  /** Finishes the current placement as a row of new objects on the base, one per world transform. One undo step. */
+  placeRun: (worlds: Transform[], keepPlacing: boolean) => void;
   /** Frees an attached object from its building without moving it. */
   detachObject: (id: string) => void;
   /** Changes a building through a function of its current params. One undo step. */
@@ -460,6 +462,22 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
       return {
         objects,
         selectedObjectIds: [object.id],
+        placement: keepPlacing ? placement : null,
+        ...commit(state, objects),
+      };
+    }),
+
+  placeRun: (worlds, keepPlacing) =>
+    set((state) => {
+      const { placement } = state;
+      if (!placement || "kit" in placement || placement.movingId || !worlds.length) return state;
+      const template = getBaseTemplate(state.environment);
+      const placed = worlds.map((world) => createDioramaObject(placement.type, 0, template, { ...world, params: placement.params }));
+      const objects = [...state.objects, ...placed];
+      return {
+        objects,
+        selectedObjectIds: placed.map((object) => object.id),
+        transformMode: clampTransformMode(placed.length, state.transformMode),
         placement: keepPlacing ? placement : null,
         ...commit(state, objects),
       };

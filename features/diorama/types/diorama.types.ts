@@ -34,6 +34,9 @@ export const DIORAMA_OBJECT_TYPES = [
   "crosswalk",
   "stopLine",
   "roadLine",
+  "parkingBay",
+  "guardRail",
+  "fence",
 ] as const;
 
 export type DioramaObjectType = (typeof DIORAMA_OBJECT_TYPES)[number];
@@ -143,7 +146,7 @@ export const DIORAMA_BASES = ["street", "corner", "plot"] as const;
 export type DioramaBase = (typeof DIORAMA_BASES)[number];
 
 /** What a cell of a plot's ground is made of (assets/surfaceKinds.ts). */
-export const SURFACE_KINDS = ["asphalt", "sidewalk", "tile", "concrete", "gravel", "grass", "soil"] as const;
+export const SURFACE_KINDS = ["asphalt", "sidewalk", "ramp", "tile", "concrete", "gravel", "grass", "soil"] as const;
 
 export type SurfaceKind = (typeof SURFACE_KINDS)[number];
 

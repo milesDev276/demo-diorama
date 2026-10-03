@@ -138,6 +138,39 @@ export function levelAt(surface: SurfaceMap, x: number, z: number): number | und
   return kind ? SURFACE_KIND_SPECS[kind].level : undefined;
 }
 
+/** The road under a point: which way it runs, and where its middle is across it. */
+export interface RoadFrame {
+  axis: "x" | "z";
+  /** World coordinate of the road's middle on the other axis. */
+  center: number;
+  width: number;
+}
+
+/**
+ * The road at a world position, or null if that is not asphalt. The road
+ * runs along the axis on which the asphalt continues further from here;
+ * its width is the run of asphalt across that.
+ */
+export function roadFrameAt(surface: SurfaceMap, x: number, z: number): RoadFrame | null {
+  const cell = cellAt(surface, x, z);
+  if (!cell || kindAt(surface, cell[0], cell[1]) !== "asphalt") return null;
+  const run = (di: number, dj: number) => {
+    let [min, max] = [0, 0];
+    while (kindAt(surface, cell[0] + (min - 1) * di, cell[1] + (min - 1) * dj) === "asphalt") min--;
+    while (kindAt(surface, cell[0] + (max + 1) * di, cell[1] + (max + 1) * dj) === "asphalt") max++;
+    return { min, max, length: max - min + 1 };
+  };
+  const alongX = run(1, 0);
+  const alongZ = run(0, 1);
+  const { width, depth } = surfaceSize(surface);
+  if (alongX.length >= alongZ.length) {
+    const first = cell[1] + alongZ.min;
+    return { axis: "x", center: -depth / 2 + (first + alongZ.length / 2) * SURFACE_CELL, width: alongZ.length * SURFACE_CELL };
+  }
+  const first = cell[0] + alongX.min;
+  return { axis: "z", center: -width / 2 + (first + alongX.length / 2) * SURFACE_CELL, width: alongX.length * SURFACE_CELL };
+}
+
 /** The first column or row of a brush `size` cells wide that is centered on cell `center`. */
 export function brushStart(center: number, size: number): number {
   return center - Math.floor((size - 1) / 2);

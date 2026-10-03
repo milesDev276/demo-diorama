@@ -1,5 +1,6 @@
 import type { DioramaEnvironment, DioramaObject } from "../types/diorama.types";
 import { getDefaultScene } from "../utils/objectDefaults";
+import { getBackStreetObjects, getBackStreetSurface } from "../utils/plotStarter";
 import { DEFAULT_ENVIRONMENT } from "../utils/sceneDefaults";
 
 /** A built-in starting point: a whole scene, offered by the New-diorama dialog. */
@@ -24,6 +25,22 @@ export const SCENE_TEMPLATES: SceneTemplate[] = [
     thumbnail: "/templates/autumn-corner.webp",
     environment: { ...DEFAULT_ENVIRONMENT, base: "corner", timeOfDay: "goldenHour", season: "autumn" },
     objects: () => getDefaultScene("corner"),
+  },
+  {
+    // A painted plot: what the ground brush, runs and markings are for.
+    id: "back-street",
+    name: "Back Street",
+    description: "A shop, a house and a small parking lot on a plot you can repaint.",
+    thumbnail: "/templates/back-street.webp",
+    environment: {
+      ...DEFAULT_ENVIRONMENT,
+      base: "plot",
+      timeOfDay: "goldenHour",
+      season: "autumn",
+      plinth: "wood",
+      surface: getBackStreetSurface(),
+    },
+    objects: getBackStreetObjects,
   },
 ];
 
