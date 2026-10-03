@@ -7,7 +7,7 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
 import { useDioramaStore } from "../store/dioramaStore";
 import { CAMERA_PRESETS, DEFAULT_CAMERA_TARGET } from "../utils/cameraPresets";
-import { BASE_TEMPLATES } from "../utils/baseTemplates";
+import { getBaseTemplate } from "../utils/baseTemplates";
 import type { CameraPreset, Vector3Tuple } from "../types/diorama.types";
 
 /** Vertical field of view of the Preview camera — narrow, like a lens photographing a model. */
@@ -58,12 +58,13 @@ export function CameraControls() {
   const previewEntryRef = useRef<PreviewEntry | null>(null);
   const camera = useThree((s) => s.camera);
   const isPreviewMode = useDioramaStore((s) => s.isPreviewMode);
-  const base = useDioramaStore((s) => s.environment.base);
+  // The same base and size always give the same template object (getBaseTemplate).
+  const template = useDioramaStore((s) => getBaseTemplate(s.environment));
   const registerCameraApi = useDioramaStore((s) => s.registerCameraApi);
   // The zoom the editing camera is created with. Later base changes animate
   // through the camera API instead of jumping with a changed prop.
-  const [initialZoom] = useState(() => BASE_TEMPLATES[base].presetZoom.isometric);
-  const framedBaseRef = useRef(base);
+  const [initialZoom] = useState(() => template.presetZoom.isometric);
+  const framedTemplateRef = useRef(template);
 
   // Switching between the editing and Preview cameras keeps the composition:
   // same orbit target, same viewing direction, same visible world height.
@@ -119,8 +120,6 @@ export function CameraControls() {
       };
     }
 
-    const template = BASE_TEMPLATES[base];
-
     function applyPreset(preset: CameraPreset) {
       startTransition(CAMERA_PRESETS[preset].position, DEFAULT_CAMERA_TARGET, template.presetZoom[preset]);
     }
@@ -158,14 +157,14 @@ export function CameraControls() {
       },
     });
 
-    // A different base is a different size: reframe it with its own presets.
-    if (framedBaseRef.current !== base) {
-      framedBaseRef.current = base;
+    // A different base, or a plot of another size: reframe it with its own presets.
+    if (framedTemplateRef.current !== template) {
+      framedTemplateRef.current = template;
       applyPreset("isometric");
     }
 
     return () => registerCameraApi(null);
-  }, [camera, base, registerCameraApi]);
+  }, [camera, template, registerCameraApi]);
 
   // R3F's whole model is imperative mutation of Three.js objects each frame —
   // `camera` here is the live scene camera, not React-owned render state, so

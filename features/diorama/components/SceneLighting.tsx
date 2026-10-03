@@ -1,7 +1,7 @@
 import { Environment, Lightformer } from "@react-three/drei";
 import { useTimeOfDayLook } from "../hooks/useSceneEnvironment";
 import { useDioramaStore } from "../store/dioramaStore";
-import { BASE_TEMPLATES } from "../utils/baseTemplates";
+import { getBaseTemplate } from "../utils/baseTemplates";
 
 /**
  * Soft miniature lighting (meters), set by the canvas's time of day
@@ -11,19 +11,18 @@ import { BASE_TEMPLATES } from "../utils/baseTemplates";
  * bounce, so the ambient and hemisphere lights can stay low. It is rendered
  * once, and again when the look changes.
  * The shadow frustum is fitted to the active base; the sun is recreated
- * when the base changes so its shadow camera picks the new size up.
+ * when that size changes so its shadow camera picks it up.
  */
 export function SceneLighting() {
-  const base = useDioramaStore((s) => s.environment.base);
+  const extent = useDioramaStore((s) => getBaseTemplate(s.environment).shadowExtent);
   const look = useTimeOfDayLook();
-  const extent = BASE_TEMPLATES[base].shadowExtent;
 
   return (
     <>
       <ambientLight intensity={look.ambient.intensity} color={look.ambient.color} />
       <hemisphereLight color={look.hemisphere.sky} groundColor={look.hemisphere.ground} intensity={look.hemisphere.intensity} />
       <directionalLight
-        key={base}
+        key={extent}
         position={look.sun.position}
         intensity={look.sun.intensity}
         color={look.sun.color}

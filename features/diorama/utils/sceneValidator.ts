@@ -1,4 +1,4 @@
-import { DIORAMA_BASES, DIORAMA_OBJECT_TYPES, SEASONS, TIMES_OF_DAY } from "../types/diorama.types";
+import { DIORAMA_BASES, DIORAMA_OBJECT_TYPES, PLINTH_STYLES, SEASONS, TIMES_OF_DAY } from "../types/diorama.types";
 import type {
   DioramaEnvironment,
   DioramaObject,
@@ -14,6 +14,7 @@ import { DEFAULT_SCENE_NAME } from "./objectDefaults";
 import { repairParentLinks } from "./sceneGraph";
 import { DEFAULT_CAMERA_STATE, DEFAULT_ENVIRONMENT } from "./sceneDefaults";
 import { migrateRawObjects, SCENE_FILE_VERSION } from "./sceneSerializer";
+import { createSurface, DEFAULT_PLOT_LAYOUT, normalizeSurface } from "./surfaceMap";
 
 const VALID_TYPES: ReadonlySet<DioramaObjectType> = new Set(DIORAMA_OBJECT_TYPES);
 
@@ -84,15 +85,24 @@ function oneOf<T extends string>(known: readonly T[], value: unknown, fallback: 
   return (known as readonly unknown[]).includes(value) ? (value as T) : fallback;
 }
 
-/** Keeps the file's base, time of day and season where this app knows them; everything else is the default. */
+/**
+ * Keeps the file's base, time of day, season, plinth and painted ground
+ * where this app knows them; everything else is the default. A plot
+ * without a usable ground gets the default one.
+ */
 function normalizeEnvironment(raw: unknown): DioramaEnvironment {
   const r = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
-  return {
+  const environment: DioramaEnvironment = {
     ...DEFAULT_ENVIRONMENT,
     base: oneOf(DIORAMA_BASES, r.base, DEFAULT_ENVIRONMENT.base),
     timeOfDay: oneOf(TIMES_OF_DAY, r.timeOfDay, DEFAULT_ENVIRONMENT.timeOfDay),
     season: oneOf(SEASONS, r.season, DEFAULT_ENVIRONMENT.season),
+    plinth: oneOf(PLINTH_STYLES, r.plinth, DEFAULT_ENVIRONMENT.plinth),
   };
+  // Optional fields are only written when present, so files without them round-trip unchanged.
+  const surface = normalizeSurface(r.surface) ?? (environment.base === "plot" ? createSurface(DEFAULT_PLOT_LAYOUT) : undefined);
+  if (surface) environment.surface = surface;
+  return environment;
 }
 
 /**

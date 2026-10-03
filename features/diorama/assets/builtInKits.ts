@@ -1,11 +1,12 @@
 import type { DioramaObject, DioramaObjectType, Kit, ScatterKind, Vector3Tuple } from "../types/diorama.types";
+import { BASE_TEMPLATES } from "../utils/baseTemplates";
 import { createDioramaObject } from "../utils/objectDefaults";
 import { roundPoint, scatterPatch } from "../utils/scatterParams";
 import { SCATTER_KIND_SPECS } from "./scatterKinds";
 
 /** An object of a built-in kit, in the kit's frame (meters, front toward +Z). */
 function item(type: DioramaObjectType, x: number, z: number, yaw = 0, scale = 1, y = 0): DioramaObject {
-  return createDioramaObject(type, 0, "corner", { position: [x, y, z], rotation: [0, yaw, 0], scale: [scale, scale, scale] });
+  return createDioramaObject(type, 0, BASE_TEMPLATES.corner, { position: [x, y, z], rotation: [0, yaw, 0], scale: [scale, scale, scale] });
 }
 
 /** A small scatter cluster of patches around the given centers, as one layer at the kit's anchor. */
@@ -14,7 +15,7 @@ function cluster(kind: ScatterKind, seed: number, patches: Array<[x: number, z: 
   const points = patches.flatMap(([cx, cz, radius], i) =>
     scatterPatch(seed + i, radius, spacing, 40).map(([x, , z]): Vector3Tuple => roundPoint([x + cx, 0, z + cz]))
   );
-  return createDioramaObject("scatter", 0, "corner", {
+  return createDioramaObject("scatter", 0, BASE_TEMPLATES.corner, {
     position: [0, 0, 0],
     rotation: [0, 0, 0],
     params: { kind, seed, points },

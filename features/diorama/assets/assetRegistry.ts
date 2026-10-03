@@ -12,10 +12,13 @@ import {
   CircleDot,
   CupSoda,
   Cylinder,
+  Footprints,
   Gauge,
   Gem,
   House as HouseIcon,
   Mailbox,
+  Minus,
+  OctagonX,
   Package,
   PersonStanding,
   Presentation,
@@ -54,6 +57,7 @@ import { SCATTER_KIND_SPECS } from "./scatterKinds";
 import thumbnailKeys from "./thumbnails.json";
 import { House } from "../objects/House";
 import { PowerLine } from "../objects/PowerLine";
+import { RoadMarking } from "../objects/RoadMarking";
 import { Rock } from "../objects/Rock";
 import { Shop } from "../objects/Shop";
 import { Sign } from "../objects/Sign";
@@ -269,6 +273,42 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     footprintRadius: 0.6,
     randomSpawnRotation: false,
     tags: ["grate", "gutter", "sokko", "drain", "road"],
+  },
+  crosswalk: {
+    type: "crosswalk",
+    label: "Crosswalk",
+    category: "Street",
+    icon: Footprints,
+    component: RoadMarking,
+    legacyUnits: false,
+    defaultScale: [1, 1, 1],
+    footprintRadius: 2.2,
+    randomSpawnRotation: false,
+    tags: ["crosswalk", "zebra", "odan-hodo", "road", "marking", "paint"],
+  },
+  stopLine: {
+    type: "stopLine",
+    label: "Stop Line",
+    category: "Street",
+    icon: OctagonX,
+    component: RoadMarking,
+    legacyUnits: false,
+    defaultScale: [1, 1, 1],
+    footprintRadius: 1.6,
+    randomSpawnRotation: false,
+    tags: ["stop", "tomare", "line", "road", "marking", "paint"],
+  },
+  roadLine: {
+    type: "roadLine",
+    label: "Road Line",
+    category: "Street",
+    icon: Minus,
+    component: RoadMarking,
+    legacyUnits: false,
+    defaultScale: [1, 1, 1],
+    footprintRadius: 2.1,
+    randomSpawnRotation: false,
+    tags: ["line", "edge line", "white line", "road", "marking", "paint"],
   },
   kanbanSign: {
     type: "kanbanSign",

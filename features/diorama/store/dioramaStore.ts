@@ -9,14 +9,18 @@ import type {
   DioramaObject,
   DioramaObjectType,
   DioramaScene,
+  GroundBrushState,
   Kit,
   ObjectParams,
   PhotoApi,
   PhotoSettings,
   Placement,
+  PlinthStyle,
   SaveStatus,
   ScatterKind,
   Season,
+  SurfaceKind,
+  SurfaceMap,
   TimeOfDay,
   TransformMode,
   Vector3Tuple,
@@ -39,6 +43,7 @@ import {
   jitteredScale,
   nextSpawnPosition,
 } from "../utils/objectDefaults";
+import { getBaseTemplate } from "../utils/baseTemplates";
 import { instantiateKit } from "../utils/kits";
 import { buildingParamsOf, scatterParamsOf } from "../utils/objectParams";
 import { newScatterSeed, roundPoint } from "../utils/scatterParams";
@@ -49,11 +54,19 @@ import { buildScene, downloadSceneAsJson, serializeScene, STORAGE_KEY } from "..
 import { normalizeBuildingParams } from "../utils/buildingParams";
 import { validateAndNormalizeScene } from "../utils/sceneValidator";
 import {
+  createSurface,
+  DEFAULT_PLOT_LAYOUT,
+  paintCells,
+  reseatObjects,
+  resizeSurface,
+  type SurfaceLayout,
+} from "../utils/surfaceMap";
+import {
   createInitialHistory,
   pushHistory,
   redoHistory,
   undoHistory,
-  type HistoryState,
+  type HistoryEntry,
 } from "../history/historyManager";
 
 export type DioramaObjectChanges = Partial<
@@ -68,8 +81,8 @@ interface DioramaState {
   environment: DioramaEnvironment;
   camera: DioramaCameraState;
 
-  // --- Undo/redo history (snapshots of `objects` only) ---
-  history: DioramaObject[][];
+  // --- Undo/redo history (snapshots of `objects` and the painted ground) ---
+  history: HistoryEntry[];
   historyIndex: number;
 
   // --- Editor UI state (never persisted) ---
@@ -95,6 +108,10 @@ interface DioramaState {
   brushDensity: number;
   /** The brush removes pieces instead of adding them (Alt does the same while held). */
   brushErase: boolean;
+  /** Set while the ground brush is active (plot scenes only). */
+  groundBrush: GroundBrushState | null;
+  /** Edge of the ground brush's square, in cells. Kept between brush sessions. */
+  groundBrushSize: number;
   /** How Preview frames, focuses and exposes a photo. Kept between Preview sessions. */
   photo: PhotoSettings;
   photoApi: PhotoApi | null;
@@ -140,6 +157,20 @@ interface DioramaState {
   /** Gives a layer a new seed: every piece gets a new heading, size and tint. One undo step. */
   shuffleScatter: (id: string) => void;
 
+  // --- Ground (plot scenes) ---
+  /** Starts the ground brush for `kind`. Ends any placement or scatter brush. Only on a plot. */
+  startGroundBrush: (kind: SurfaceKind) => void;
+  stopGroundBrush: () => void;
+  setGroundBrushSize: (size: number) => void;
+  /** Paints the brush's square around cell (`i`, `j`) without an undo step (during a stroke). */
+  paintGround: (i: number, j: number) => void;
+  /** Ends a stroke: objects on cells that changed level follow the ground, and the stroke becomes one undo step. */
+  endGroundStroke: () => void;
+  /** Replaces the plot's ground with a starting layout at its current size. One undo step. */
+  applySurfaceLayout: (layout: SurfaceLayout) => void;
+  /** Changes the plot's size around its middle. One undo step. */
+  resizePlot: (cols: number, rows: number) => void;
+
   // Silent transform updates (no history) — call commitTransform() to snapshot.
   updateObject: (id: string, changes: DioramaObjectChanges) => void;
   updateObjects: (ids: string[], changes: DioramaObjectChanges) => void;
@@ -169,6 +200,8 @@ interface DioramaState {
   setTimeOfDay: (timeOfDay: TimeOfDay) => void;
   /** Changes the season. Not on the undo stack. */
   setSeason: (season: Season) => void;
+  /** Changes the finish of the platform. Not on the undo stack. */
+  setPlinth: (plinth: PlinthStyle) => void;
   resetScene: () => void;
   /** Starts an empty scene on the given base (default: the current one), by day, in autumn. */
   newScene: (base?: DioramaBase) => void;
@@ -197,10 +230,21 @@ interface DioramaState {
   setSaveStatus: (status: SaveStatus) => void;
 }
 
-/** Snapshots `objects` onto the history stack. Shared by every atomic action. */
-function commit(state: Pick<DioramaState, "history" | "historyIndex">, objects: DioramaObject[]) {
-  const next = pushHistory({ history: state.history, historyIndex: state.historyIndex }, objects);
+/** Snapshots `objects` and the ground onto the history stack. Shared by every atomic action. */
+function commit(
+  state: Pick<DioramaState, "history" | "historyIndex" | "environment">,
+  objects: DioramaObject[],
+  surface: SurfaceMap | undefined = state.environment.surface
+) {
+  const next = pushHistory({ history: state.history, historyIndex: state.historyIndex }, { objects, surface });
   return { history: next.history, historyIndex: next.historyIndex };
+}
+
+/** A changed ground: the objects standing on it follow, and both go onto the history stack as one step. */
+function commitSurface(state: DioramaState, surface: SurfaceMap) {
+  const before = state.history[state.historyIndex].surface ?? state.environment.surface;
+  const objects = before ? reseatObjects(state.objects, before, surface) : state.objects;
+  return { objects, environment: { ...state.environment, surface }, ...commit(state, objects, surface) };
 }
 
 /** Multi-select can only move together — rotate/scale fall back to translate. */
@@ -213,6 +257,8 @@ const DUPLICATE_OFFSET = 3;
 
 export const BRUSH_RADIUS_RANGE = { min: 0.25, max: 3 } as const;
 export const BRUSH_DENSITY_RANGE = { min: 0.25, max: 1 } as const;
+/** Edge of the ground brush, in cells of 0.5 m. */
+export const GROUND_BRUSH_RANGE = { min: 1, max: 10 } as const;
 
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
 
@@ -301,7 +347,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   environment: initial.environment,
   camera: DEFAULT_CAMERA_STATE,
 
-  ...createInitialHistory(initial.objects),
+  ...createInitialHistory(initial.objects, initial.environment.surface),
 
   selectedObjectIds: [],
   transformMode: "translate",
@@ -319,25 +365,28 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   brushRadius: 0.8,
   brushDensity: 0.7,
   brushErase: false,
+  groundBrush: null,
+  groundBrushSize: 2,
   photo: DEFAULT_PHOTO_SETTINGS,
   photoApi: null,
 
   addObject: (type, params) =>
     set((state) => {
-      const object = createDioramaObject(type, state.objects.length, state.environment.base, { params });
+      const object = createDioramaObject(type, state.objects.length, getBaseTemplate(state.environment), { params });
       const objects = [...state.objects, object];
       return {
         objects,
         selectedObjectIds: [object.id],
         placement: null,
         brush: null,
+        groundBrush: null,
         ...commit(state, objects),
       };
     }),
 
   addKit: (kit) =>
     set((state) => {
-      const position = nextSpawnPosition(state.objects.length, state.environment.base);
+      const position = nextSpawnPosition(state.objects.length, getBaseTemplate(state.environment));
       const placed = instantiateKit(kit, { position, rotation: [0, 0, 0], scale: [1, 1, 1] });
       const objects = [...state.objects, ...placed.objects];
       return {
@@ -346,6 +395,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
         transformMode: clampTransformMode(placed.rootIds.length, state.transformMode),
         placement: null,
         brush: null,
+        groundBrush: null,
         ...commit(state, objects),
       };
     }),
@@ -364,7 +414,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
       };
     }),
 
-  startPlacement: (placement) => set({ placement, placementYaw: 0, brush: null }),
+  startPlacement: (placement) => set({ placement, placementYaw: 0, brush: null, groundBrush: null }),
 
   cancelPlacement: () => set({ placement: null }),
 
@@ -401,7 +451,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
         return { objects, placement: null, selectedObjectIds: [moved.id], ...commit(state, objects) };
       }
 
-      const object = createDioramaObject(placement.type, state.objects.length, state.environment.base, {
+      const object = createDioramaObject(placement.type, state.objects.length, getBaseTemplate(state.environment), {
         ...transform,
         parentId,
         params: placement.params,
@@ -435,7 +485,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
       return { objects, ...commit(state, objects) };
     }),
 
-  startBrush: (kind, layerId) => set({ brush: { kind, layerId }, placement: null }),
+  startBrush: (kind, layerId) => set({ brush: { kind, layerId }, placement: null, groundBrush: null }),
 
   stopBrush: () => set({ brush: null }),
 
@@ -460,7 +510,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
       set({ brush: { ...brush, layerId: target.id }, selectedObjectIds: [target.id] });
       return target.id;
     }
-    const layer = createDioramaObject("scatter", 0, state.environment.base, {
+    const layer = createDioramaObject("scatter", 0, getBaseTemplate(state.environment), {
       position: roundPoint(origin),
       rotation: [0, 0, 0],
       scale: [1, 1, 1],
@@ -492,7 +542,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
         selectedObjectIds: state.selectedObjectIds.filter((id) => !emptied.has(id)),
       };
       // A stroke that changed nothing (a click on bare ground) leaves no undo step.
-      const top = state.history[state.historyIndex];
+      const top = state.history[state.historyIndex].objects;
       const unchanged = objects.length === top.length && objects.every((o, i) => o === top[i]);
       if (unchanged) return { objects: top, ...cleanup };
       return { objects, ...cleanup, ...commit(state, objects) };
@@ -505,6 +555,39 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
         return o.id === id && params && !o.locked ? { ...o, params: { ...params, seed: newScatterSeed() } } : o;
       });
       return { objects, ...commit(state, objects) };
+    }),
+
+  startGroundBrush: (kind) =>
+    set((state) => (state.environment.base === "plot" ? { groundBrush: { kind }, placement: null, brush: null } : state)),
+
+  stopGroundBrush: () => set({ groundBrush: null }),
+
+  setGroundBrushSize: (size) =>
+    set({ groundBrushSize: clamp(Math.round(size), GROUND_BRUSH_RANGE.min, GROUND_BRUSH_RANGE.max) }),
+
+  paintGround: (i, j) =>
+    set((state) => {
+      const { groundBrush, environment } = state;
+      if (!groundBrush || !environment.surface) return state;
+      const surface = paintCells(environment.surface, i, j, state.groundBrushSize, groundBrush.kind);
+      return surface === environment.surface ? state : { environment: { ...environment, surface } };
+    }),
+
+  endGroundStroke: () =>
+    set((state) => (state.environment.surface ? commitSurface(state, state.environment.surface) : state)),
+
+  applySurfaceLayout: (layout) =>
+    set((state) => {
+      const current = state.environment.surface;
+      if (!current) return state;
+      return commitSurface(state, createSurface(layout, current.cols, current.rows.length));
+    }),
+
+  resizePlot: (cols, rows) =>
+    set((state) => {
+      const current = state.environment.surface;
+      if (!current) return state;
+      return commitSurface(state, resizeSurface(current, cols, rows));
     }),
 
   updateObject: (id, changes) =>
@@ -586,13 +669,27 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   setSceneName: (name) => set({ sceneName: name.slice(0, 80) || DEFAULT_SCENE_NAME }),
 
   setBase: (base) =>
-    set((state) => (state.environment.base === base ? state : { environment: { ...state.environment, base } })),
+    set((state) => {
+      const { environment } = state;
+      if (environment.base === base) return state;
+      if (base !== "plot") return { environment: { ...environment, base }, groundBrush: null };
+      // A scene that was never a plot gets a ground that matches what its objects stand on now.
+      const surface = environment.surface ?? createSurface(environment.base === "corner" ? "corner" : DEFAULT_PLOT_LAYOUT);
+      return {
+        environment: { ...environment, base, surface },
+        // The step undo returns to has to know this ground, or the first stroke could not be undone.
+        history: state.history.map((entry, index) => (index === state.historyIndex ? { ...entry, surface } : entry)),
+      };
+    }),
 
   setTimeOfDay: (timeOfDay) =>
     set((state) => (state.environment.timeOfDay === timeOfDay ? state : { environment: { ...state.environment, timeOfDay } })),
 
   setSeason: (season) =>
     set((state) => (state.environment.season === season ? state : { environment: { ...state.environment, season } })),
+
+  setPlinth: (plinth) =>
+    set((state) => (state.environment.plinth === plinth ? state : { environment: { ...state.environment, plinth } })),
 
   resetScene: () =>
     set((state) => {
@@ -602,6 +699,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
         selectedObjectIds: [],
         placement: null,
         brush: null,
+        groundBrush: null,
         transformMode: "translate",
         ...commit(state, objects),
       };
@@ -610,16 +708,19 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   newScene: (base) =>
     set((state) => {
       const objects: DioramaObject[] = [];
+      const environment: DioramaEnvironment = { ...DEFAULT_ENVIRONMENT, base: base ?? state.environment.base };
+      if (environment.base === "plot") environment.surface = createSurface(DEFAULT_PLOT_LAYOUT);
       return {
         objects,
-        environment: { ...DEFAULT_ENVIRONMENT, base: base ?? state.environment.base },
+        environment,
         sceneId: createId("scene"),
         sceneName: DEFAULT_SCENE_NAME,
         selectedObjectIds: [],
         placement: null,
         brush: null,
+        groundBrush: null,
         transformMode: "translate" as TransformMode,
-        ...createInitialHistory(objects),
+        ...createInitialHistory(objects, environment.surface),
       };
     }),
 
@@ -636,8 +737,9 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
         selectedObjectIds: [],
         placement: null,
         brush: null,
+        groundBrush: null,
         transformMode: "translate" as TransformMode,
-        ...createInitialHistory(objects),
+        ...createInitialHistory(objects, template.environment.surface),
       };
     }),
 
@@ -669,8 +771,9 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
       selectedObjectIds: [],
       placement: null,
       brush: null,
+      groundBrush: null,
       transformMode: "translate" as TransformMode,
-      ...createInitialHistory(scene.objects),
+      ...createInitialHistory(scene.objects, scene.environment.surface),
       saveStatus: "saved" as SaveStatus,
       importError: null,
     })),
@@ -709,11 +812,13 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
 
   undo: () =>
     set((state) => {
-      const result = undoHistory({ history: state.history, historyIndex: state.historyIndex } as HistoryState);
+      const result = undoHistory({ history: state.history, historyIndex: state.historyIndex });
       if (!result) return state;
       const validIds = new Set(result.objects.map((o) => o.id));
       return {
         objects: result.objects,
+        // Steps from before the scene became a plot carry no ground; the current one stays.
+        environment: result.surface ? { ...state.environment, surface: result.surface } : state.environment,
         historyIndex: result.historyIndex,
         selectedObjectIds: state.selectedObjectIds.filter((id) => validIds.has(id)),
         placement: null,
@@ -722,11 +827,13 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
 
   redo: () =>
     set((state) => {
-      const result = redoHistory({ history: state.history, historyIndex: state.historyIndex } as HistoryState);
+      const result = redoHistory({ history: state.history, historyIndex: state.historyIndex });
       if (!result) return state;
       const validIds = new Set(result.objects.map((o) => o.id));
       return {
         objects: result.objects,
+        // Steps from before the scene became a plot carry no ground; the current one stays.
+        environment: result.surface ? { ...state.environment, surface: result.surface } : state.environment,
         historyIndex: result.historyIndex,
         selectedObjectIds: state.selectedObjectIds.filter((id) => validIds.has(id)),
         placement: null,
@@ -740,7 +847,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   setGridSize: (size) => set({ gridSize: size }),
   setRotationSnapEnabled: (enabled) => set({ rotationSnapEnabled: enabled }),
   setRotationSnapDegrees: (degrees) => set({ rotationSnapDegrees: degrees }),
-  setPreviewMode: (enabled) => set({ isPreviewMode: enabled, placement: null, brush: null }),
+  setPreviewMode: (enabled) => set({ isPreviewMode: enabled, placement: null, brush: null, groundBrush: null }),
   registerCameraApi: (api) => set({ cameraApi: api }),
   setPhoto: (changes) => set((state) => ({ photo: { ...state.photo, ...changes } })),
   registerPhotoApi: (api) => set({ photoApi: api }),

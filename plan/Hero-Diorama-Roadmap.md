@@ -530,6 +530,25 @@ comparison with the reference photo is left to the user.
 **Done when:** at golden hour and at dusk, the hero scene passes the §49
 gate when viewed side by side with the reference.
 
+### Stage 8 — Ground surface and platform
+
+Added after the original seven stages, at the user's request (2026-10-03).
+
+**Status:** implemented and verified on branch `stage8-surface`,
+2026-10-03. See [Stage-8-Implementation.md](Stage-8-Implementation.md) §7.
+
+* A third base, `plot`, whose ground is a **surface map** in the scene:
+  0.5 m cells of asphalt, sidewalk, paving, concrete, gravel, grass or soil,
+  in four plot sizes. Curbs and steps are generated where kinds meet.
+* A **ground brush** paints it; strokes are undoable, and objects standing
+  on a cell that changes level follow it.
+* **Grain** on every app-built ground, the corner base included.
+* **Platform styles:** dark, wood with a nameplate, cut-open earth.
+* **Road markings as objects:** crosswalk, stop line with 止まれ, road line.
+
+**Done when:** a street layout of one's own can be painted and furnished on
+a plot, and it reads as the same miniature as the corner base.
+
 ---
 
 ## 4. Scope Boundaries
@@ -543,6 +562,7 @@ gate when viewed side by side with the reference.
 | 4–5 | Phase 4 (roads, buildings) and §19–20 |
 | 6 | Editor extension (Phase 2/3 tooling) |
 | 7 | Phase 4 (time of day) and Phase 5 (photo) |
+| 8 | Phase 4 (roads, sidewalks) and §20 (rectangular plot); not a terrain editor |
 
 Not in this roadmap:
 

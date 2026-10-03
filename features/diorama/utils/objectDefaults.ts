@@ -10,7 +10,7 @@ import type {
 import { ASSET_REGISTRY } from "../assets/assetRegistry";
 import { BUILDING_PRESETS, DEFAULT_BUILDING_PARAMS } from "../assets/buildingPresets";
 import { SCATTER_KIND_SPECS } from "../assets/scatterKinds";
-import { BASE_TEMPLATES } from "./baseTemplates";
+import { BASE_TEMPLATES, type BaseTemplate } from "./baseTemplates";
 import { BUILDING_GRID } from "./buildingParams";
 import { CORNER } from "./cornerLayout";
 import { createId } from "./id";
@@ -26,8 +26,8 @@ const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(mi
  * using a golden-angle spiral so repeated clicks fan out instead of stacking
  * on top of each other, clamped to stay inside it.
  */
-export function nextSpawnPosition(existingCount: number, base: DioramaBase): Vector3Tuple {
-  const { spawnBounds: bounds, spawnSpread: spread } = BASE_TEMPLATES[base];
+export function nextSpawnPosition(existingCount: number, template: BaseTemplate): Vector3Tuple {
+  const { spawnBounds: bounds, spawnSpread: spread } = template;
   const goldenAngle = 2.399963229728653; // radians
   const angle = existingCount * goldenAngle;
   const radius = Math.min(spread.max, spread.start + existingCount * spread.step);
@@ -66,19 +66,19 @@ function defaultParams(type: DioramaObjectType): ObjectParams | undefined {
 }
 
 /**
- * A new object of `type`. Without a transform it lands on the base's spawn
+ * A new object of `type`. Without a transform it lands on the template's spawn
  * spiral; `overrides` carries a chosen transform, a parent or building params.
  */
 export function createDioramaObject(
   type: DioramaObjectType,
   existingCount: number,
-  base: DioramaBase,
+  template: BaseTemplate,
   overrides: Partial<Pick<DioramaObject, "position" | "rotation" | "scale" | "parentId" | "params">> = {}
 ): DioramaObject {
   const object: DioramaObject = {
     id: createId(),
     type,
-    position: overrides.position ?? nextSpawnPosition(existingCount, base),
+    position: overrides.position ?? nextSpawnPosition(existingCount, template),
     rotation: overrides.rotation ?? [0, spawnYaw(type), 0],
     scale: overrides.scale ?? ASSET_REGISTRY[type].defaultScale,
     visible: true,
@@ -91,7 +91,7 @@ export function createDioramaObject(
 }
 
 function place(type: DioramaObjectType, x: number, z: number, rotationY = 0, scale?: number, y = 0): DioramaObject {
-  return createDioramaObject(type, 0, "street", {
+  return createDioramaObject(type, 0, BASE_TEMPLATES.street, {
     position: [x, y, z],
     rotation: [0, rotationY, 0],
     scale: scale === undefined ? undefined : [scale, scale, scale],
@@ -109,8 +109,9 @@ function attach(
   return { ...place(type, position[0], position[2], rotationY, scale, position[1]), parentId: parent.id };
 }
 
-/** The starter scene of a base: what a first visit and "Reset" show. */
+/** The starter scene of a base: what "Reset" shows. A plot starts empty. */
 export function getDefaultScene(base: DioramaBase): DioramaObject[] {
+  if (base === "plot") return [];
   return base === "corner" ? getCornerStarter() : getStreetStarter();
 }
 
@@ -137,7 +138,7 @@ function getStreetStarter(): DioramaObject[] {
 
 /** A scatter layer at a world position, with points in its own frame. */
 function scatterLayer(kind: ScatterKind, origin: [number, number], seed: number, points: Vector3Tuple[]): DioramaObject {
-  return createDioramaObject("scatter", 0, "corner", {
+  return createDioramaObject("scatter", 0, BASE_TEMPLATES.corner, {
     position: [origin[0], 0, origin[1]],
     rotation: [0, 0, 0],
     params: { kind, seed, points },
@@ -225,7 +226,7 @@ function run(
 function getCornerStarter(): DioramaObject[] {
   const { bay, groundFloor, upperFloor } = BUILDING_GRID;
   // Footprint x, z −3.76 … 1.7 (Hero-Layout §3); attachments are in its frame.
-  const building = createDioramaObject("building", 0, "corner", {
+  const building = createDioramaObject("building", 0, BASE_TEMPLATES.corner, {
     position: [-1.03, 0, -1.03],
     rotation: [0, 0, 0],
     params: BUILDING_PRESETS[0].params,

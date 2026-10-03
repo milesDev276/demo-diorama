@@ -18,11 +18,11 @@ const BRUSH_STEP = 1.2;
  * Ctrl+Shift+Z/Y    Redo
  * Ctrl+D            Duplicate selection
  * Ctrl+S            Save scene
- * Esc               Cancel placing, else end the brush, else clear selection
+ * Esc               Cancel placing, else end the scatter or ground brush, else clear selection
  * F                 Focus selected object(s)
  * W / E / R         Move / Rotate / Scale mode
  * R / Shift+R       While placing: turn the ghost by 45°
- * [ / ]             While brushing: smaller / larger brush
+ * [ / ]             While brushing or painting ground: smaller / larger brush
  */
 export function useEditorShortcuts(enabled: boolean) {
   const selectedObjectIds = useDioramaStore((s) => s.selectedObjectIds);
@@ -80,6 +80,7 @@ export function useEditorShortcuts(enabled: boolean) {
         const state = useDioramaStore.getState();
         if (state.placement) state.cancelPlacement();
         else if (state.brush) state.stopBrush();
+        else if (state.groundBrush) state.stopGroundBrush();
         else clearSelection();
         return;
       }
@@ -89,6 +90,10 @@ export function useEditorShortcuts(enabled: boolean) {
       const state = useDioramaStore.getState();
       if (state.brush && (event.key === "[" || event.key === "]")) {
         state.setBrushRadius(state.brushRadius * (event.key === "]" ? BRUSH_STEP : 1 / BRUSH_STEP));
+        return;
+      }
+      if (state.groundBrush && (event.key === "[" || event.key === "]")) {
+        state.setGroundBrushSize(state.groundBrushSize + (event.key === "]" ? 1 : -1));
         return;
       }
       // While placing, R turns the ghost: the transform mode means nothing until it lands.
