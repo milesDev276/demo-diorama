@@ -1,4 +1,15 @@
-import { Color, MeshStandardMaterial, Plane, Vector3, type Material } from "three";
+import {
+  Color,
+  DataTexture,
+  LinearFilter,
+  LinearMipmapLinearFilter,
+  MeshStandardMaterial,
+  Plane,
+  RedFormat,
+  RepeatWrapping,
+  Vector3,
+  type Material,
+} from "three";
 import { DIORAMA_COLORS } from "../utils/palette";
 import { TIME_OF_DAY_LOOKS } from "../utils/timeOfDay";
 import { getGraphicsAtlas } from "./textures/graphicsAtlas";
@@ -82,9 +93,69 @@ function createPrintedMaterial() {
   });
 }
 
-/** Matte vertex-colored surfaces of an app-built base: asphalt, concrete, gravel. */
+/** Edge of the grain texture in texels, and how many of them a meter of speckle spans. */
+const GRAIN_SIZE = 128;
+const GRAIN_FREQUENCY = 28;
+
+let grainTexture: DataTexture | null = null;
+
+/** Random gray values that tile: the noise the ground grain is read from.
+ *  Generated once, from a fixed seed, so the ground looks the same on every visit. */
+function getGrainTexture(): DataTexture {
+  if (!grainTexture) {
+    const data = new Uint8Array(GRAIN_SIZE * GRAIN_SIZE);
+    let seed = 20261003;
+    for (let i = 0; i < data.length; i++) {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      data[i] = seed >>> 24;
+    }
+    grainTexture = new DataTexture(data, GRAIN_SIZE, GRAIN_SIZE, RedFormat);
+    grainTexture.wrapS = grainTexture.wrapT = RepeatWrapping;
+    grainTexture.magFilter = LinearFilter;
+    grainTexture.minFilter = LinearMipmapLinearFilter;
+    grainTexture.generateMipmaps = true;
+    grainTexture.needsUpdate = true;
+  }
+  return grainTexture;
+}
+
+/** World-space noise that roughens a ground color: soft blotches at two
+ *  scales and a fine speckle, all read from one small texture. Its mipmaps
+ *  average the speckle away before it gets smaller than a pixel — so it
+ *  shows in close-ups and never shimmers from afar. */
+const GROUND_GRAIN_GLSL = `
+uniform sampler2D grainMap;
+varying vec2 vGrain;
+varying vec3 vGroundPosition;
+float groundGrain() {
+  // The height shifts the pattern, so walls and curb faces are not streaked.
+  vec2 p = vGroundPosition.xz + vGroundPosition.y * vec2(0.37, 0.61);
+  float blotch = 0.6 * texture2D(grainMap, p / 48.0).r + 0.4 * texture2D(grainMap, p / 9.0 + 0.37).r - 0.5;
+  float speckle = texture2D(grainMap, p * ${(GRAIN_FREQUENCY / GRAIN_SIZE).toFixed(5)}).r - 0.5;
+  return 1.0 + vGrain.x * speckle * 2.0 + vGrain.y * blotch * 2.0;
+}
+`;
+
+/** Matte vertex-colored surfaces of an app-built base: asphalt, concrete,
+ *  gravel. Each vertex also carries a `grain` (fine, blotch) that says how
+ *  rough its color is drawn; geometry without it stays flat. Two small
+ *  additions to three's shader (r184 chunk names). */
 function createGroundMaterial() {
-  return new MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
+  const material = new MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.grainMap = { value: getGrainTexture() };
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nattribute vec2 grain;\nvarying vec2 vGrain;\nvarying vec3 vGroundPosition;")
+      .replace(
+        "#include <begin_vertex>",
+        "#include <begin_vertex>\n\tvGrain = grain;\n\tvGroundPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;"
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", `#include <common>\n${GROUND_GRAIN_GLSL}`)
+      .replace("#include <color_fragment>", "#include <color_fragment>\n\tdiffuseColor.rgb *= groundGrain();");
+  };
+  material.customProgramCacheKey = () => "diorama-ground-grain";
+  return material;
 }
 
 /** Paint on top of a surface (road lettering): the atlas's transparent cells,

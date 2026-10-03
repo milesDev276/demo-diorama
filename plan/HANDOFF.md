@@ -1,4 +1,4 @@
-# Handoff — Hero Diorama Work (as of 2026-10-02)
+# Handoff — Hero Diorama Work (as of 2026-10-03)
 
 Read this first when picking up the work. It summarizes where things
 stand, what was decided and why, how to run and verify things, and what
@@ -19,15 +19,17 @@ comes next. Details live in the linked plan files.
 | Stage 4: base templates and road surface | Done | `main` (PR #7) |
 | Stage 5: modular building and surface attachment | Done | `main` (PR #8) |
 | Stage 6: density tools | Done | `main` (PR #9) |
-| **Stage 7: environment and Photo** | **Implemented and verified (2026-10-02); NOT committed; waiting for the user's review** | branch **`stage7-environment`** (cut from `main`) |
+| Stage 7: environment and Photo | Done | `main` (PR #10) |
+| **Stage 8: ground surface and platform** | **Implemented and verified (2026-10-03); NOT committed; waiting for the user's review** | branch **`stage8-surface`** (cut from `main`) |
 
-Stage 7 is the last stage of the roadmap.
+Stage 7 was the last stage of the original roadmap; Stage 8 was added at the
+user's request.
 
-**Immediate next action:** the user reviews Stage 7, then commits
-`stage7-environment`, pushes and opens a PR. The user merges PRs themselves,
-one branch per stage. (For Stages 6 and 7 the user handed every decision to
-Claude, so the plan was settled with its defaults and implemented without a
-separate approval round. Ask again at the start of new work; it is not a
+**Immediate next action:** the user reviews Stage 8, then commits
+`stage8-surface`, pushes and opens a PR. The user merges PRs themselves,
+one branch per stage. (For Stages 6, 7 and 8 the user handed every decision
+to Claude, so the plan was settled with its defaults and implemented without
+a separate approval round. Ask again at the start of new work; it is not a
 standing rule.)
 
 **A stash to know about.** `git stash list` holds "stage5 draft slice by
@@ -40,7 +42,7 @@ can be dropped once the user agrees.
 
 | File | What it is |
 |---|---|
-| [Hero-Diorama-Roadmap.md](Hero-Diorama-Roadmap.md) | Master plan: locked decisions L1–L8 and Stages 0–7, with status per stage |
+| [Hero-Diorama-Roadmap.md](Hero-Diorama-Roadmap.md) | Master plan: locked decisions L1–L8 and Stages 0–8, with status per stage |
 | [Hero-Layout.md](Hero-Layout.md) | Hero scene dimensions in meters (16 × 16 m corner base). This is the source of truth for the blockout and for asset sizes. |
 | [Stage-1-Implementation.md](Stage-1-Implementation.md) | Scale migration: value table and verification results |
 | [Stage-2-Implementation.md](Stage-2-Implementation.md) | Look-dev: decisions D1–D6, the bugs that were found, and verification results |
@@ -49,6 +51,7 @@ can be dropped once the user agrees.
 | [Stage-5-Implementation.md](Stage-5-Implementation.md) | Modular building, parent/child rules (D4) and click-to-place: decisions D1–D8, deviations, asset table and verification results (§7) |
 | [Stage-6-Implementation.md](Stage-6-Implementation.md) | Scatter brush, kits, rotate while placing, jitter, app-rendered thumbnails: decisions D1–D11, deviations, asset table and verification results (§7) |
 | [Stage-7-Implementation.md](Stage-7-Implementation.md) | Time of day, season, after-dark lights, shop interior, Photo mode, the hero's last assets and the starter template: decisions D1–D10, deviations, asset table and verification results (§7) |
+| [Stage-8-Implementation.md](Stage-8-Implementation.md) | The free plot and its surface map, ground brush, ground grain, platform styles, road markings: decisions D1–D11, deviations and verification results (§7) |
 | `Phase-*.md` | Earlier phases, kept for history |
 
 ## 3. Decisions That Must Not Be Re-litigated
@@ -81,9 +84,9 @@ can be dropped once the user agrees.
 * **GLB assets render with shared materials** (`objects/materials.ts`),
   remapped from the Blender slot names `base`, `emissive`, `printed` and
   `foliage`. An asset still uses at most three of them.
-* **A scene's base is scene data:** `environment.base`, `"street"` or
-  `"corner"`. It is additive (files stay v2); anything missing or unknown
-  loads as `"street"`.
+* **A scene's base is scene data:** `environment.base`, `"street"`,
+  `"corner"` or (since Stage 8) `"plot"`. It is additive (files stay v2);
+  anything missing or unknown loads as `"street"`.
 * **Everything sized to the base comes from `utils/baseTemplates.ts`:**
   spawn area, grid, preset zooms, focus radius, shadow frustum. Never add
   a new plot-sized constant elsewhere.
@@ -188,6 +191,49 @@ Stage 7:
   the first one; the hero's objects come from `getCornerStarter()` in
   `utils/objectDefaults.ts`, which Reset on the corner base also uses.
 
+Stage 8:
+
+* **A scene's base is `"street"`, `"corner"` or `"plot"`.** Only a plot's
+  ground can be painted; the other two keep their own geometry.
+* **A plot's ground is `environment.surface`:** `{ cols, rows }`, one letter
+  per 0.5 m cell, rows back to front (`utils/surfaceMap.ts`). Additive (files
+  stay v2). The plot's size is the map's size; nothing else stores it. A map
+  on another base is kept and ignored.
+* **The letters are forever:** `a s t c g r d` in `assets/surfaceKinds.ts`,
+  the one table of ground kinds (color, level, curb, grain, joints). They
+  are in saved scenes; add kinds, never reuse a letter.
+* **Curbs, steps, joints and the skirt are derived** from the map by
+  `objects/ground/surfaceGeometry.ts`. There are two levels: the road
+  (`CORNER.roadY`) and everything else.
+* **Ask `getBaseTemplate(environment)` for anything sized to the base,** not
+  `BASE_TEMPLATES[base]`: a plot's template comes from its map. The same
+  size always returns the same object, so it is safe as an effect
+  dependency and as a zustand selector result.
+* **A history entry is `{ objects, surface }`.** Ground strokes, layouts and
+  resizes are undo steps (`commitSurface` in the store), and the objects
+  that stood on a cell whose level changed move with it in the same step
+  (`reseatObjects`). Base, platform, time of day and season stay off the
+  stack.
+* **Subscribe to fields of `environment`, never to the whole object,** in
+  anything that renders in or around the canvas: painting replaces
+  `environment` on every stamp. `Ground` reads the store itself for the
+  same reason.
+* **Everything drawn with the `ground` material carries a `grain`
+  attribute** (fine, blotch). Build such geometry with `groundBox` or
+  `QuadWriter` (`objects/ground/groundGeometry.ts`). The grain is read from
+  one generated 128² noise texture; its mipmaps fade the speckle.
+* **The platform is `environment.plinth`** (`dark`, `wood`, `earth`), drawn
+  by `objects/ground/Plinth.tsx` under the corner and the plot base.
+  Additive; unknown values load as `dark`. The street strip has its own.
+* **One of placement, scatter brush and ground brush is active at a time**
+  (`placement`, `brush`, `groundBrush` in the store; each start clears the
+  other two).
+* **The ground brush raycasts only the mesh tagged `userData.groundPaint`,**
+  so objects never block it. The library's Ground group is drawn by
+  `ObjectLibrary` itself and is not in the asset registry.
+* **Road markings are objects** (`crosswalk`, `stopLine`, `roadLine`,
+  `objects/RoadMarking.tsx`), sized from `utils/cornerLayout.ts`.
+
 ## 4. How to Run and Verify
 
 The platform is Windows. Node 22.14, Chrome, and Blender 5.2.2 LTS at
@@ -243,6 +289,13 @@ node scripts/capture-template.mjs
   diff, crop, close-up, round-trip and scenario helpers were one-off
   scripts and are **not** in the repo. Recreate them from the `Cdp` and
   `launchBrowser` exports of `capture-presets.mjs`.
+* **A baseline of `main` without a worktree:** with the dev server
+  running, `git stash push -u`, wait a few seconds for the hot reload,
+  capture or measure, then `git stash pop`. Do it in one command so the pop
+  cannot be forgotten, and check `git stash list` afterwards (the old
+  Stage 5 stash must still be the only one).
+* **Comparing two folders of screenshots** needs no image library: load both
+  PNGs into a canvas in the headless browser and compare the pixels there.
 * **A fresh browser profile now opens the hero scene** at golden hour.
   Seed a scene to test anything else. A seed without an environment is the
   street strip by day.
@@ -349,11 +402,30 @@ node scripts/capture-template.mjs
   limit,** but its Next child keeps serving on port 3000 (see the first
   item). Check the port before starting another.
 
+* **Headless Preview frame rates drift by a factor of two within an hour**
+  on this machine (the same build measured 52 and 160 fps). Compare builds
+  back to back, several runs each, before calling anything a regression.
+* **The dev server makes React work look slow.** A ground-brush stamp took
+  15–19 ms there and 6 ms in a production build (`npm run build`, then
+  `npx next start -p 3002`). Measure interaction cost on the build.
+* **A selector on the whole `environment` re-renders on every brush
+  stamp.** That was the whole cost of painting before the subscriptions
+  were narrowed.
+* **`node -e '…'` breaks on apostrophes too,** like heredocs. Write the
+  script to a file.
+* **A probe ray on a whole meter hits a paving joint** (2 mm proud), not the
+  paver. Probe off the grid.
+
 ## 6. Known Limitations and Existing Behaviors (not bugs of these stages)
 
 * **The street strip is still legacy geometry** (≈ 6 m units, 43 draw
   calls). Only the corner base is authored in meters.
-* **Base, time-of-day and season changes are not on the undo stack.**
+* **Base, platform, time-of-day and season changes are not on the undo
+  stack.** Ground painting is.
+* **Only a plot can be painted; it has two levels and straight edges;**
+  objects follow a level change only if their origin stood on the ground;
+  markings do not snap to the road. The full list is in
+  Stage-8-Implementation.md §7.
 * **Attachments do not follow a building resize;** the inspector edits a
   facade side at once, not per bay; the gizmo neither snaps to surfaces
   nor re-parents. The full list is in Stage-5-Implementation.md §7.
@@ -378,8 +450,8 @@ node scripts/capture-template.mjs
 
 ## 7. Next
 
-The roadmap's seven stages are implemented. Nothing further is planned or
-approved; ask the user what comes next.
+The roadmap's seven stages and Stage 8 are implemented. Nothing further is
+planned or approved; ask the user what comes next.
 
 * **Open from Stage 7:** the hero scene was not put side by side with the
   reference photo (the photo is not in the repository). That comparison —
@@ -387,7 +459,10 @@ approved; ask the user what comes next.
 * **Candidates that came up, none decided:**
   * lit signs at night (an emissive mask for printed faces)
   * a transparent material slot for shop and car glass
-  * the street strip rebuilt in meters; a metric stop sign
+  * the street strip rebuilt in meters (a plot with the street layout is
+    its successor; the legacy base could be retired); a metric stop sign
+  * ground: a curb ramp at crosswalks, more levels or slopes, parking-bay
+    and arrow markings, a starter scene on a plot
   * more figures (the hero uses one figure twice; no shopkeeper)
   * a saved camera and photo settings per scene (CLAUDE.md §12)
   * weather (CLAUDE.md §25; outside the hero roadmap)
@@ -399,7 +474,7 @@ approved; ask the user what comes next.
   docs are in English.
 * **Plan first:** at the start of each stage, write the plan doc and get it
   approved, then implement — unless the user hands over the decisions, as
-  for Stages 6 and 7.
+  for Stages 6, 7 and 8.
 * **Git:** the user commits, pushes and merges through GitHub PRs
   themselves. When asked, provide a commit message and a PR description.
 * **Reporting:** follow CLAUDE.md §46 — implemented, files, verification

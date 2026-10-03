@@ -4,7 +4,7 @@ import { useLayoutEffect } from "react";
 import { useThree } from "@react-three/fiber";
 import { useDioramaStore } from "../store/dioramaStore";
 import { setEmissiveLevel, setFoliageSeason, setWireBounds } from "../objects/materials";
-import { BASE_TEMPLATES } from "../utils/baseTemplates";
+import { getBaseTemplate } from "../utils/baseTemplates";
 import { SEASON_LOOKS } from "../utils/seasons";
 import { TIME_OF_DAY_LOOKS } from "../utils/timeOfDay";
 
@@ -17,7 +17,9 @@ import { TIME_OF_DAY_LOOKS } from "../utils/timeOfDay";
  */
 export function EnvironmentDriver() {
   const gl = useThree((s) => s.gl);
-  const { base, timeOfDay, season } = useDioramaStore((s) => s.environment);
+  const timeOfDay = useDioramaStore((s) => s.environment.timeOfDay);
+  const season = useDioramaStore((s) => s.environment.season);
+  const template = useDioramaStore((s) => getBaseTemplate(s.environment));
 
   useLayoutEffect(() => {
     setEmissiveLevel(TIME_OF_DAY_LOOKS[timeOfDay].emissive);
@@ -31,8 +33,8 @@ export function EnvironmentDriver() {
     // Wires carry their own clipping planes; the renderer has to honor them.
     // eslint-disable-next-line react-hooks/immutability -- the live renderer, not React state
     gl.localClippingEnabled = true;
-    setWireBounds(BASE_TEMPLATES[base].width, BASE_TEMPLATES[base].depth);
-  }, [gl, base]);
+    setWireBounds(template.width, template.depth);
+  }, [gl, template]);
 
   return null;
 }

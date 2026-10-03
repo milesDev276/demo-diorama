@@ -1,27 +1,31 @@
-import { BoxGeometry, BufferAttribute, BufferGeometry, Color } from "three";
+import { BufferAttribute, BufferGeometry } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { CURB_GRAIN, JOINT_GRAIN, PAINT_GRAIN, SURFACE_KIND_SPECS, type Grain } from "../../assets/surfaceKinds";
 import { CORNER } from "../../utils/cornerLayout";
 import { DIORAMA_COLORS } from "../../utils/palette";
 import layout from "../textures/atlasLayout.json";
+import { groundBox } from "./groundGeometry";
 
-type PaletteKey = keyof typeof DIORAMA_COLORS;
+/** The ground colors of this base, each with the grain its material is drawn with. */
+const GRAIN = {
+  lotGravel: SURFACE_KIND_SPECS.gravel.grain,
+  sidewalkConcrete: SURFACE_KIND_SPECS.sidewalk.grain,
+  asphalt: SURFACE_KIND_SPECS.asphalt.grain,
+  curb: CURB_GRAIN,
+  sidewalkJoint: JOINT_GRAIN,
+  asphaltLine: PAINT_GRAIN,
+} satisfies Partial<Record<keyof typeof DIORAMA_COLORS, Grain>>;
+
+type PaletteKey = keyof typeof GRAIN;
 
 /** How far painted lines and paving joints stand proud of their surface. */
 const PAINT = 0.004;
 const JOINT = 0.002;
 const JOINT_WIDTH = 0.012;
 
-/** An axis-aligned box given by its extents, carrying one palette color on every vertex. */
+/** An axis-aligned box given by its extents, carrying one palette color and its grain on every vertex. */
 function slab(x0: number, x1: number, z0: number, z1: number, y0: number, y1: number, color: PaletteKey): BufferGeometry {
-  const geometry = new BoxGeometry(x1 - x0, y1 - y0, z1 - z0);
-  geometry.translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
-  geometry.deleteAttribute("uv");
-  const { r, g, b } = new Color(DIORAMA_COLORS[color]);
-  const count = geometry.getAttribute("position").count;
-  const colors = new Float32Array(count * 3);
-  for (let i = 0; i < count; i++) colors.set([r, g, b], i * 3);
-  geometry.setAttribute("color", new BufferAttribute(colors, 3));
-  return geometry;
+  return groundBox(x0, x1, z0, z1, y0, y1, DIORAMA_COLORS[color], GRAIN[color]);
 }
 
 /** A sidewalk-height slab whose top slopes down to just above the road along its +X edge. */

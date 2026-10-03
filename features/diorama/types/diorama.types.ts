@@ -31,6 +31,9 @@ export const DIORAMA_OBJECT_TYPES = [
   "blockWall",
   "postBox",
   "meterBox",
+  "crosswalk",
+  "stopLine",
+  "roadLine",
 ] as const;
 
 export type DioramaObjectType = (typeof DIORAMA_OBJECT_TYPES)[number];
@@ -135,9 +138,32 @@ export interface BrushState {
 }
 
 /** The miniature base the scene is built on (utils/baseTemplates.ts). */
-export const DIORAMA_BASES = ["street", "corner"] as const;
+export const DIORAMA_BASES = ["street", "corner", "plot"] as const;
 
 export type DioramaBase = (typeof DIORAMA_BASES)[number];
+
+/** What a cell of a plot's ground is made of (assets/surfaceKinds.ts). */
+export const SURFACE_KINDS = ["asphalt", "sidewalk", "tile", "concrete", "gravel", "grass", "soil"] as const;
+
+export type SurfaceKind = (typeof SURFACE_KINDS)[number];
+
+/** The ground of a `plot` base: a grid of 0.5 m cells centered on the origin
+ *  (utils/surfaceMap.ts). Its size is the plot's size. */
+export interface SurfaceMap {
+  cols: number;
+  /** One string per row, back to front (z ascending); one letter per cell, left to right. */
+  rows: string[];
+}
+
+/** Editor state while the ground brush is active. */
+export interface GroundBrushState {
+  kind: SurfaceKind;
+}
+
+/** The finish of the platform under the diorama (objects/ground/Plinth.tsx). */
+export const PLINTH_STYLES = ["dark", "wood", "earth"] as const;
+
+export type PlinthStyle = (typeof PLINTH_STYLES)[number];
 
 /** The light the scene is seen in (utils/timeOfDay.ts). */
 export const TIMES_OF_DAY = ["morning", "day", "goldenHour", "evening", "night"] as const;
@@ -157,6 +183,9 @@ export interface DioramaEnvironment {
   base: DioramaBase;
   timeOfDay: TimeOfDay;
   season: Season;
+  plinth: PlinthStyle;
+  /** The painted ground of the `plot` base. Kept, but not drawn, on the other bases. */
+  surface?: SurfaceMap;
 }
 
 export interface DioramaCameraState {

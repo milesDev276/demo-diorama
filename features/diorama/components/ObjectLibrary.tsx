@@ -9,6 +9,9 @@ import { useKitStore } from "../store/kitStore";
 import { cn } from "@/lib/cn";
 import { getLibraryItems, type LibraryItem } from "../assets/assetRegistry";
 import { BUILT_IN_KITS } from "../assets/builtInKits";
+import { SURFACE_KIND_SPECS } from "../assets/surfaceKinds";
+import { SURFACE_KINDS, type SurfaceKind } from "../types/diorama.types";
+import { DIORAMA_COLORS } from "../utils/palette";
 import { scatterPatchParams } from "../utils/objectDefaults";
 
 /** Whether the item's placement or brush is the one running now. */
@@ -94,10 +97,42 @@ function LibraryCard({ item }: { item: LibraryItem }) {
   );
 }
 
+/** A ground material of a plot scene: picking it starts the ground brush, picking it again ends it. */
+function GroundCard({ kind }: { kind: SurfaceKind }) {
+  const isActive = useDioramaStore((s) => s.groundBrush?.kind === kind);
+  const spec = SURFACE_KIND_SPECS[kind];
+
+  return (
+    <motion.button
+      type="button"
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.97 }}
+      aria-pressed={isActive}
+      title={`${spec.label} — paint the ground`}
+      onClick={() => {
+        const store = useDioramaStore.getState();
+        if (isActive) store.stopGroundBrush();
+        else store.startGroundBrush(kind);
+      }}
+      className={cn(
+        "flex w-full flex-col items-center gap-1 rounded-2xl border p-1.5 pb-2 text-center transition-colors cursor-pointer",
+        isActive ? "border-[#F0B27A] bg-[#F0B27A]/25" : "border-[#8b6f52]/10 bg-white/50 hover:border-[#8b6f52]/25 hover:bg-white"
+      )}
+    >
+      <span className="relative block h-9 w-full overflow-hidden rounded-xl" style={{ background: DIORAMA_COLORS[spec.color] }}>
+        <span className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white/85 text-[#4A3421]">
+          <Paintbrush size={11} aria-hidden />
+        </span>
+      </span>
+      <span className="text-[11px] font-medium leading-tight text-[#4A3421]">{spec.label}</span>
+    </motion.button>
+  );
+}
+
 /**
  * Left panel: click an item, then click a surface in the scene to put it
  * there; a scatter item starts the brush instead, and a kit places a whole
- * group. Activating an item from the keyboard adds it near the middle of
+ * group. On a plot scene the ground materials come first: they paint. Activating an item from the keyboard adds it near the middle of
  * the base, so no pointer is needed. Never touches Three.js directly — it
  * only dispatches to the store.
  */
@@ -105,6 +140,15 @@ export function ObjectLibrary() {
   const userKits = useKitStore((s) => s.kits);
   const [query, setQuery] = useState("");
   const groups = useMemo(() => getLibraryItems(query, [...userKits, ...BUILT_IN_KITS]), [query, userKits]);
+  const isPlot = useDioramaStore((s) => s.environment.base === "plot");
+  const groundKinds = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return SURFACE_KINDS.filter((kind) => {
+      const { label, tags } = SURFACE_KIND_SPECS[kind];
+      return !q || label.toLowerCase().includes(q) || tags.some((tag) => tag.includes(q));
+    });
+  }, [query]);
+  const showGround = isPlot && groundKinds.length > 0;
 
   return (
     <motion.div
@@ -130,8 +174,19 @@ export function ObjectLibrary() {
         />
       </label>
 
-      {groups.length === 0 && (
+      {groups.length === 0 && !showGround && (
         <p className="text-xs text-[#4A3421]/50">No assets match “{query.trim()}”.</p>
+      )}
+
+      {showGround && (
+        <div className="flex flex-col gap-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#4A3421]/40">Ground</p>
+          <div className="grid grid-cols-3 gap-2">
+            {groundKinds.map((kind) => (
+              <GroundCard key={kind} kind={kind} />
+            ))}
+          </div>
+        </div>
       )}
 
       {groups.map(({ title, items }) => (

@@ -3,6 +3,7 @@
 import { useDioramaStore } from "../store/dioramaStore";
 import { BASE_ORDER, BASE_TEMPLATES } from "../utils/baseTemplates";
 import { SEASON_OPTIONS, timeOfDayOptions } from "../utils/environmentOptions";
+import { GroundPanel } from "./GroundPanel";
 import { SegmentedControl } from "./SegmentedControl";
 
 const BASE_OPTIONS = BASE_ORDER.map((value) => ({ value, label: BASE_TEMPLATES[value].label }));
@@ -19,10 +20,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 /**
  * Scene-level settings, shown in the inspector while nothing is selected:
- * the light the Diorama is seen in, its season, and the base it stands on.
+ * the light the Diorama is seen in, its season, the base it stands on, and
+ * that base's ground and platform.
  */
 export function ScenePanel() {
-  const { base, timeOfDay, season } = useDioramaStore((s) => s.environment);
+  const base = useDioramaStore((s) => s.environment.base);
+  const timeOfDay = useDioramaStore((s) => s.environment.timeOfDay);
+  const season = useDioramaStore((s) => s.environment.season);
   const setBase = useDioramaStore((s) => s.setBase);
   const setTimeOfDay = useDioramaStore((s) => s.setTimeOfDay);
   const setSeason = useDioramaStore((s) => s.setSeason);
@@ -44,6 +48,8 @@ export function ScenePanel() {
           {BASE_TEMPLATES[base].description} Switching keeps every object where it is.
         </p>
       </Section>
+
+      <GroundPanel />
     </div>
   );
 }

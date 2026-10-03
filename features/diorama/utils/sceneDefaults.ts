@@ -7,6 +7,7 @@ export const DEFAULT_ENVIRONMENT: DioramaEnvironment = {
   base: "street",
   timeOfDay: "day",
   season: "autumn",
+  plinth: "dark",
 };
 
 const ISOMETRIC_POSITION: Vector3Tuple = [48, 42, 48];

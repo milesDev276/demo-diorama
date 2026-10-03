@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Grid, useGLTF } from "@react-three/drei";
 import { NeutralToneMapping } from "three";
@@ -15,6 +15,8 @@ import { SceneObjects } from "./SceneObjects";
 import { PlacementLayer } from "./PlacementLayer";
 import { BrushLayer } from "./BrushLayer";
 import { BrushBar } from "./BrushBar";
+import { GroundBrushLayer } from "./GroundBrushLayer";
+import { GroundBar } from "./GroundBar";
 import { CameraControls } from "./CameraControls";
 import { PostEffects } from "./PostEffects";
 import { SceneFog } from "./SceneFog";
@@ -22,7 +24,7 @@ import { HeroBlockout } from "./dev/HeroBlockout";
 import { DevRendererHandle } from "./dev/DevRendererHandle";
 import { cn } from "@/lib/cn";
 import { ASSET_REGISTRY, MODEL_URLS } from "../assets/assetRegistry";
-import { BASE_TEMPLATES } from "../utils/baseTemplates";
+import { getBaseTemplate } from "../utils/baseTemplates";
 import { PHOTO_ASPECT_RATIOS } from "../utils/photo";
 import { skyGradient, TIME_OF_DAY_LOOKS } from "../utils/timeOfDay";
 
@@ -46,15 +48,18 @@ export function DioramaCanvas() {
   const isEmpty = useDioramaStore((s) => s.objects.length === 0);
   const placement = useDioramaStore((s) => s.placement);
   const isBrushing = useDioramaStore((s) => s.brush !== null);
+  const isPaintingGround = useDioramaStore((s) => s.groundBrush !== null);
   const gridSize = useDioramaStore((s) => s.gridSize);
   const isPreviewMode = useDioramaStore((s) => s.isPreviewMode);
-  const environment = useDioramaStore((s) => s.environment);
-  const base = environment.base;
-  const template = BASE_TEMPLATES[base];
+  // Only what the canvas itself draws with: a painted ground changes `environment` on every stamp of the brush.
+  const timeOfDay = useDioramaStore((s) => s.environment.timeOfDay);
+  const season = useDioramaStore((s) => s.environment.season);
+  const sceneEnvironment = useMemo(() => ({ timeOfDay, season }), [timeOfDay, season]);
+  const template = useDioramaStore((s) => getBaseTemplate(s.environment));
   // In Preview a photo frame gives the canvas itself its shape, so what is framed is what is exported.
   const frameRatio = useDioramaStore((s) => (s.isPreviewMode ? PHOTO_ASPECT_RATIOS[s.photo.aspect] : null));
   // Inline because the stops come from the time of day, which SkyBackdrop in Preview also uses.
-  const skyStyle = { background: skyGradient(TIME_OF_DAY_LOOKS[environment.timeOfDay]) };
+  const skyStyle = { background: skyGradient(TIME_OF_DAY_LOOKS[timeOfDay]) };
   const clearSelection = useDioramaStore((s) => s.clearSelection);
   const [devFlag] = useState(getDevFlag);
   const showBlockout = devFlag === "blockout";
@@ -68,7 +73,7 @@ export function DioramaCanvas() {
     <div
       className={cn(
         "relative h-full w-full overflow-hidden rounded-3xl",
-        (placement || isBrushing) && "cursor-crosshair",
+        (placement || isBrushing || isPaintingGround) && "cursor-crosshair",
         frameRatio !== null && "flex items-center justify-center px-6 pb-36 pt-6"
       )}
       style={frameRatio ? MAT_STYLE : skyStyle}
@@ -91,7 +96,7 @@ export function DioramaCanvas() {
           gl={{ antialias: true, toneMapping: NeutralToneMapping }}
         >
           {/* Everything in the canvas is drawn in the scene's time of day and season. */}
-          <SceneEnvironmentContext.Provider value={environment}>
+          <SceneEnvironmentContext.Provider value={sceneEnvironment}>
             <CameraControls />
             <SceneFog />
             {devFlag === "stats" && <DevRendererHandle />}
@@ -100,7 +105,7 @@ export function DioramaCanvas() {
             <SceneLighting />
             {!showBlockout && <SceneGlowLights />}
             {/* The blockout is the hero scene, so it always stands on the corner base. */}
-            <Ground base={showBlockout ? "corner" : base} />
+            <Ground blockout={showBlockout} />
             {showBlockout && (
               <Suspense fallback={null}>
                 <HeroBlockout />
@@ -129,6 +134,7 @@ export function DioramaCanvas() {
             {!showBlockout && <SceneObjects />}
             {!showBlockout && !isPreviewMode && <PlacementLayer />}
             {!showBlockout && !isPreviewMode && <BrushLayer />}
+            {!showBlockout && !isPreviewMode && <GroundBrushLayer />}
 
             {isPreviewMode && <PostEffects />}
           </SceneEnvironmentContext.Provider>
@@ -143,8 +149,9 @@ export function DioramaCanvas() {
       )}
 
       {isBrushing && !isPreviewMode && <BrushBar />}
+      {isPaintingGround && !isPreviewMode && <GroundBar />}
 
-      {isEmpty && !isPreviewMode && !placement && !isBrushing && (
+      {isEmpty && !isPreviewMode && !placement && !isBrushing && !isPaintingGround && (
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 text-center">
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/70 text-[#8B6F52] shadow-[0_8px_24px_rgba(139,111,82,0.15)] backdrop-blur">
             <Trees size={26} />

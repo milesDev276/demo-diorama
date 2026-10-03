@@ -7,12 +7,20 @@ import type { DioramaBase } from "../types/diorama.types";
 import { BASE_ORDER, BASE_TEMPLATES } from "../utils/baseTemplates";
 import { DIORAMA_COLORS } from "../utils/palette";
 
-/** A tiny top-down plan of each base: lot, sidewalk and road. */
+/** A tiny top-down plan of each base: lot, sidewalk and road. The plot shows that its ground is painted. */
 function BasePlan({ base }: { base: DioramaBase }) {
-  const { lotGravel, sidewalkConcrete, asphalt } = DIORAMA_COLORS;
+  const { lotGravel, sidewalkConcrete, asphalt, lawn, pavingTile } = DIORAMA_COLORS;
   return (
     <svg viewBox="0 0 64 40" className="h-14 w-full" aria-hidden>
-      {base === "street" ? (
+      {base === "plot" ? (
+        <g>
+          <rect x="14" y="2" width="36" height="36" rx="2" fill={lotGravel} />
+          <rect x="14" y="26" width="36" height="12" fill={asphalt} />
+          <rect x="14" y="22" width="36" height="4" fill={sidewalkConcrete} />
+          <rect x="18" y="6" width="12" height="10" fill={lawn} />
+          <rect x="36" y="12" width="10" height="10" fill={pavingTile} />
+        </g>
+      ) : base === "street" ? (
         <g>
           <rect x="2" y="8" width="60" height="24" rx="2" fill={lotGravel} />
           <rect x="2" y="22" width="60" height="3" fill={sidewalkConcrete} />
@@ -63,7 +71,7 @@ export function NewSceneDialog({ open, hasUnsavedChanges, onCreate, onCreateFrom
             exit={{ opacity: 0, scale: 0.96, y: 8 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
             onClick={(event) => event.stopPropagation()}
-            className="w-full max-w-md rounded-3xl border border-[#8b6f52]/15 bg-[#FDF6EC] p-5 shadow-[0_16px_48px_rgba(74,52,33,0.25)]"
+            className="w-full max-w-lg rounded-3xl border border-[#8b6f52]/15 bg-[#FDF6EC] p-5 shadow-[0_16px_48px_rgba(74,52,33,0.25)]"
           >
             <h3 id="new-scene-title" className="text-sm font-semibold text-[#4A3421]">
               New Diorama
@@ -94,7 +102,7 @@ export function NewSceneDialog({ open, hasUnsavedChanges, onCreate, onCreateFrom
               ))}
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="mt-3 grid grid-cols-3 gap-3">
               {BASE_ORDER.map((base) => (
                 <button
                   key={base}
