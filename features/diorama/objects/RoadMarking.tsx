@@ -35,6 +35,8 @@ const TOMARE = {
 };
 
 const ROAD_LINE = { length: 4, width: CORNER.edgeLine.far - CORNER.edgeLine.near };
+/** A parking bay, open toward +Z. Bays 2.4 m apart share a side line. */
+const BAY = { width: 2.5, depth: 5, line: 0.1 };
 
 const RECTS = {
   crosswalk: Array.from({ length: count }, (_, i): Rect => {
@@ -43,6 +45,11 @@ const RECTS = {
   }),
   stopLine: [[-STOP_LINE.width / 2, STOP_LINE.width / 2, -STOP_LINE.depth / 2, STOP_LINE.depth / 2] as Rect],
   roadLine: [[-ROAD_LINE.length / 2, ROAD_LINE.length / 2, -ROAD_LINE.width / 2, ROAD_LINE.width / 2] as Rect],
+  parkingBay: [
+    [-BAY.width / 2, -BAY.width / 2 + BAY.line, -BAY.depth / 2, BAY.depth / 2],
+    [BAY.width / 2 - BAY.line, BAY.width / 2, -BAY.depth / 2, BAY.depth / 2],
+    [-BAY.width / 2 + BAY.line, BAY.width / 2 - BAY.line, -BAY.depth / 2, -BAY.depth / 2 + BAY.line],
+  ] as Rect[],
 };
 
 function paintGeometry(rects: Rect[]): BufferGeometry {
@@ -68,7 +75,7 @@ function tomareGeometry(): BufferGeometry {
   return geometry;
 }
 
-/** A `crosswalk`, `stopLine` or `roadLine`: flat paint, plus the 止まれ lettering of a stop line. */
+/** A `crosswalk`, `stopLine`, `roadLine` or `parkingBay`: flat paint, plus the 止まれ lettering of a stop line. */
 export function RoadMarking({ object }: AssetComponentProps) {
   const type = object.type as keyof typeof RECTS;
   const paint = useMemo(() => paintGeometry(RECTS[type] ?? RECTS.roadLine), [type]);

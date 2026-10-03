@@ -2,9 +2,8 @@
 
 import { cn } from "@/lib/cn";
 import { GROUND_BRUSH_RANGE, useDioramaStore } from "../store/dioramaStore";
-import { SURFACE_KIND_SPECS } from "../assets/surfaceKinds";
+import { SURFACE_KIND_SPECS, surfaceSwatch } from "../assets/surfaceKinds";
 import { SURFACE_KINDS } from "../types/diorama.types";
-import { DIORAMA_COLORS } from "../utils/palette";
 import { SURFACE_CELL } from "../utils/surfaceMap";
 
 /**
@@ -43,12 +42,12 @@ export function GroundBar() {
                   "h-7 w-7 rounded-lg border-2 transition-transform focus-visible:outline-2 focus-visible:outline-[#F0B27A] cursor-pointer",
                   active ? "scale-110 border-[#F0B27A]" : "border-white/80 hover:scale-105"
                 )}
-                style={{ background: DIORAMA_COLORS[spec.color] }}
+                style={{ background: surfaceSwatch(kind) }}
               />
             );
           })}
         </div>
-        <span className="w-16 text-xs font-semibold text-[#4A3421]">{SURFACE_KIND_SPECS[groundBrush.kind].label}</span>
+        <span className="w-20 text-xs font-semibold text-[#4A3421]">{SURFACE_KIND_SPECS[groundBrush.kind].label}</span>
         <label className="flex items-center gap-2 text-xs font-medium text-[#4A3421]/70">
           Size
           <input

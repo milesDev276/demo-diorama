@@ -79,6 +79,7 @@ export const DIORAMA_COLORS = {
   signRed: "#b8433a",
   signBoard: "#f4f1ea",
   signPost: "#a9adb0",
+  fenceGreen: "#5f7f6a",
   postRed: "#c0392f",
   concreteBlock: "#a9a59a",
   mortar: "#7e7a71",

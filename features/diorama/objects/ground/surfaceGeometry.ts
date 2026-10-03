@@ -1,10 +1,10 @@
 import { Color, type BufferGeometry } from "three";
 import type { SurfaceKind, SurfaceMap, Vector3Tuple } from "../../types/diorama.types";
-import { CURB_GRAIN, JOINT_GRAIN, SURFACE_KIND_SPECS, surfaceKindOfCode } from "../../assets/surfaceKinds";
+import { CURB_GRAIN, JOINT_GRAIN, RAMP_LIP, SURFACE_KIND_SPECS, surfaceKindOfCode } from "../../assets/surfaceKinds";
 import { CORNER } from "../../utils/cornerLayout";
 import { DIORAMA_COLORS } from "../../utils/palette";
 import { SURFACE_CELL, surfaceSize } from "../../utils/surfaceMap";
-import { QuadWriter, type Rgb, type WallSide } from "./groundGeometry";
+import { QuadWriter, wallEnds, type Rgb, type WallSide } from "./groundGeometry";
 
 /** How far paving joints stand proud of their surface, and how wide they are. */
 const JOINT = 0.002;
@@ -26,17 +26,17 @@ function hash(a: number, b: number): number {
   return (s - Math.floor(s)) * 2 - 1;
 }
 
-const SIDES: Array<{ side: WallSide; di: number; dj: number }> = [
-  { side: "left", di: -1, dj: 0 },
-  { side: "right", di: 1, dj: 0 },
-  { side: "back", di: 0, dj: -1 },
-  { side: "front", di: 0, dj: 1 },
+const SIDES: Array<{ side: WallSide; opposite: WallSide; di: number; dj: number }> = [
+  { side: "left", opposite: "right", di: -1, dj: 0 },
+  { side: "right", opposite: "left", di: 1, dj: 0 },
+  { side: "back", opposite: "front", di: 0, dj: -1 },
+  { side: "front", opposite: "back", di: 0, dj: 1 },
 ];
 
 /**
  * The ground of a plot as ONE vertex-colored geometry: the top of every
- * cell, curb strips where a paved kind meets the road, paving joints, the
- * walls between the two levels and the skirt down to the plinth.
+ * cell, curb strips where a paved kind meets the road, curb ramps, paving
+ * joints, the walls between the two levels and the skirt down to the plinth.
  * `grassTint` is the season's multiplier on grass (utils/seasons.ts).
  */
 export function buildSurfaceGeometry(surface: SurfaceMap, grassTint: Vector3Tuple): BufferGeometry {
@@ -86,6 +86,42 @@ export function buildSurfaceGeometry(surface: SurfaceMap, grassTint: Vector3Tupl
       const every = spec.joint?.every ?? 1;
       const color = spec.tone ? scaled(colors[kind], 1 + hash(Math.floor(i / every), Math.floor(j / every)) * spec.tone) : colors[kind];
 
+      if (spec.ramp) {
+        /** Height of the grid vertex (vi, vj): low if one of the four cells around it is the road. */
+        const vertexHeight = (vi: number, vj: number) => {
+          let height = y;
+          for (let a = vi - 1; a <= vi; a++) {
+            for (let b = vj - 1; b <= vj; b++) {
+              if (kindAt(a, b) !== undefined && levelOf(a, b) < y - EPSILON) height = Math.min(height, levelOf(a, b) + RAMP_LIP);
+            }
+          }
+          return height;
+        };
+        const h00 = vertexHeight(i, j);
+        const h10 = vertexHeight(i + 1, j);
+        const h01 = vertexHeight(i, j + 1);
+        const h11 = vertexHeight(i + 1, j + 1);
+        const heightAt = (x: number, z: number) => (x < x0 + EPSILON ? (z < z0 + EPSILON ? h00 : h01) : z < z0 + EPSILON ? h10 : h11);
+        writer.slope(x0, x1, z0, z1, h00, h01, h11, h10, color, spec.grain);
+
+        for (const { side, opposite, di, dj } of SIDES) {
+          const [px, pz, qx, qz] = wallEnds(side, x0, x1, z0, z1);
+          const [topP, topQ] = [heightAt(px, pz), heightAt(qx, qz)];
+          const neighborKind = kindAt(i + di, j + dj);
+          const neighbor = levelOf(i + di, j + dj);
+          if (neighbor < y - EPSILON) {
+            // The lip above the road, or the skirt at the edge of the plot.
+            writer.wall(side, x0, x1, z0, z1, topP, topQ, neighbor, neighbor, neighborKind ? curbColor : color, spec.grain);
+          } else if (!SURFACE_KIND_SPECS[neighborKind!].ramp && (topP < y - EPSILON || topQ < y - EPSILON)) {
+            // A flat neighbor stands above this sloping edge: close its side, facing into the ramp.
+            const [nx0, nz0] = [x0 + di * SURFACE_CELL, z0 + dj * SURFACE_CELL];
+            const [ax, az, bx, bz] = wallEnds(opposite, nx0, nx0 + SURFACE_CELL, nz0, nz0 + SURFACE_CELL);
+            writer.wall(opposite, nx0, nx0 + SURFACE_CELL, nz0, nz0 + SURFACE_CELL, neighbor, neighbor, heightAt(ax, az), heightAt(bx, bz), curbColor, CURB_GRAIN);
+          }
+        }
+        continue;
+      }
+
       const curbs = spec.curb
         ? { left: lower(-1, 0), right: lower(1, 0), back: lower(0, -1), front: lower(0, 1) }
         : { left: false, right: false, back: false, front: false };
@@ -116,7 +152,7 @@ export function buildSurfaceGeometry(surface: SurfaceMap, grassTint: Vector3Tupl
         const atEdge = kindAt(i + di, j + dj) === undefined;
         // The edge of the plot shows the material cut through; inside, a curb face or a shaded step.
         const wallColor = atEdge ? color : curbs[side] ? curbColor : scaled(color, STEP_SHADE);
-        writer.wall(side, x0, x1, z0, z1, y, neighbor, wallColor, !atEdge && curbs[side] ? CURB_GRAIN : spec.grain);
+        writer.wall(side, x0, x1, z0, z1, y, y, neighbor, neighbor, wallColor, !atEdge && curbs[side] ? CURB_GRAIN : spec.grain);
       }
 
       const jointColor = jointColors[kind];

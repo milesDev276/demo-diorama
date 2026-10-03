@@ -52,6 +52,16 @@ async function main() {
         store.newSceneFromTemplate(${JSON.stringify(id)});
       })()`);
       await sleep(2500);
+      // A plot that is not square is framed by its longer side; fill the frame as the 16 m corner does.
+      await cdp.evaluate(`(() => {
+        const surface = window.__dioramaStore.getState().environment.surface;
+        const { camera } = window.__dioramaThree();
+        const footprint = surface ? (surface.cols + surface.rows.length) * 0.5 : 32;
+        const longest = surface ? Math.max(surface.cols, surface.rows.length) * 0.5 : 16;
+        camera.zoom *= (32 / footprint) * (longest / 16);
+        camera.updateProjectionMatrix();
+      })()`);
+      await sleep(300);
       // Preview first, the frame second: the camera switch must not see the canvas change shape.
       await cdp.evaluate(`window.__dioramaStore.getState().setPreviewMode(true)`);
       await sleep(2000);

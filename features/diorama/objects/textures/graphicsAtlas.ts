@@ -193,6 +193,25 @@ function paintPostFront(ctx: CanvasRenderingContext2D, w: number, h: number) {
   ctx.fillText("休日 10:00", w / 2, h * 0.89, w * 0.54);
 }
 
+/** Face of a stop sign: the cell is the bounding box of the inverted triangle (top edge up, tip down). */
+function paintSignStop(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  // White everywhere: what shows of it is the border along the triangle's edges.
+  ctx.fillStyle = DIORAMA_COLORS.signBoard;
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = DIORAMA_COLORS.signRed;
+  ctx.beginPath();
+  ctx.moveTo(w * 0.075, h * 0.05);
+  ctx.lineTo(w * 0.925, h * 0.05);
+  ctx.lineTo(w / 2, h * 0.9);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = DIORAMA_COLORS.signBoard;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = font(900, h * 0.27);
+  ctx.fillText("止まれ", w / 2, h * 0.33, w * 0.6);
+}
+
 /** One painter per cell; the Record type fails the build if the layout gains a cell with no painter. */
 const PAINTERS: Record<CellName, CellPainter> = {
   vending_ad: paintVendingAd,
@@ -200,6 +219,7 @@ const PAINTERS: Record<CellName, CellPainter> = {
   road_tomare: paintTomare,
   kanban_sakaya: paintKanbanSakaya,
   post_front: paintPostFront,
+  sign_stop: paintSignStop,
 };
 
 /** Cells that keep their alpha, for the `decal` material. Everything else is opaque print. */

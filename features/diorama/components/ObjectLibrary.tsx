@@ -9,9 +9,8 @@ import { useKitStore } from "../store/kitStore";
 import { cn } from "@/lib/cn";
 import { getLibraryItems, type LibraryItem } from "../assets/assetRegistry";
 import { BUILT_IN_KITS } from "../assets/builtInKits";
-import { SURFACE_KIND_SPECS } from "../assets/surfaceKinds";
+import { SURFACE_KIND_SPECS, surfaceSwatch } from "../assets/surfaceKinds";
 import { SURFACE_KINDS, type SurfaceKind } from "../types/diorama.types";
-import { DIORAMA_COLORS } from "../utils/palette";
 import { scatterPatchParams } from "../utils/objectDefaults";
 
 /** Whether the item's placement or brush is the one running now. */
@@ -119,7 +118,7 @@ function GroundCard({ kind }: { kind: SurfaceKind }) {
         isActive ? "border-[#F0B27A] bg-[#F0B27A]/25" : "border-[#8b6f52]/10 bg-white/50 hover:border-[#8b6f52]/25 hover:bg-white"
       )}
     >
-      <span className="relative block h-9 w-full overflow-hidden rounded-xl" style={{ background: DIORAMA_COLORS[spec.color] }}>
+      <span className="relative block h-9 w-full overflow-hidden rounded-xl" style={{ background: surfaceSwatch(kind) }}>
         <span className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white/85 text-[#4A3421]">
           <Paintbrush size={11} aria-hidden />
         </span>

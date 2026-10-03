@@ -18,8 +18,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`}>
-      <body className="flex h-full flex-col">{children}</body>
+    // Browser extensions add attributes to <html> and <body> before React
+    // hydrates; that is not a mismatch of ours, so it is not reported.
+    // The flag covers these two elements' own attributes only.
+    <html lang="en" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
+      <body className="flex h-full flex-col" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }

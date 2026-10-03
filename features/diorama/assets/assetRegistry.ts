@@ -12,9 +12,11 @@ import {
   CircleDot,
   CupSoda,
   Cylinder,
+  Fence,
   Footprints,
   Gauge,
   Gem,
+  Grid3x3,
   House as HouseIcon,
   Mailbox,
   Minus,
@@ -29,6 +31,7 @@ import {
   Signpost,
   Sparkles,
   Sprout,
+  SquareParking,
   Store,
   TreeDeciduous,
   TreePine,
@@ -60,7 +63,6 @@ import { PowerLine } from "../objects/PowerLine";
 import { RoadMarking } from "../objects/RoadMarking";
 import { Rock } from "../objects/Rock";
 import { Shop } from "../objects/Shop";
-import { Sign } from "../objects/Sign";
 import { Tree } from "../objects/Tree";
 
 export type AssetCategory = "Buildings" | "Street" | "Infrastructure" | "Props" | "Nature" | "Vehicles" | "People";
@@ -102,6 +104,13 @@ interface AssetBase {
   /** Set if the asset can hang on a wall: `offset` is how far its origin
    *  stands off the wall, `only` means it cannot stand on a flat surface. */
   wallMount?: { offset: number; only?: boolean };
+  /** Length in meters of one piece along its X axis, if pieces placed end to
+   *  end make one run (a wall, a line): a drag while placing lays a row of them. */
+  tile?: number;
+  /** How a road marking lines up with the road it is placed on (a plot's
+   *  asphalt): which of its own axes lies along the road, and whether it is
+   *  centered across the road. */
+  road?: { along: "x" | "z"; center?: boolean };
   /** The light this asset gives off after dark (components/SceneGlowLights.tsx). */
   glow?: GlowLight;
   /** Natural things whose repeats should not look stamped: duplicates and
@@ -223,10 +232,9 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     label: "Stop Sign",
     category: "Street",
     icon: Signpost,
-    component: Sign,
-    legacyUnits: true,
+    modelUrl: "/models/street/street_sign_stop_01.glb",
     defaultScale: [1, 1, 1],
-    footprintRadius: 0.9,
+    footprintRadius: 0.5,
     randomSpawnRotation: false,
     tags: ["road sign", "stop", "tomare", "traffic"],
   },
@@ -261,6 +269,7 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     defaultScale: [1, 1, 1],
     footprintRadius: 1.1,
     randomSpawnRotation: false,
+    tile: 2,
     tags: ["wall", "block", "burokku-bei", "concrete", "boundary", "fence"],
   },
   gutterGrate: {
@@ -284,6 +293,7 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     defaultScale: [1, 1, 1],
     footprintRadius: 2.2,
     randomSpawnRotation: false,
+    road: { along: "z", center: true },
     tags: ["crosswalk", "zebra", "odan-hodo", "road", "marking", "paint"],
   },
   stopLine: {
@@ -296,6 +306,7 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     defaultScale: [1, 1, 1],
     footprintRadius: 1.6,
     randomSpawnRotation: false,
+    road: { along: "z" },
     tags: ["stop", "tomare", "line", "road", "marking", "paint"],
   },
   roadLine: {
@@ -308,7 +319,46 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     defaultScale: [1, 1, 1],
     footprintRadius: 2.1,
     randomSpawnRotation: false,
+    tile: 4,
+    road: { along: "x" },
     tags: ["line", "edge line", "white line", "road", "marking", "paint"],
+  },
+  parkingBay: {
+    type: "parkingBay",
+    label: "Parking Bay",
+    category: "Street",
+    icon: SquareParking,
+    component: RoadMarking,
+    legacyUnits: false,
+    defaultScale: [1, 1, 1],
+    footprintRadius: 2.8,
+    randomSpawnRotation: false,
+    tile: 2.4,
+    tags: ["parking", "bay", "chushajo", "lot", "line", "marking", "paint"],
+  },
+  guardRail: {
+    type: "guardRail",
+    label: "Guard Rail",
+    category: "Street",
+    icon: Fence,
+    modelUrl: "/models/street/street_guard_rail_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 1.1,
+    randomSpawnRotation: false,
+    tile: 2,
+    tags: ["guard rail", "gado reru", "barrier", "road", "boundary"],
+  },
+  fence: {
+    type: "fence",
+    label: "Mesh Fence",
+    category: "Street",
+    icon: Grid3x3,
+    modelUrl: "/models/street/street_fence_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 1.1,
+    randomSpawnRotation: false,
+    tile: 2,
+    tags: ["fence", "mesh", "netto fensu", "wire", "boundary", "parking"],
   },
   kanbanSign: {
     type: "kanbanSign",
@@ -505,6 +555,7 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     defaultScale: [1, 1, 1],
     footprintRadius: 0.75,
     randomSpawnRotation: false,
+    tile: 1.2,
     tags: ["hedge", "ikegaki", "bush", "green", "boundary"],
   },
   keiCar: {

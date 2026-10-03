@@ -20,14 +20,15 @@ comes next. Details live in the linked plan files.
 | Stage 5: modular building and surface attachment | Done | `main` (PR #8) |
 | Stage 6: density tools | Done | `main` (PR #9) |
 | Stage 7: environment and Photo | Done | `main` (PR #10) |
-| **Stage 8: ground surface and platform** | **Implemented and verified (2026-10-03); NOT committed; waiting for the user's review** | branch **`stage8-surface`** (cut from `main`) |
+| Stage 8: ground surface and platform | Done | `main` (PR #11) |
+| **Stage 9: finished streets on a plot** (and a hydration-warning fix) | **Implemented and verified (2026-10-03); NOT committed; waiting for the user's review** | branch **`stage9-streets`** (cut from `main`) |
 
-Stage 7 was the last stage of the original roadmap; Stage 8 was added at the
-user's request.
+Stage 7 was the last stage of the original roadmap; Stages 8 and 9 were added
+at the user's request.
 
-**Immediate next action:** the user reviews Stage 8, then commits
-`stage8-surface`, pushes and opens a PR. The user merges PRs themselves,
-one branch per stage. (For Stages 6, 7 and 8 the user handed every decision
+**Immediate next action:** the user reviews Stage 9, then commits
+`stage9-streets`, pushes and opens a PR. The user merges PRs themselves,
+one branch per stage. (For Stages 6 to 9 the user handed every decision
 to Claude, so the plan was settled with its defaults and implemented without
 a separate approval round. Ask again at the start of new work; it is not a
 standing rule.)
@@ -42,7 +43,7 @@ can be dropped once the user agrees.
 
 | File | What it is |
 |---|---|
-| [Hero-Diorama-Roadmap.md](Hero-Diorama-Roadmap.md) | Master plan: locked decisions L1–L8 and Stages 0–8, with status per stage |
+| [Hero-Diorama-Roadmap.md](Hero-Diorama-Roadmap.md) | Master plan: locked decisions L1–L8 and Stages 0–9, with status per stage |
 | [Hero-Layout.md](Hero-Layout.md) | Hero scene dimensions in meters (16 × 16 m corner base). This is the source of truth for the blockout and for asset sizes. |
 | [Stage-1-Implementation.md](Stage-1-Implementation.md) | Scale migration: value table and verification results |
 | [Stage-2-Implementation.md](Stage-2-Implementation.md) | Look-dev: decisions D1–D6, the bugs that were found, and verification results |
@@ -52,6 +53,7 @@ can be dropped once the user agrees.
 | [Stage-6-Implementation.md](Stage-6-Implementation.md) | Scatter brush, kits, rotate while placing, jitter, app-rendered thumbnails: decisions D1–D11, deviations, asset table and verification results (§7) |
 | [Stage-7-Implementation.md](Stage-7-Implementation.md) | Time of day, season, after-dark lights, shop interior, Photo mode, the hero's last assets and the starter template: decisions D1–D10, deviations, asset table and verification results (§7) |
 | [Stage-8-Implementation.md](Stage-8-Implementation.md) | The free plot and its surface map, ground brush, ground grain, platform styles, road markings: decisions D1–D11, deviations and verification results (§7) |
+| [Stage-9-Implementation.md](Stage-9-Implementation.md) | The hydration fix, curb ramps, marking alignment, runs, stop sign / guard rail / fence, the Back Street starter, the retired street strip: decisions D1–D8, deviations and verification results (§7) |
 | `Phase-*.md` | Earlier phases, kept for history |
 
 ## 3. Decisions That Must Not Be Re-litigated
@@ -233,6 +235,31 @@ Stage 8:
   `ObjectLibrary` itself and is not in the asset registry.
 * **Road markings are objects** (`crosswalk`, `stopLine`, `roadLine`,
   `objects/RoadMarking.tsx`), sized from `utils/cornerLayout.ts`.
+
+Stage 9:
+
+* **`<html>` and `<body>` carry `suppressHydrationWarning`** (`app/layout.tsx`).
+  Browser extensions add attributes there before React hydrates; that was
+  the hydration warning the user saw. The editor itself is `ssr: false`.
+* **A curb ramp is a ground kind** (`ramp`, letter `p`, `ramp: true` in
+  `assets/surfaceKinds.ts`): a cell whose corners beside a road are low.
+  It is not derived from crosswalks.
+* **Tiling assets say so in the registry:** `tile: <meters>`. While placing
+  one, a left drag on the base lays a row (`runPieces` in
+  `PlacementLayer.tsx`, `placeRun` in the store); the pieces are ordinary
+  objects.
+* **Road markings say how they line up:** `road: { along, center? }` in the
+  registry, resolved with `roadFrameAt` (`utils/surfaceMap.ts`) while
+  placing on a plot's asphalt.
+* **The street strip is not offered any more** (`BASE_ORDER` is plot,
+  corner). It still loads; the Scene panel shows it only on a scene that
+  stands on it. Do not delete its geometry.
+* **Built-in starters may be plots:** a template's `environment` carries the
+  `surface`. Back Street is built in `utils/plotStarter.ts` from a list of
+  rectangles. Re-run `scripts/capture-template.mjs` after changing one.
+* **The legacy `sign` type renders `street_sign_stop_01`.** The only legacy
+  geometry left is the house, the shop, the tree, the rock and the street
+  strip.
 
 ## 4. How to Run and Verify
 
@@ -416,12 +443,25 @@ node scripts/capture-template.mjs
 * **A probe ray on a whole meter hits a paving joint** (2 mm proud), not the
   paver. Probe off the grid.
 
+* **A hydration warning that names no component is usually an extension.**
+  Reproduce it by setting an attribute on `<body>` from
+  `Page.addScriptToEvaluateOnNewDocument`; a clean headless profile shows
+  nothing.
+* **The user's own dev server may be running on port 3000.** `npm run dev`
+  then exits with "Another next dev server is already running"; use theirs
+  and never stop it.
+* **The Blender preview of a printed face is blank,** also for a triangle:
+  check the print in the app.
+
 ## 6. Known Limitations and Existing Behaviors (not bugs of these stages)
 
 * **The street strip is still legacy geometry** (≈ 6 m units, 43 draw
   calls). Only the corner base is authored in meters.
 * **Base, platform, time-of-day and season changes are not on the undo
   stack.** Ground painting is.
+* **A run is separate objects, on the base only; markings align only when
+  placed with the pointer on a plot.** The full list is in
+  Stage-9-Implementation.md §7.
 * **Only a plot can be painted; it has two levels and straight edges;**
   objects follow a level change only if their origin stood on the ground;
   markings do not snap to the road. The full list is in
@@ -450,8 +490,8 @@ node scripts/capture-template.mjs
 
 ## 7. Next
 
-The roadmap's seven stages and Stage 8 are implemented. Nothing further is
-planned or approved; ask the user what comes next.
+The roadmap's seven stages and Stages 8 and 9 are implemented. Nothing
+further is planned or approved; ask the user what comes next.
 
 * **Open from Stage 7:** the hero scene was not put side by side with the
   reference photo (the photo is not in the repository). That comparison —
@@ -459,10 +499,10 @@ planned or approved; ask the user what comes next.
 * **Candidates that came up, none decided:**
   * lit signs at night (an emissive mask for printed faces)
   * a transparent material slot for shop and car glass
-  * the street strip rebuilt in meters (a plot with the street layout is
-    its successor; the legacy base could be retired); a metric stop sign
-  * ground: a curb ramp at crosswalks, more levels or slopes, parking-bay
-    and arrow markings, a starter scene on a plot
+  * converting old street-strip scenes to plots, then deleting the strip
+  * the legacy house, shop, tree and rock rebuilt in meters
+  * ground: more levels or slopes, curved roads, arrow markings
+  * a parametric wall or fence (one object by length) instead of runs
   * more figures (the hero uses one figure twice; no shopkeeper)
   * a saved camera and photo settings per scene (CLAUDE.md §12)
   * weather (CLAUDE.md §25; outside the hero roadmap)
@@ -474,7 +514,7 @@ planned or approved; ask the user what comes next.
   docs are in English.
 * **Plan first:** at the start of each stage, write the plan doc and get it
   approved, then implement — unless the user hands over the decisions, as
-  for Stages 6, 7 and 8.
+  for Stages 6 to 9.
 * **Git:** the user commits, pushes and merges through GitHub PRs
   themselves. When asked, provide a commit message and a PR description.
 * **Reporting:** follow CLAUDE.md §46 — implemented, files, verification

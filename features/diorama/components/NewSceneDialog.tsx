@@ -20,12 +20,6 @@ function BasePlan({ base }: { base: DioramaBase }) {
           <rect x="18" y="6" width="12" height="10" fill={lawn} />
           <rect x="36" y="12" width="10" height="10" fill={pavingTile} />
         </g>
-      ) : base === "street" ? (
-        <g>
-          <rect x="2" y="8" width="60" height="24" rx="2" fill={lotGravel} />
-          <rect x="2" y="22" width="60" height="3" fill={sidewalkConcrete} />
-          <rect x="2" y="25" width="60" height="7" fill={asphalt} />
-        </g>
       ) : (
         <g>
           <rect x="14" y="2" width="36" height="36" rx="2" fill={asphalt} />
@@ -102,7 +96,7 @@ export function NewSceneDialog({ open, hasUnsavedChanges, onCreate, onCreateFrom
               ))}
             </div>
 
-            <div className="mt-3 grid grid-cols-3 gap-3">
+            <div className="mt-3 grid grid-cols-2 gap-3">
               {BASE_ORDER.map((base) => (
                 <button
                   key={base}

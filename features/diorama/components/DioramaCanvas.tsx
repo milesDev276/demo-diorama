@@ -144,7 +144,8 @@ export function DioramaCanvas() {
       {placement && (
         <p className="pointer-events-none absolute left-1/2 top-4 -translate-x-1/2 rounded-full bg-white/80 px-4 py-1.5 text-xs font-medium text-[#4A3421] shadow-[0_8px_24px_rgba(139,111,82,0.15)] backdrop-blur">
           {"kit" in placement ? placement.kit.name : ASSET_REGISTRY[placement.type].label}: click a surface to place it ·
-          R to turn · Shift+click to place several · Esc to cancel
+          {!("kit" in placement) && !placement.movingId && ASSET_REGISTRY[placement.type].tile ? " drag to lay a row ·" : ""} R to
+          turn · Shift+click to place several · Esc to cancel
         </p>
       )}
 
