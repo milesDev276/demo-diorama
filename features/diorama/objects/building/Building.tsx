@@ -10,7 +10,7 @@ import { buildingSize } from "../../utils/buildingParams";
 import { DIORAMA_COLORS } from "../../utils/palette";
 import { BASE_SURFACE } from "../../utils/surfaceSnap";
 import { ModelErrorBoundary } from "../GltfAsset";
-import { getSlotMaterial } from "../materials";
+import { castsShadow, getSlotMaterial, GLASS_RENDER_ORDER } from "../materials";
 import {
   BUILDING_SLOTS,
   buildBuildingGeometry,
@@ -67,8 +67,9 @@ function BuildingMesh({ params, surfaceId }: Required<Pick<BuildingProps, "param
             geometry={geometries[slot]}
             material={getSlotMaterial(slot)}
             userData={userData}
-            castShadow
+            castShadow={castsShadow(slot)}
             receiveShadow
+            renderOrder={slot === "glass" ? GLASS_RENDER_ORDER : 0}
           />
         ) : null
       )}
@@ -96,7 +97,7 @@ function BuildingGhost({ params, failed = false }: { params: BuildingParams; fai
  * A modular building (meters, origin at the center of its footprint on the
  * ground, front toward +Z), assembled from Blender facade modules on the
  * 1.82 m bay grid according to `params` and rendered as one mesh per
- * material slot — at most three draw calls however large it is.
+ * material slot — at most four draw calls however large it is.
  */
 export function Building({ params = DEFAULT_BUILDING_PARAMS, surfaceId }: BuildingProps) {
   return (

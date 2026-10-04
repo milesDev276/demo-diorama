@@ -1,11 +1,11 @@
 """Building module: shopfront bay for the ground floor, 1.82 × 3.2 m.
 
-Two sliding door leaves (frames only: an open frame reads as glass at this
-scale) in front of the shop's interior — a lit back wall of shelves stocked
-with bottles and boxes, and crates on the floor, as in a 酒屋. A plaster
-fascia above and an awning 1.0 m deep at y 2.6 … 2.8 that runs on into the
-neighboring bays. The interior is open at both ends so that bays join into
-one room; building_shop_side_01 closes a run. No baked AO or grime.
+Two glazed sliding door leaves and a glazed transom in front of the shop's
+interior — a lit back wall of shelves stocked with bottles and boxes, and
+crates on the floor, as in a 酒屋. A plaster fascia above and an awning
+1.0 m deep at y 2.6 … 2.8 that runs on into the neighboring bays. The
+interior is open at both ends so that bays join into one room;
+building_shop_side_01 closes a run. No baked AO or grime.
 """
 
 import random
@@ -23,6 +23,7 @@ from lib.facade import (  # noqa: F401
     belt_course,
     wall_piece,
 )
+from lib.interior import stock_shelf
 
 NAME = "building_bay_shopfront_01"
 CATEGORY = "buildings"
@@ -35,8 +36,7 @@ DOOR_Y = 0.07
 SHELF_DEPTH = 0.2
 SHELVES = (0.42, 0.87, 1.32, 1.77)
 
-BOXES = ["canBlue", "signRed", "canYellow", "insulator", "shopAwningLight", "clothBeige"]
-BOTTLES = ["canGreen", "woodTrim", "insulator", "vendingBody", "canBlue"]
+PANE = "glassPane"
 
 
 def build(b) -> None:
@@ -71,27 +71,7 @@ def _interior(b, rng: random.Random) -> None:
     goods_y = SHOP_BACK - SHELF_DEPTH + 0.07
     for z in SHELVES:
         b.box((BAY, SHELF_DEPTH, 0.025), (0, shelf_y, z), "woodTrim", shade=1.5, material="emissive")
-        x = -HALF + 0.08
-        while x < HALF - 0.2:
-            if rng.random() < 0.55:
-                radius = rng.uniform(0.03, 0.04)
-                height = rng.uniform(0.2, 0.3)
-                color = rng.choice(BOTTLES)
-                shade = rng.uniform(0.85, 1.05)
-                b.cylinder(radius, height * 0.7, (x + radius, goods_y, z + 0.0125), color, shade=shade, segments=6, material="emissive")
-                b.cylinder(
-                    radius * 0.4, height * 0.3, (x + radius, goods_y, z + 0.0125 + height * 0.7), color,
-                    shade=shade, segments=6, material="emissive",
-                )  # neck
-                x += radius * 2 + rng.uniform(0.012, 0.03)
-            else:
-                w = rng.uniform(0.08, 0.16)
-                h = rng.uniform(0.12, 0.26)
-                b.box(
-                    (w, 0.12, h), (x + w / 2, goods_y, z + 0.0125 + h / 2), rng.choice(BOXES),
-                    shade=rng.uniform(0.85, 1.05), material="emissive",
-                )
-                x += w + rng.uniform(0.015, 0.05)
+        stock_shelf(b, rng, -HALF, HALF, goods_y, z + 0.0125)
 
     # Crates on the floor in front of the shelves: two beer crates and a carton
     for i, color in enumerate(("canYellow", "signRed")):
@@ -100,8 +80,10 @@ def _interior(b, rng: random.Random) -> None:
 
 
 def _doors(b) -> None:
-    """Sliding door leaves: aluminium stiles, a top rail, a mid rail and a kick panel; a transom bar above."""
+    """Sliding door leaves: aluminium stiles, a top rail, a mid rail and a
+    kick panel around one pane each; a transom bar with a pane above it."""
     leaf = (BAY - 0.1) / 2
+    pane_z0, pane_z1 = 0.32, DOOR_TOP - 0.04
     for i, cx in enumerate((-leaf / 2, leaf / 2)):
         y = DOOR_Y + (-0.012 if i else 0.0)
         for sx in (cx - leaf / 2 + 0.02, cx + leaf / 2 - 0.02):
@@ -109,4 +91,7 @@ def _doors(b) -> None:
         b.box((leaf, 0.025, 0.04), (cx, y, DOOR_TOP - 0.02), FRAME)
         b.box((leaf - 0.08, 0.02, 0.025), (cx, y, 1.05), FRAME)  # mid rail
         b.box((leaf - 0.08, 0.02, 0.22), (cx, y, 0.21), FRAME, shade=0.9)  # kick panel
+        b.box((leaf - 0.08, 0.008, pane_z1 - pane_z0), (cx, y, (pane_z0 + pane_z1) / 2), PANE, material="glass")
     b.box((BAY - 0.1, 0.06, 0.05), (0, DOOR_Y, DOOR_TOP + 0.025), FRAME, shade=0.9)
+    transom_z0 = DOOR_TOP + 0.05
+    b.box((BAY - 0.1, 0.008, OPENING_TOP - transom_z0), (0, DOOR_Y, (transom_z0 + OPENING_TOP) / 2), PANE, material="glass")

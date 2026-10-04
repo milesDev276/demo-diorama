@@ -28,8 +28,8 @@ from lib.preview import render_previews  # noqa: E402
 # bpy changes between releases; assets are only guaranteed to build on this one.
 REQUIRED_VERSION = (5, 2)
 
-# Roadmap L4/L8: base + emissive + printed at most.
-MAX_DRAW_CALLS = 3
+# Stage 12 D2: base + emissive + printed + glass at most (roadmap L4/L8 said three).
+MAX_DRAW_CALLS = 4
 
 # Assets finished by hand in the Blender GUI: their .blend is the source, never rebuild.
 HAND_FINISHED: set[str] = set()

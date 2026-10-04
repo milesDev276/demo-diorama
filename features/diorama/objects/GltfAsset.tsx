@@ -4,11 +4,14 @@ import { Component, Suspense, type ReactNode } from "react";
 import { Clone, useGLTF } from "@react-three/drei";
 import type { Material, Mesh, Object3D } from "three";
 import { DIORAMA_COLORS } from "../utils/palette";
-import { getSlotMaterial } from "./materials";
+import { castsShadow, getSlotMaterial, GLASS_RENDER_ORDER } from "./materials";
 
 /** One render-ready copy per loaded GLB: shared slot materials, shadows on.
  *  Built from a clone, so useGLTF's cached scene is never mutated. */
 const templates = new WeakMap<Object3D, Object3D>();
+
+/** What Clone copies from a template mesh. */
+const CLONE_KEYS = ["name", "visible", "geometry", "material", "position", "rotation", "scale", "castShadow", "receiveShadow", "renderOrder", "userData"];
 
 function templateFor(scene: Object3D): Object3D {
   let template = templates.get(scene);
@@ -16,7 +19,12 @@ function templateFor(scene: Object3D): Object3D {
     template = scene.clone(true);
     template.traverse((child) => {
       const mesh = child as Mesh;
-      if (mesh.isMesh) mesh.material = getSlotMaterial((mesh.material as Material).name);
+      if (!mesh.isMesh) return;
+      const slot = (mesh.material as Material).name;
+      mesh.material = getSlotMaterial(slot);
+      mesh.castShadow = castsShadow(slot);
+      mesh.receiveShadow = true;
+      if (slot === "glass") mesh.renderOrder = GLASS_RENDER_ORDER;
     });
     templates.set(scene, template);
   }
@@ -25,7 +33,8 @@ function templateFor(scene: Object3D): Object3D {
 
 function Model({ url }: { url: string }) {
   const { scene } = useGLTF(url);
-  return <Clone object={templateFor(scene)} castShadow receiveShadow />;
+  // Shadow flags come from the template: Clone's own props would switch them on for glass too.
+  return <Clone object={templateFor(scene)} keys={CLONE_KEYS} />;
 }
 
 /** Faint stand-in while a model loads, or — tinted — when it failed to. Sized from the footprint. */

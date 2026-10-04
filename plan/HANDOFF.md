@@ -1,4 +1,4 @@
-# Handoff — Hero Diorama Work (as of 2026-10-04)
+# Handoff — Hero Diorama Work (as of 2026-10-04, after Stage 12)
 
 Read this first when picking up the work. It summarizes where things
 stand, what was decided and why, how to run and verify things, and what
@@ -23,19 +23,20 @@ comes next. Details live in the linked plan files.
 | Stage 8: ground surface and platform | Done | `main` (PR #11) |
 | Stage 9: finished streets on a plot (and a hydration-warning fix) | Done | `main` (PR #12) |
 | Stage 10: legacy cleanup | Done | `main` (PR #13) |
-| Stage 11: library breadth (eleven assets) | Implemented and verified; **not committed** | branch `stage11-library` (working tree) |
+| Stage 11: library breadth (eleven assets) | Done | `main` (PR #14) |
+| Stage 12: glass and lit signs | Implemented and verified; **not committed** | branch `stage12-glass` (working tree) |
 
-Stage 7 was the last stage of the original roadmap; Stages 8 to 11 were added
+Stage 7 was the last stage of the original roadmap; Stages 8 to 12 were added
 at the user's request.
 
-**`main` holds Stages 0–10** (last merge: PR #13, `25b8a4e`). Stage 11 is
-in the working tree of `stage11-library`, uncommitted.
+**`main` holds Stages 0–11** (last merge: PR #14, `d5c80c4`). Stage 12 is
+in the working tree of `stage12-glass`, uncommitted.
 
-**Immediate next action:** the user commits Stage 11 and opens its PR; then
-ask what comes next (§7 lists the candidates). The user merges PRs themselves, one branch per stage; cut the
-next branch from an up-to-date `main` (`git fetch`, then fast-forward —
-the local `main` has been behind the remote at the start of each stage).
-(For Stages 6 to 11 the user handed every decision
+**Immediate next action:** the user commits Stage 12 and opens its PR; then
+ask what comes next (§7 lists the candidates).
+The user merges PRs themselves, one branch per stage; cut the
+next branch from an up-to-date `main` (`git fetch`, then fast-forward).
+(For Stages 6 to 12 the user handed every decision
 to Claude, so the plan was settled with its defaults and implemented without
 a separate approval round. Ask again at the start of new work; it is not a
 standing rule.)
@@ -63,6 +64,7 @@ can be dropped once the user agrees.
 | [Stage-9-Implementation.md](Stage-9-Implementation.md) | The hydration fix, curb ramps, marking alignment, runs, stop sign / guard rail / fence, the Back Street starter, the retired street strip: decisions D1–D8, deviations and verification results (§7) |
 | [Stage-10-Implementation.md](Stage-10-Implementation.md) | The house, shop, garden tree and stone as GLBs, the street strip read into a plot, the legacy unit deleted: decisions D1–D4 and results (§6) |
 | [Stage-11-Implementation.md](Stage-11-Implementation.md) | Eleven assets for the thin categories (konbini, bus stop, street light, utility cabinet, bench, cone, garbage cage, kei truck, scooter, shopkeeper, schoolchild), two atlas cells, two kits: decisions D1–D5 and results (§6) |
+| [Stage-12-Implementation.md](Stage-12-Implementation.md) | The `glass` slot, rooms behind shop glass, hollow vehicle cabins, the lit atlas, two sign cells: decisions D1–D7 and results (§6) |
 | `Phase-*.md` | Earlier phases, kept for history |
 
 ## 3. Decisions That Must Not Be Re-litigated
@@ -91,8 +93,9 @@ can be dropped once the user agrees.
 * **Keep assets simple.** For organic shapes the user wants a plain foam
   look, not fine detail. Do not over-iterate.
 * **GLB assets render with shared materials** (`objects/materials.ts`),
-  remapped from the Blender slot names `base`, `emissive`, `printed` and
-  `foliage`. An asset still uses at most three of them.
+  remapped from the Blender slot names `base`, `emissive`, `printed`,
+  `foliage` and `glass`. An asset uses at most four of them
+  (`MAX_DRAW_CALLS` in `build.py`; three before Stage 12).
 * **A scene's base is scene data:** `environment.base`, `"corner"` or
   `"plot"`. A file whose base is `"street"`, missing or unknown is an old
   street strip and is read into a plot (Stage 10, below).
@@ -283,15 +286,43 @@ Stage 10:
 
 Stage 11:
 
-* **A lit sign is modeled in the `emissive` slot, not printed** (the
-  konbini's band): prints stay dark at night.
+* **A plain lit panel is modeled in the `emissive` slot** (the konbini's
+  band). Since Stage 12 prints can be lit too; see there.
 * **`streetLight` and `konbini` have a `glow`.** The pool is still eight
   lights, buildings first; a scene with more lit things than that leaves the
   last ones dark.
 * **Vehicle conventions:** four-wheelers face −Y in Blender (the kei car,
   the kei truck); two-wheelers head +X (the bicycle, the scooter).
-* **The atlas has room left** right of `plate_kei` (x 752–1016, y 8–136),
-  under it (x 488–1016, y 152–336) and under `bus_stop_board` (from y 792).
+
+Stage 12:
+
+* **`glass` is for panes with something behind them.** The vertex color is
+  the tint; the opacity is one constant (`GLASS_OPACITY`, mirrored as
+  `GLASS_ALPHA` in `lib/materials.py`). Windows with no room behind them
+  stay opaque and emissive.
+* **Glass casts no shadow and is drawn last** (`castsShadow`,
+  `GLASS_RENDER_ORDER` in `objects/materials.ts`). `GltfAsset` sets the
+  shadow flags on its template and hands `Clone` no shadow props: those
+  would switch shadows on for every mesh.
+* **A building renders up to four slots** (`BUILDING_SLOTS`).
+* **Backlit prints are a table, not geometry:** `LIT_CELLS` in
+  `graphicsAtlas.ts` says which atlas cells glow and how strongly; they are
+  copied into a second canvas, the `printed` material's emissive map. A new
+  lit sign needs no GLB change.
+* **`signs` in `utils/timeOfDay.ts`** is how strongly lit prints glow,
+  pushed by `EnvironmentDriver` (`setSignGlow`). It is 0 by day, so
+  daytime renders are unchanged by it.
+* **A lit sign is a print when it has lettering** (the konbini's plate, the
+  small shop's board) and `emissive` geometry when it is a plain panel (the
+  konbini's band). This replaces the Stage 11 rule.
+* **Shop interiors share `art/blender/lib/interior.py`**
+  (`stock_shelf`, `product_row`). The shopfront bay's goods depend on the
+  order of its random calls; do not reorder them.
+* **A fixed building with a room is built from wall blocks,** one box per
+  side wall, so the siding's per-face jitter shows no seam.
+* **The atlas has room left** right of `plate_kei` (x 752–1016, y 8–136)
+  and under `bus_stop_board` (from y 792); the strip under `plate_kei` is
+  used by the two sign cells.
 
 ## 4. How to Run and Verify
 
@@ -486,6 +517,11 @@ node scripts/capture-template.mjs
   and never stop it.
 * **The Blender preview of a printed face is blank,** also for a triangle:
   check the print in the app.
+* **drei's `<Clone castShadow>` sets the flag on every mesh,** and only
+  when true: leave the prop out and Clone copies each mesh's own flag
+  (`keys`). `renderOrder` is not among Clone's default keys.
+* **A transparent material still casts a full shadow** in three. Switch
+  `castShadow` off on the mesh.
 
 ## 6. Known Limitations and Existing Behaviors (not bugs of these stages)
 
@@ -509,9 +545,11 @@ node scripts/capture-template.mjs
   cannot be renamed or exported; a placed kit cannot be turned afterwards.**
   The full list is in Stage-6-Implementation.md §7.
 * **Glow lights cast no shadows and shine through walls** within their
-  reach; printed faces (the kanban sign) are not lit at night; shop doors
-  have no glass; photo settings are not saved with the scene. The full
-  list is in Stage-7-Implementation.md §7.
+  reach; photo settings are not saved with the scene. The full list is in
+  Stage-7-Implementation.md §7.
+* **Glass has one opacity, reflects nothing and casts no shadow;** panes
+  inside an object are not sorted; sign texts are fixed. The full list is
+  in Stage-12-Implementation.md §6.
 * **Redo does not restore the selection.**
 * **Duplicates are not clamped to the plot.**
 * **The editing camera does not fit the scene to a small window.**
@@ -526,11 +564,15 @@ node scripts/capture-template.mjs
 
 ## 7. Next
 
-The roadmap's seven stages and Stages 8 to 11 are implemented. Nothing
-further is planned or approved; ask the user what comes next.
+The roadmap's seven stages and Stages 8 to 12 are implemented; Stage 12 is
+not committed yet. Nothing further is planned or approved; ask the user
+what comes next.
 
-* **Open from Stage 11:** not committed yet. The starters do not use the
-  new assets.
+* **Open from Stage 12:** not committed; not tried in the user's own
+  browser. Old scenes change in look (panes, a narrower shop signboard).
+* **Open from Stage 11:** the starters do not use the new assets; the two
+  new kits were checked as thumbnails only; not tried in the user's own
+  browser.
 * **Open from Stage 10:** not tried with the user's own autosave.
 
 * **Open from Stage 9:** the hydration fix was verified by reproduction
@@ -540,8 +582,10 @@ further is planned or approved; ask the user what comes next.
   reference photo (the photo is not in the repository). That comparison —
   the roadmap's "done when" — is the user's to make.
 * **Candidates that came up, none decided:**
-  * lit signs at night (an emissive mask for printed faces)
-  * a transparent material slot for shop and car glass
+  * glass on houses and upper floors (needs rooms), a driver in vehicles,
+    sign text the user can edit
+  * editor limits: attachments following a building resize, redo keeping
+    the selection, renaming and exporting kits, turning a placed kit
   * ground: more levels or slopes, curved roads, arrow markings
   * a parametric wall or fence (one object by length) instead of runs
   * more figures in other poses (walking, sitting, cycling)
@@ -561,7 +605,7 @@ further is planned or approved; ask the user what comes next.
   docs are in English.
 * **Plan first:** at the start of each stage, write the plan doc and get it
   approved, then implement — unless the user hands over the decisions, as
-  for Stages 6 to 9.
+  for Stages 6 to 12.
 * **Git:** the user commits, pushes and merges through GitHub PRs
   themselves. When asked, provide a commit message and a PR description.
 * **Reporting:** follow CLAUDE.md §46 — implemented, files, verification

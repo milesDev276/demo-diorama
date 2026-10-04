@@ -7,7 +7,9 @@ import { DIORAMA_COLORS } from "../../utils/palette";
  * (ads, plates, later signs and road markings), sampled by the shared
  * `printed` material. Cell rectangles live in atlasLayout.json, which the
  * Blender build also reads to give printed faces their UVs — so a cell's
- * position is data, and only its painter lives here.
+ * position is data, and only its painter lives here. A second canvas, the
+ * lit atlas, holds the backlit cells alone: the `printed` material's
+ * emissive map.
  *
  * Text is drawn with the OS Japanese fonts; nothing is downloaded.
  */
@@ -268,6 +270,60 @@ function paintBusStopBoard(ctx: CanvasRenderingContext2D, w: number, h: number) 
   ctx.fillRect(w * 0.255, top, w * 0.008, h * 0.76);
 }
 
+/** Signboard of a fictional neighborhood shop: まるや商店, tobacco on the left, daily goods on the right. */
+function paintShopSign(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  ctx.fillStyle = DIORAMA_COLORS.signBoard;
+  ctx.fillRect(0, 0, w, h);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  ctx.fillStyle = DIORAMA_COLORS.signRed;
+  roundRect(ctx, w * 0.035, h * 0.2, w * 0.17, h * 0.6, h * 0.08);
+  ctx.fill();
+  ctx.fillStyle = "#fff8ec";
+  ctx.font = font(800, h * 0.36);
+  ctx.fillText("たばこ", w * 0.12, h * 0.52, w * 0.15);
+
+  ctx.fillStyle = "#3b322c";
+  ctx.font = font(900, h * 0.64);
+  ctx.fillText("まるや商店", w * 0.52, h * 0.53, w * 0.52);
+
+  ctx.fillStyle = DIORAMA_COLORS.canBlue;
+  ctx.font = font(800, h * 0.27);
+  ctx.fillText("日用品", w * 0.89, h * 0.33, w * 0.16);
+  ctx.fillText("食料品", w * 0.89, h * 0.7, w * 0.16);
+}
+
+/** Name plate of a fictional convenience store: a mark, コトリマート and a 24-hour badge. */
+function paintKonbiniSign(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  ctx.fillStyle = "#4f7a3e";
+  ctx.fillRect(0, 0, w, h);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  // The mark: a pale disc with an open green ring
+  ctx.fillStyle = DIORAMA_COLORS.lampWhite;
+  ctx.beginPath();
+  ctx.arc(w * 0.09, h / 2, h * 0.36, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#4f7a3e";
+  ctx.lineWidth = h * 0.09;
+  ctx.beginPath();
+  ctx.arc(w * 0.09, h / 2, h * 0.19, Math.PI * 0.15, Math.PI * 1.75);
+  ctx.stroke();
+
+  ctx.fillStyle = "#fff8ec";
+  ctx.font = font(900, h * 0.62);
+  ctx.fillText("コトリマート", w * 0.5, h * 0.54, w * 0.6);
+
+  ctx.fillStyle = DIORAMA_COLORS.canBlue;
+  roundRect(ctx, w * 0.84, h * 0.2, w * 0.13, h * 0.6, h * 0.1);
+  ctx.fill();
+  ctx.fillStyle = "#fff8ec";
+  ctx.font = font(800, h * 0.36);
+  ctx.fillText("24h", w * 0.905, h * 0.53, w * 0.11);
+}
+
 /** One painter per cell; the Record type fails the build if the layout gains a cell with no painter. */
 const PAINTERS: Record<CellName, CellPainter> = {
   vending_ad: paintVendingAd,
@@ -278,10 +334,23 @@ const PAINTERS: Record<CellName, CellPainter> = {
   sign_stop: paintSignStop,
   bus_stop_head: paintBusStopHead,
   bus_stop_board: paintBusStopBoard,
+  shop_sign: paintShopSign,
+  konbini_sign: paintKonbiniSign,
 };
 
 /** Cells that keep their alpha, for the `decal` material. Everything else is opaque print. */
 const TRANSPARENT_CELLS: ReadonlySet<CellName> = new Set<CellName>(["road_tomare"]);
+
+/** Backlit cells and how strongly they glow after dark: 1 is a light box,
+ *  less a sign with a lamp on it. Everything else stays as dark as its surroundings. */
+const LIT_CELLS: Partial<Record<CellName, number>> = {
+  vending_ad: 1,
+  kanban_sakaya: 1,
+  konbini_sign: 1,
+  shop_sign: 0.7,
+  bus_stop_head: 0.6,
+  bus_stop_board: 0.6,
+};
 
 /** Paints one cell and repeats its outer pixels into the gutter, so mipmaps never mix neighboring cells. */
 function paintCell(atlas: CanvasRenderingContext2D, name: CellName) {
@@ -306,7 +375,17 @@ function paintCell(atlas: CanvasRenderingContext2D, name: CellName) {
   atlas.drawImage(atlas.canvas, x + w - 1, y - g, 1, h + 2 * g, x + w, y - g, g, h + 2 * g); // right
 }
 
+/** A canvas as an atlas texture: sRGB, addressed like the canvas itself. */
+function atlasTexture(canvas: HTMLCanvasElement): CanvasTexture {
+  const atlas = new CanvasTexture(canvas);
+  atlas.colorSpace = SRGBColorSpace;
+  atlas.flipY = false; // glTF UVs have their origin at the top-left, like the canvas
+  atlas.anisotropy = 4;
+  return atlas;
+}
+
 let texture: CanvasTexture | null = null;
+let litTexture: CanvasTexture | null = null;
 
 /** The atlas texture, painted on first use (client only — it needs a DOM canvas). */
 export function getGraphicsAtlas(): CanvasTexture {
@@ -320,9 +399,26 @@ export function getGraphicsAtlas(): CanvasTexture {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   for (const name of Object.keys(layout.cells) as CellName[]) paintCell(ctx, name);
 
-  texture = new CanvasTexture(canvas);
-  texture.colorSpace = SRGBColorSpace;
-  texture.flipY = false; // glTF UVs have their origin at the top-left, like the canvas
-  texture.anisotropy = 4;
+  texture = atlasTexture(canvas);
   return texture;
+}
+
+/** The lit atlas: the backlit cells (LIT_CELLS) at their strength, with their gutters, on black. */
+export function getLitAtlas(): CanvasTexture {
+  if (litTexture) return litTexture;
+  const source = getGraphicsAtlas().image as HTMLCanvasElement;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = layout.size;
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const g = layout.gutter;
+  for (const [name, strength] of Object.entries(LIT_CELLS) as Array<[CellName, number]>) {
+    const [x, y, w, h] = layout.cells[name];
+    ctx.globalAlpha = strength;
+    ctx.drawImage(source, x - g, y - g, w + 2 * g, h + 2 * g, x - g, y - g, w + 2 * g, h + 2 * g);
+  }
+  ctx.globalAlpha = 1;
+  litTexture = atlasTexture(canvas);
+  return litTexture;
 }

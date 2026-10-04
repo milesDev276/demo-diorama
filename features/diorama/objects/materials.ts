@@ -12,13 +12,14 @@ import {
 } from "three";
 import { DIORAMA_COLORS } from "../utils/palette";
 import { TIME_OF_DAY_LOOKS } from "../utils/timeOfDay";
-import { getGraphicsAtlas } from "./textures/graphicsAtlas";
+import { getGraphicsAtlas, getLitAtlas } from "./textures/graphicsAtlas";
 
 /**
  * The shared materials of everything authored in meters. Blender GLBs
  * carry their colors as vertex colors and name their material slots
  * `base`, `emissive` and `printed`; GltfAsset swaps each slot for the
- * shared material below; deciduous crowns use a fourth slot, `foliage`.
+ * shared material below; deciduous crowns use a fourth slot, `foliage`,
+ * and panes you can see through a fifth, `glass`.
  * App-built bases use `ground` and `decal`, overhead wires `wire`. All
  * instances share these few shader programs, and the look is tuned in one
  * place.
@@ -28,6 +29,9 @@ import { getGraphicsAtlas } from "./textures/graphicsAtlas";
  *  value for the whole scene, set by the time of day (setEmissiveLevel). Until
  *  a scene sets it — the thumbnail studio never does — it is the daytime level. */
 let emissiveLevel = TIME_OF_DAY_LOOKS.day.emissive;
+
+/** Glow of backlit prints, set by the time of day (setSignGlow); off until a scene sets it. */
+let signGlow = TIME_OF_DAY_LOOKS.day.signs;
 
 const BASE_ROUGHNESS = 0.65;
 
@@ -83,14 +87,44 @@ function createFoliageMaterial() {
   return material;
 }
 
-/** Atlas graphics; the vertex colors (white × baked AO and grime) weather the print. */
+/** Atlas graphics; the vertex colors (white × baked AO and grime) weather the
+ *  print. Backlit prints — the cells of the lit atlas — also give off their
+ *  own colors after dark. */
 function createPrintedMaterial() {
   return new MeshStandardMaterial({
     vertexColors: true,
     map: getGraphicsAtlas(),
     roughness: 0.6,
     metalness: 0,
+    emissive: 0xffffff,
+    emissiveMap: getLitAtlas(),
+    emissiveIntensity: signGlow,
   });
+}
+
+/** How much of what lies behind a pane its tint replaces. */
+const GLASS_OPACITY = 0.3;
+
+/** Panes with something to see behind them: shop fronts, vehicle windows.
+ *  The vertex color is the tint. Glass writes no depth and casts no shadow
+ *  (castsShadow), or every room behind it would be dark. */
+function createGlassMaterial() {
+  return new MeshStandardMaterial({
+    vertexColors: true,
+    transparent: true,
+    opacity: GLASS_OPACITY,
+    depthWrite: false,
+    roughness: 0.08,
+    metalness: 0,
+  });
+}
+
+/** Glass is drawn after the other transparent things (road lettering), so they are tinted when seen through it. */
+export const GLASS_RENDER_ORDER = 1;
+
+/** Whether a slot's surfaces cast shadows: everything but glass. */
+export function castsShadow(slot: string): boolean {
+  return slot !== "glass";
 }
 
 /** Edge of the grain texture in texels, and how many of them a meter of speckle spans. */
@@ -196,6 +230,7 @@ const FACTORIES: Record<string, () => Material> = {
   emissive: createEmissiveMaterial,
   printed: createPrintedMaterial,
   foliage: createFoliageMaterial,
+  glass: createGlassMaterial,
   ground: createGroundMaterial,
   decal: createDecalMaterial,
   wire: createWireMaterial,
@@ -226,6 +261,13 @@ export function getSlotMaterial(slot: string): Material {
 export function setEmissiveLevel(level: number): void {
   emissiveLevel = level;
   const material = materials.get("emissive") as MeshStandardMaterial | undefined;
+  if (material) material.emissiveIntensity = level;
+}
+
+/** Sets how strongly backlit prints glow (a time of day's `signs`). */
+export function setSignGlow(level: number): void {
+  signGlow = level;
+  const material = materials.get("printed") as MeshStandardMaterial | undefined;
   if (material) material.emissiveIntensity = level;
 }
 

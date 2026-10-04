@@ -3,14 +3,14 @@
 import { useLayoutEffect } from "react";
 import { useThree } from "@react-three/fiber";
 import { useDioramaStore } from "../store/dioramaStore";
-import { setEmissiveLevel, setFoliageSeason, setWireBounds } from "../objects/materials";
+import { setEmissiveLevel, setFoliageSeason, setSignGlow, setWireBounds } from "../objects/materials";
 import { getBaseTemplate } from "../utils/baseTemplates";
 import { SEASON_LOOKS } from "../utils/seasons";
 import { TIME_OF_DAY_LOOKS } from "../utils/timeOfDay";
 
 /**
  * Pushes the scene's environment into the shared materials: how strongly
- * emissive surfaces glow (time of day), what deciduous crowns look like
+ * emissive surfaces and backlit prints glow (time of day), what deciduous crowns look like
  * (season) and where overhead wires are cut off (the base's outline). Runs
  * when one of them changes — never per frame. The lights and the sky read
  * the same looks themselves.
@@ -23,6 +23,7 @@ export function EnvironmentDriver() {
 
   useLayoutEffect(() => {
     setEmissiveLevel(TIME_OF_DAY_LOOKS[timeOfDay].emissive);
+    setSignGlow(TIME_OF_DAY_LOOKS[timeOfDay].signs);
   }, [timeOfDay]);
 
   useLayoutEffect(() => {

@@ -10,7 +10,7 @@ export interface LightformerLook {
 
 /**
  * Everything a time of day decides. SceneLighting, the sky behind the
- * canvas, the fog, the emissive material and the after-dark lights all read
+ * canvas, the fog, the emissive and printed materials and the after-dark lights all read
  * one of these; no other file holds a lighting number.
  */
 export interface TimeOfDayLook {
@@ -25,6 +25,8 @@ export interface TimeOfDayLook {
   sky: { top: string; middle: string; bottom: string };
   /** Glow of every `emissive` slot: windows, shop interiors, vending fronts. */
   emissive: number;
+  /** Glow of backlit prints — shop signs, the vending machine's ad; 0 = switched off. */
+  signs: number;
   /** Strength of the shop and vending-machine lights (SceneGlowLights); 0 = none. */
   glow: number;
 }
@@ -72,6 +74,7 @@ export const TIME_OF_DAY_LOOKS: Record<TimeOfDay, TimeOfDayLook> = {
     },
     sky: { top: "#c4def6", middle: "#eef0e4", bottom: "#f7e2cf" },
     emissive: 0.3,
+    signs: 0,
     glow: 0,
   },
   day: {
@@ -90,6 +93,7 @@ export const TIME_OF_DAY_LOOKS: Record<TimeOfDay, TimeOfDayLook> = {
     },
     sky: { top: "#bfe3ff", middle: "#e3f0dd", bottom: "#ecdfc2" },
     emissive: 0.2,
+    signs: 0,
     glow: 0,
   },
   goldenHour: {
@@ -109,6 +113,7 @@ export const TIME_OF_DAY_LOOKS: Record<TimeOfDay, TimeOfDayLook> = {
     },
     sky: { top: "#a9c6ea", middle: "#f2dcc0", bottom: "#f6bd8e" },
     emissive: 0.85,
+    signs: 0.3,
     glow: 0,
   },
   evening: {
@@ -128,6 +133,7 @@ export const TIME_OF_DAY_LOOKS: Record<TimeOfDay, TimeOfDayLook> = {
     },
     sky: { top: "#33427a", middle: "#8b7aa6", bottom: "#f2a777" },
     emissive: 1.7,
+    signs: 0.85,
     glow: 1,
   },
   night: {
@@ -147,6 +153,7 @@ export const TIME_OF_DAY_LOOKS: Record<TimeOfDay, TimeOfDayLook> = {
     },
     sky: { top: "#101833", middle: "#232e5a", bottom: "#40406e" },
     emissive: 2.1,
+    signs: 1,
     glow: 1.25,
   },
 };
