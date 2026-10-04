@@ -567,8 +567,7 @@ a plot, and it reads as the same miniature as the corner base.
 
 ### Stage 10 — Legacy cleanup
 
-**Status:** implemented and verified on branch `stage10-legacy`,
-2026-10-03; not merged yet. See [Stage-10-Implementation.md](Stage-10-Implementation.md) §6.
+**Status:** done, merged (PR #13). See [Stage-10-Implementation.md](Stage-10-Implementation.md) §6.
 
 * From Blender, in meters: the **house**, the **small shop**, the **garden
   tree** and the **garden stone**. Their object types are unchanged.
@@ -577,6 +576,18 @@ a plot, and it reads as the same miniature as the corner base.
   app is authored in the pre-meter unit any more.
 
 **Done when:** no legacy-unit geometry is left and old scenes still load.
+
+### Stage 11 — Library breadth
+
+**Status:** implemented and verified on branch `stage11-library`,
+2026-10-04; not merged yet. See [Stage-11-Implementation.md](Stage-11-Implementation.md) §6.
+
+* From Blender: a **convenience store**, a **bus stop**, a **street light**,
+  a **utility cabinet**, a **bench**, a **traffic cone**, a **garbage cage**,
+  a **kei truck**, a **scooter**, a **shopkeeper** and a **schoolchild**.
+* Two built-in kits: **Bus Stop** and **Collection Point**.
+
+**Done when:** every library category offers a choice, in one style.
 
 ---
 
@@ -593,6 +604,8 @@ a plot, and it reads as the same miniature as the corner base.
 | 7 | Phase 4 (time of day) and Phase 5 (photo) |
 | 8 | Phase 4 (roads, sidewalks) and §20 (rectangular plot); not a terrain editor |
 | 9 | Phase 4 (roads, street props) and Phase 3 (assets) |
+| 10 | Cleanup after Stage 1 (§18 scale) |
+| 11 | Phase 3 (assets, §15 taxonomy) |
 
 Not in this roadmap:
 

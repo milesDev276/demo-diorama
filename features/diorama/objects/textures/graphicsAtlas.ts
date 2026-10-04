@@ -212,6 +212,62 @@ function paintSignStop(ctx: CanvasRenderingContext2D, w: number, h: number) {
   ctx.fillText("止まれ", w / 2, h * 0.33, w * 0.6);
 }
 
+/** Round head of a bus stop: the cell is the disc's bounding box. A fictional stop on a fictional line. */
+function paintBusStopHead(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  ctx.fillStyle = DIORAMA_COLORS.mirrorOrange;
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = DIORAMA_COLORS.signBoard;
+  ctx.beginPath();
+  ctx.arc(w / 2, h / 2, w * 0.43, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = DIORAMA_COLORS.canBlue;
+  ctx.fillRect(w * 0.1, h * 0.56, w * 0.8, h * 0.035);
+  ctx.font = font(900, h * 0.2);
+  ctx.fillText("バス", w / 2, h * 0.3);
+  ctx.fillStyle = "#3b322c";
+  ctx.font = font(800, h * 0.15);
+  ctx.fillText("緑町二丁目", w / 2, h * 0.47, w * 0.74);
+  ctx.font = font(600, h * 0.085);
+  ctx.fillText("のりば", w / 2, h * 0.69);
+  ctx.fillText("市営バス", w / 2, h * 0.8, w * 0.5);
+}
+
+/** Timetable board of a bus stop: a header and a grid of hours and minutes. */
+function paintBusStopBoard(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  ctx.fillStyle = DIORAMA_COLORS.signBoard;
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = DIORAMA_COLORS.canBlue;
+  ctx.fillRect(0, 0, w, h * 0.15);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#fff8ec";
+  ctx.font = font(800, h * 0.09);
+  ctx.fillText("時刻表", w / 2, h * 0.08);
+
+  const rows = 9;
+  const top = h * 0.2;
+  const rowH = (h * 0.76) / rows;
+  ctx.font = font(700, rowH * 0.62);
+  for (let i = 0; i < rows; i++) {
+    const y = top + i * rowH;
+    if (i % 2 === 0) {
+      ctx.fillStyle = "#e3e6e2";
+      ctx.fillRect(w * 0.06, y, w * 0.88, rowH);
+    }
+    ctx.fillStyle = DIORAMA_COLORS.canBlue;
+    ctx.textAlign = "center";
+    ctx.fillText(String(6 + i * 2), w * 0.16, y + rowH * 0.55);
+    ctx.fillStyle = "#3b322c";
+    ctx.textAlign = "left";
+    ctx.fillText(i % 3 === 0 ? "05 25 45" : i % 3 === 1 ? "10 40" : "15 35 55", w * 0.3, y + rowH * 0.55, w * 0.6);
+  }
+  ctx.fillStyle = "#3b322c";
+  ctx.fillRect(w * 0.255, top, w * 0.008, h * 0.76);
+}
+
 /** One painter per cell; the Record type fails the build if the layout gains a cell with no painter. */
 const PAINTERS: Record<CellName, CellPainter> = {
   vending_ad: paintVendingAd,
@@ -220,6 +276,8 @@ const PAINTERS: Record<CellName, CellPainter> = {
   kanban_sakaya: paintKanbanSakaya,
   post_front: paintPostFront,
   sign_stop: paintSignStop,
+  bus_stop_head: paintBusStopHead,
+  bus_stop_board: paintBusStopBoard,
 };
 
 /** Cells that keep their alpha, for the `decal` material. Everything else is opaque print. */

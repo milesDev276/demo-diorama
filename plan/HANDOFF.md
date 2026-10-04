@@ -1,4 +1,4 @@
-# Handoff — Hero Diorama Work (as of 2026-10-03)
+# Handoff — Hero Diorama Work (as of 2026-10-04)
 
 Read this first when picking up the work. It summarizes where things
 stand, what was decided and why, how to run and verify things, and what
@@ -22,20 +22,20 @@ comes next. Details live in the linked plan files.
 | Stage 7: environment and Photo | Done | `main` (PR #10) |
 | Stage 8: ground surface and platform | Done | `main` (PR #11) |
 | Stage 9: finished streets on a plot (and a hydration-warning fix) | Done | `main` (PR #12) |
-| Stage 10: legacy cleanup | Implemented and verified; **not committed** | branch `stage10-legacy` (working tree) |
+| Stage 10: legacy cleanup | Done | `main` (PR #13) |
+| Stage 11: library breadth (eleven assets) | Implemented and verified; **not committed** | branch `stage11-library` (working tree) |
 
-Stage 7 was the last stage of the original roadmap; Stages 8 and 9 were added
+Stage 7 was the last stage of the original roadmap; Stages 8 to 11 were added
 at the user's request.
 
-**`main` holds Stages 0–9** (last merge: PR #12, `f5245a0`). Stage 10 is
-in the working tree of `stage10-legacy`, uncommitted, together with the
-earlier uncommitted edits to the plan files.
+**`main` holds Stages 0–10** (last merge: PR #13, `25b8a4e`). Stage 11 is
+in the working tree of `stage11-library`, uncommitted.
 
-**Immediate next action:** the user commits Stage 10 and opens its PR; then
+**Immediate next action:** the user commits Stage 11 and opens its PR; then
 ask what comes next (§7 lists the candidates). The user merges PRs themselves, one branch per stage; cut the
 next branch from an up-to-date `main` (`git fetch`, then fast-forward —
 the local `main` has been behind the remote at the start of each stage).
-(For Stages 6 to 9 the user handed every decision
+(For Stages 6 to 11 the user handed every decision
 to Claude, so the plan was settled with its defaults and implemented without
 a separate approval round. Ask again at the start of new work; it is not a
 standing rule.)
@@ -62,6 +62,7 @@ can be dropped once the user agrees.
 | [Stage-8-Implementation.md](Stage-8-Implementation.md) | The free plot and its surface map, ground brush, ground grain, platform styles, road markings: decisions D1–D11, deviations and verification results (§7) |
 | [Stage-9-Implementation.md](Stage-9-Implementation.md) | The hydration fix, curb ramps, marking alignment, runs, stop sign / guard rail / fence, the Back Street starter, the retired street strip: decisions D1–D8, deviations and verification results (§7) |
 | [Stage-10-Implementation.md](Stage-10-Implementation.md) | The house, shop, garden tree and stone as GLBs, the street strip read into a plot, the legacy unit deleted: decisions D1–D4 and results (§6) |
+| [Stage-11-Implementation.md](Stage-11-Implementation.md) | Eleven assets for the thin categories (konbini, bus stop, street light, utility cabinet, bench, cone, garbage cage, kei truck, scooter, shopkeeper, schoolchild), two atlas cells, two kits: decisions D1–D5 and results (§6) |
 | `Phase-*.md` | Earlier phases, kept for history |
 
 ## 3. Decisions That Must Not Be Re-litigated
@@ -279,6 +280,18 @@ Stage 10:
   is not the default: it is a strip.
 * **`liftObjects`** (`utils/surfaceMap.ts`) is the one place that moves
   objects and scatter pieces vertically with the ground.
+
+Stage 11:
+
+* **A lit sign is modeled in the `emissive` slot, not printed** (the
+  konbini's band): prints stay dark at night.
+* **`streetLight` and `konbini` have a `glow`.** The pool is still eight
+  lights, buildings first; a scene with more lit things than that leaves the
+  last ones dark.
+* **Vehicle conventions:** four-wheelers face −Y in Blender (the kei car,
+  the kei truck); two-wheelers head +X (the bicycle, the scooter).
+* **The atlas has room left** right of `plate_kei` (x 752–1016, y 8–136),
+  under it (x 488–1016, y 152–336) and under `bus_stop_board` (from y 792).
 
 ## 4. How to Run and Verify
 
@@ -513,11 +526,12 @@ node scripts/capture-template.mjs
 
 ## 7. Next
 
-The roadmap's seven stages and Stages 8 to 10 are implemented. Nothing
+The roadmap's seven stages and Stages 8 to 11 are implemented. Nothing
 further is planned or approved; ask the user what comes next.
 
-* **Open from Stage 10:** not committed yet; not tried with the user's own
-  autosave.
+* **Open from Stage 11:** not committed yet. The starters do not use the
+  new assets.
+* **Open from Stage 10:** not tried with the user's own autosave.
 
 * **Open from Stage 9:** the hydration fix was verified by reproduction
   only (attributes injected on `<body>`), not in the user's own browser. If
@@ -530,7 +544,8 @@ further is planned or approved; ask the user what comes next.
   * a transparent material slot for shop and car glass
   * ground: more levels or slopes, curved roads, arrow markings
   * a parametric wall or fence (one object by length) instead of runs
-  * more figures (the hero uses one figure twice; no shopkeeper)
+  * more figures in other poses (walking, sitting, cycling)
+  * more buildings as fixed models (apartment block, traditional house)
   * a saved camera and photo settings per scene (CLAUDE.md §12)
   * weather (CLAUDE.md §25; outside the hero roadmap)
 * **Backend (CLAUDE.md Phase 6):** the user raised it after Stage 9
