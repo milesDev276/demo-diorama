@@ -1,12 +1,16 @@
 """Kei truck (軽トラ), 1.48 × 1.78 × 3.40 m — the kei size limits.
 
 The white cab-over pickup of farms, shops and building sites: a short cab
-with the front wheels under the seats, a flat bed with drop sides, a guard
-frame behind the cab, and yellow kei plates front and rear (atlas cell
-`plate_kei`). No brand cues. Front faces −Y. No baked AO or grime.
+with the front wheels under the seats — hollow, with tinted glass all round
+(the `glass` slot), two seats and a steering wheel on the right — a flat
+bed with drop sides, a guard frame behind the cab, and yellow kei plates
+front and rear (atlas cell `plate_kei`). No brand cues. Front faces −Y. No
+baked AO or grime.
 """
 
 import math
+
+from lib.builder import arc_points
 
 NAME = "vehicle_kei_truck_01"
 CATEGORY = "vehicles"
@@ -22,6 +26,10 @@ WHEEL_W = 0.15
 AXLES = (-1.25, 1.05)  # front, rear
 ARCH_R = 0.31
 BODY_BOTTOM = 0.22
+
+BELT = 1.03  # bottom of the glass
+ROOF = 1.64  # top of the glass
+PILLAR = 0.11  # how far a pillar reaches in from the cab's side
 
 BED_FRONT = -0.50
 BED_FLOOR = 0.66
@@ -49,37 +57,54 @@ def build(b) -> None:
 
 
 def _cab(b) -> None:
-    cab = [
+    """The cab in three parts, so that it is hollow behind the glass: the
+    body up to the belt, the roof, and two pillars a side. Profiles are (y, z)."""
+    lower = [
         (-1.66, BODY_BOTTOM),
         (FRONT_Y, 0.32),
         (FRONT_Y, 0.86),
         (-1.62, 0.95),
-        (-1.42, 1.70),
-        (-1.34, 1.78),
-        (-0.60, 1.78),
-        (CAB_BACK, 1.72),
+        (-1.599, BELT),
+        (CAB_BACK, BELT),
         (CAB_BACK, BODY_BOTTOM),
         *_arch(AXLES[0]),
     ]
-    b.extrude(cab, 2 * HALF_W, (0, 0, 0), BODY, axis="x", bevel=0.04)
+    b.extrude(lower, 2 * HALF_W, (0, 0, 0), BODY, axis="x", bevel=0.04)
+    roof = [(-1.436, ROOF), (-1.42, 1.70), (-1.34, 1.78), (-0.60, 1.78), (CAB_BACK, 1.72), (CAB_BACK, ROOF)]
+    b.extrude(roof, 2 * HALF_W, (0, 0, 0), BODY, axis="x", bevel=0.03)
+    pillars = [
+        [(-1.599, BELT), (-1.50, BELT), (-1.36, ROOF), (-1.436, ROOF)],
+        [(-0.68, BELT), (CAB_BACK, BELT), (CAB_BACK, ROOF), (-0.68, ROOF)],
+    ]
+    for side in (-1, 1):
+        for outline in pillars:
+            b.extrude(outline, PILLAR, (side * (HALF_W - PILLAR / 2), 0, 0), BODY, axis="x")
 
-    # Windscreen: a thin slab along the rake, just proud of the cab
-    a, c = (-1.60, 1.03), (-1.44, 1.63)
+    # Inside: a dark floor, the dashboard, a steering wheel on the right (−X) and two seats
+    b.box((2 * HALF_W - 0.08, 0.98, 0.012), (0, -1.07, BELT + 0.006), "vendingDark", shade=1.1)
+    b.box((2 * HALF_W - 0.12, 0.16, 0.08), (0, -1.47, BELT + 0.045), "vendingDark", shade=1.5, bevel=0.02, segments=1)
+    b.tube(arc_points((-0.35, -1.33, BELT + 0.2), 0.14, 0, 324, axis="y", segments=9), 0.016, "vendingDark", shade=0.9, sides=4, closed=True)
+    for x in (-0.35, 0.35):
+        b.box((0.5, 0.1, 0.4), (x, -0.72, BELT + 0.2), "carSeat", bevel=0.03, segments=1)
+        b.box((0.24, 0.08, 0.12), (x, -0.71, BELT + 0.47), "carSeat", shade=0.92, bevel=0.02, segments=1)
+
+    # Windscreen: a thin slab along the rake, between the front pillars
+    a, c = (-1.60, BELT), (-1.44, ROOF)
     length = math.dist(a, c)
     tilt = math.degrees(math.atan2(c[0] - a[0], c[1] - a[1]))
     normal = (-(c[1] - a[1]) / length, (c[0] - a[0]) / length)
     mid = ((a[0] + c[0]) / 2 + normal[0] * 0.012, (a[1] + c[1]) / 2 + normal[1] * 0.012)
-    b.box((1.26, 0.012, length), (0, mid[0], mid[1]), "carGlass", rotation=(-tilt, 0, 0))
+    b.box((2 * (HALF_W - PILLAR) + 0.02, 0.012, length), (0, mid[0], mid[1]), "carGlass", rotation=(-tilt, 0, 0), material="glass")
 
-    window = [(-1.50, 1.05), (-1.36, 1.64), (-0.68, 1.66), (-0.68, 1.05)]
+    window = [(-1.50, BELT), (-1.36, ROOF), (-0.68, ROOF), (-0.68, BELT)]
     for side in (-1, 1):
         x = side * HALF_W
-        b.extrude(window, 0.012, (side * (HALF_W + 0.002), 0, 0), "carGlass", axis="x")
+        b.extrude(window, 0.012, (side * (HALF_W - 0.006), 0, 0), "carGlass", axis="x", material="glass")
         b.box((0.006, 0.006, 0.74), (x + side * 0.001, -0.63, 0.66), "vendingDark")  # door seam
         b.box((0.014, 0.1, 0.025), (x + side * 0.004, -0.76, 0.9), "vendingDark", shade=1.4)  # handle
         b.box((0.1, 0.03, 0.03), (side * (HALF_W + 0.05), -1.46, 1.2), "vendingDark")  # mirror arm
         b.box((0.03, 0.04, 0.2), (side * (HALF_W + 0.1), -1.47, 1.26), "vendingDark", bevel=0.008, segments=1)
-    b.box((1.0, 0.012, 0.42), (0, CAB_BACK + 0.004, 1.38), "carGlass")  # rear cab window
+    b.box((2 * (HALF_W - PILLAR) + 0.02, 0.012, ROOF - BELT), (0, CAB_BACK - 0.01, (ROOF + BELT) / 2), "carGlass", material="glass")  # rear cab window
 
 
 def _bed(b) -> None:

@@ -1,7 +1,7 @@
 """MeshBuilder: accumulates an asset's parts into ONE mesh. Each part gets a
 palette color (written as a per-corner color attribute) and a material slot,
 so the exported GLB is one object with one draw call per slot it uses
-(build.py allows at most three).
+(build.py allows at most four).
 
 Blender axes: X right, Z up, front faces −Y (becomes +Z after glTF Y-up export).
 All sizes are meters; the origin is the ground-contact center. Rotations are

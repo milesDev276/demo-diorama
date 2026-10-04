@@ -1,14 +1,17 @@
 """Kei car (軽自動車), tall-wagon type, 1.48 × 1.70 × 3.40 m — the kei size limits.
 
 A generic boxy body with no brand cues: an extruded side profile with wheel
-arches and rounded (bevelled) edges, a slightly narrower cabin with a raked
-windscreen, dark glass split by body-colored pillars, four wheels with
-hubcaps, lamps, mirrors, door seams and yellow kei plates front and rear
-(atlas cell `plate_kei`). Front faces −Y. No baked AO or grime (user
-decision, Stage 3).
+arches and rounded (bevelled) edges, and a slightly narrower cabin that is
+hollow: a roof on body-colored pillars, tinted glass all round (the `glass`
+slot), and seats, a dashboard and a steering wheel on the right inside. Four
+wheels with hubcaps, lamps, mirrors, door seams and yellow kei plates front
+and rear (atlas cell `plate_kei`). Front faces −Y. No baked AO or grime
+(user decision, Stage 3).
 """
 
 import math
+
+from lib.builder import arc_points
 
 NAME = "vehicle_kei_car_01"
 CATEGORY = "vehicles"
@@ -25,6 +28,11 @@ AXLES = (-1.12, 1.10)  # front, rear
 ARCH_R = 0.33
 BODY_BOTTOM = 0.20
 
+CABIN_W = 2 * HALF_W - 0.08
+BELT = 1.0  # bottom of the glass
+ROOF = 1.55  # top of the glass
+PILLAR = 0.11  # how far a pillar reaches in from the cabin's side
+
 
 def _arch(center_y: float) -> list[tuple[float, float]]:
     """Wheel-arch notch in the (y, z) profile, rear side first."""
@@ -38,6 +46,8 @@ def _arch(center_y: float) -> list[tuple[float, float]]:
 
 def build(b) -> None:
     _body(b)
+    _cabin(b)
+    _interior(b)
     _glass(b)
     _wheels(b)
     _front(b)
@@ -60,31 +70,60 @@ def _body(b) -> None:
         *_arch(AXLES[0]),
     ]
     b.extrude(lower, 2 * HALF_W, (0, 0, 0), "carBody", axis="x", bevel=0.04)
-    cabin = [(-1.20, 0.88), (-0.62, 1.58), (-0.50, 1.66), (1.52, 1.68), (1.66, 1.60), (REAR_Y - 0.01, 0.88)]
-    b.extrude(cabin, 2 * HALF_W - 0.08, (0, 0, 0), "carBody", axis="x", bevel=0.05)
     # Wheel wells: dark fill between the tyres so the arches don't show a tunnel
     for y in AXLES:
         b.box((2 * (HALF_W - WHEEL_W) - 0.02, 0.62, 0.36), (0, y, 0.44), "tireRubber", shade=0.7)
 
 
+def _cabin(b) -> None:
+    """The cabin's shell around the glass: the belt under it, the roof over
+    it and four pillars a side. Profiles are (y, z), like the body's."""
+    b.extrude([(-1.20, 0.88), (-1.10, BELT), (1.685, BELT), (REAR_Y - 0.01, 0.88)], CABIN_W, (0, 0, 0), "carBody", axis="x")
+    roof = [(-0.645, ROOF), (-0.62, 1.58), (-0.50, 1.66), (1.52, 1.68), (1.66, 1.60), (1.662, ROOF)]
+    b.extrude(roof, CABIN_W, (0, 0, 0), "carBody", axis="x", bevel=0.03)
+    pillars = [
+        [(-1.10, BELT), (-1.03, BELT), (-0.60, ROOF), (-0.645, ROOF)],
+        [(-0.05, BELT), (0.05, BELT), (0.05, ROOF), (-0.05, ROOF)],
+        [(0.86, BELT), (0.96, BELT), (0.96, ROOF), (0.86, ROOF)],
+        [(1.56, BELT), (1.685, BELT), (1.662, ROOF), (1.49, ROOF)],
+    ]
+    for side in (-1, 1):
+        for outline in pillars:
+            b.extrude(outline, PILLAR, (side * (CABIN_W - PILLAR) / 2, 0, 0), "carBody", axis="x")
+
+
+def _interior(b) -> None:
+    """What the glass shows: a dark floor, the dashboard, a steering wheel on
+    the right (−X when the front faces −Y), two front seats and a rear bench."""
+    b.box((CABIN_W - 0.06, 2.72, 0.012), (0, 0.29, BELT + 0.006), "vendingDark", shade=1.1)
+    b.box((CABIN_W - 0.1, 0.22, 0.09), (0, -0.88, BELT + 0.05), "vendingDark", shade=1.5, bevel=0.02, segments=1)
+    b.tube(arc_points((-0.33, -0.76, BELT + 0.17), 0.13, 0, 324, axis="y", segments=9), 0.016, "vendingDark", shade=0.9, sides=4, closed=True)
+    for x in (-0.33, 0.33):
+        b.box((0.44, 0.12, 0.36), (x, -0.36, BELT + 0.18), "carSeat", bevel=0.03, segments=1)
+        b.box((0.22, 0.09, 0.12), (x, -0.35, BELT + 0.43), "carSeat", shade=0.92, bevel=0.02, segments=1)
+    b.box((1.14, 0.12, 0.34), (0, 0.78, BELT + 0.17), "carSeat", bevel=0.03, segments=1)
+    for x in (-0.33, 0.33):
+        b.box((0.22, 0.09, 0.12), (x, 0.79, BELT + 0.41), "carSeat", shade=0.92, bevel=0.02, segments=1)
+
+
 def _glass(b) -> None:
-    # Windscreen: a thin slab along the rake, just proud of the cabin
-    a, c = (-1.14, 0.97), (-0.65, 1.53)
+    # Windscreen: a thin slab along the rake, between the front pillars
+    a, c = (-1.14, 0.97), (-0.64, 1.56)
     length = math.dist(a, c)
     tilt = math.degrees(math.atan2(c[0] - a[0], c[1] - a[1]))
     normal = (-(c[1] - a[1]) / length, (c[0] - a[0]) / length)
     mid = ((a[0] + c[0]) / 2 + normal[0] * 0.012, (a[1] + c[1]) / 2 + normal[1] * 0.012)
-    b.box((1.2, 0.012, length), (0, mid[0], mid[1]), "carGlass", rotation=(-tilt, 0, 0))
+    b.box((CABIN_W - 2 * PILLAR + 0.02, 0.012, length), (0, mid[0], mid[1]), "carGlass", rotation=(-tilt, 0, 0), material="glass")
 
     windows = [
-        [(-1.03, 1.0), (-0.62, 1.5), (-0.05, 1.53), (-0.05, 1.0)],
-        [(0.05, 1.0), (0.05, 1.54), (0.86, 1.55), (0.86, 1.0)],
-        [(0.96, 1.0), (0.96, 1.55), (1.48, 1.56), (1.56, 1.0)],
+        [(-1.03, BELT), (-0.60, ROOF), (-0.05, ROOF), (-0.05, BELT)],
+        [(0.05, BELT), (0.05, ROOF), (0.86, ROOF), (0.86, BELT)],
+        [(0.96, BELT), (0.96, ROOF), (1.49, ROOF), (1.56, BELT)],
     ]
     for side in (-1, 1):
         for outline in windows:
-            b.extrude(outline, 0.012, (side * (HALF_W - 0.034), 0, 0), "carGlass", axis="x")
-    b.box((1.18, 0.012, 0.5), (0, REAR_Y + 0.004, 1.32), "carGlass")
+            b.extrude(outline, 0.012, (side * (HALF_W - 0.046), 0, 0), "carGlass", axis="x", material="glass")
+    b.box((CABIN_W - 2 * PILLAR + 0.02, 0.012, ROOF - BELT), (0, 1.672, (ROOF + BELT) / 2), "carGlass", rotation=(-2.4, 0, 0), material="glass")
 
 
 def _wheels(b) -> None:

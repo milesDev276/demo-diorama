@@ -61,6 +61,7 @@ export const DIORAMA_COLORS = {
   subsoilDark: "#5f4c3e",
   mirrorOrange: "#d98236",
   mirrorGlass: "#b7ccd4",
+  glassPane: "#c3d6d8",
 
   // Infrastructure
   poleConcrete: "#9c978b",
@@ -96,6 +97,7 @@ export const DIORAMA_COLORS = {
   tireRubber: "#2f2d2b",
   metalLight: "#c4c7c8",
   bikeFrame: "#7d98a3",
+  carSeat: "#6c6a6c",
 
   // People (model-railway figures: flat painted colors)
   clothNavy: "#46506a",

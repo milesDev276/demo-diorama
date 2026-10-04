@@ -168,7 +168,8 @@ How:
   * a vertex-color `MeshStandardMaterial`
   * an emissive material
   * a printed material
-* **At most 3 draw calls per object.**
+* **At most 3 draw calls per object** (4 since Stage 12, which added the
+  `glass` slot).
 * **Loading:**
   * `useGLTF` + drei `<Clone>` with shadows on
   * a per-object `Suspense` placeholder, so one loading asset never
@@ -579,8 +580,7 @@ a plot, and it reads as the same miniature as the corner base.
 
 ### Stage 11 — Library breadth
 
-**Status:** implemented and verified on branch `stage11-library`,
-2026-10-04; not merged yet. See [Stage-11-Implementation.md](Stage-11-Implementation.md) §6.
+**Status:** done, merged (PR #14). See [Stage-11-Implementation.md](Stage-11-Implementation.md) §6.
 
 * From Blender: a **convenience store**, a **bus stop**, a **street light**,
   a **utility cabinet**, a **bench**, a **traffic cone**, a **garbage cage**,
@@ -588,6 +588,22 @@ a plot, and it reads as the same miniature as the corner base.
 * Two built-in kits: **Bus Stop** and **Collection Point**.
 
 **Done when:** every library category offers a choice, in one style.
+
+### Stage 12 — Glass and lit signs
+
+**Status:** implemented and verified on branch `stage12-glass`,
+2026-10-04; not merged yet. See [Stage-12-Implementation.md](Stage-12-Implementation.md) §6.
+
+* A fifth material slot, **`glass`**; the draw-call limit is four.
+* **Glass and a room behind it** for the small shop and the convenience
+  store, panes for the modular shopfront, **hollow cabins with seats** for
+  the kei car and the kei truck.
+* **Backlit prints:** a second atlas as the printed material's emissive map,
+  switched on by the time of day.
+* **Lettering** on the small shop's and the convenience store's signs.
+
+**Done when:** windows that should be glass are glass, and signs are not
+dark after sunset.
 
 ---
 

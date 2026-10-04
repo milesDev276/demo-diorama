@@ -6,7 +6,7 @@ import { DIORAMA_COLORS } from "../../utils/palette";
 import { layoutBuilding, type BuildingModule } from "./buildingLayout";
 
 /** The material slots a building renders with (objects/materials.ts). */
-export const BUILDING_SLOTS = ["base", "emissive", "printed"] as const;
+export const BUILDING_SLOTS = ["base", "emissive", "printed", "glass"] as const;
 export type BuildingSlot = (typeof BUILDING_SLOTS)[number];
 
 export type SlotGeometries = Partial<Record<BuildingSlot, BufferGeometry>>;
@@ -193,7 +193,7 @@ const ROOFS: Record<BuildingParams["roof"], (faces: FaceBuilder, width: number, 
  * (and disposes) the result.
  */
 export function buildBuildingGeometry(params: BuildingParams, modules: ModuleGeometries): SlotGeometries {
-  const parts: Record<BuildingSlot, BufferGeometry[]> = { base: [], emissive: [], printed: [] };
+  const parts: Record<BuildingSlot, BufferGeometry[]> = { base: [], emissive: [], printed: [], glass: [] };
   const matrix = new Matrix4();
   const rotation = new Quaternion();
   const euler = new Euler();
