@@ -23,7 +23,7 @@ function cluster(kind: ScatterKind, seed: number, patches: Array<[x: number, z: 
 }
 
 /**
- * The four kits shipped with the app (plan/Stage-6-Implementation.md D8).
+ * The kits shipped with the app (plan/Stage-6-Implementation.md D8).
  * Ids are fixed: the library keys and thumbnails are named after them.
  */
 export const BUILT_IN_KITS: Kit[] = [
@@ -71,6 +71,24 @@ export const BUILT_IN_KITS: Kit[] = [
       item("chair", 1.15, 0.9, 3.4),
       item("pottedPlant", -1.5, 1.0, 0.7),
       item("pottedPlant", -1.1, 1.2, 2.6, 0.8),
+    ],
+  },
+  {
+    id: "bus-stop",
+    name: "Bus Stop",
+    builtIn: true,
+    // The sign at the curb, the bench behind it, a child waiting.
+    objects: [item("busStop", -1.25, 0.55), item("bench", 0.1, 0), item("student", 1.3, 0.5, 0.3)],
+  },
+  {
+    id: "collection-point",
+    name: "Collection Point",
+    builtIn: true,
+    objects: [
+      item("garbageStation", 0, 0),
+      item("trafficCone", 0.95, 0.2, 0.4),
+      item("trafficCone", 1.4, 0.05, 1.3),
+      cluster("weeds", 701, [[-0.9, 0.05, 0.3]]),
     ],
   },
 ];

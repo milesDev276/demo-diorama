@@ -37,6 +37,17 @@ export const DIORAMA_OBJECT_TYPES = [
   "parkingBay",
   "guardRail",
   "fence",
+  "konbini",
+  "busStop",
+  "streetLight",
+  "utilityBox",
+  "bench",
+  "trafficCone",
+  "garbageStation",
+  "keiTruck",
+  "scooter",
+  "shopkeeper",
+  "student",
 ] as const;
 
 export type DioramaObjectType = (typeof DIORAMA_OBJECT_TYPES)[number];

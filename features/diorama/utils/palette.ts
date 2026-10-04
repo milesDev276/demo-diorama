@@ -87,6 +87,8 @@ export const DIORAMA_COLORS = {
   plateYellow: "#e6c34f",
   terracotta: "#b8734f",
   tankCream: "#e3dcc4",
+  coneRed: "#cf5236",
+  lampWhite: "#f3f0e4",
 
   // Vehicles
   carBody: "#a9c4b6",
@@ -98,6 +100,8 @@ export const DIORAMA_COLORS = {
   // People (model-railway figures: flat painted colors)
   clothNavy: "#46506a",
   clothBeige: "#bba98b",
+  clothWhite: "#e9e5db",
+  clothGray: "#77757a",
   skin: "#dfb896",
   hairDark: "#3b322c",
 
