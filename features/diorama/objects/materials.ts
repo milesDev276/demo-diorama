@@ -9,6 +9,7 @@ import {
   RepeatWrapping,
   Vector3,
   type Material,
+  type WebGLProgramParametersWithUniforms,
 } from "three";
 import { DIORAMA_COLORS } from "../utils/palette";
 import { TIME_OF_DAY_LOOKS } from "../utils/timeOfDay";
@@ -22,7 +23,8 @@ import { getGraphicsAtlas, getLitAtlas } from "./textures/graphicsAtlas";
  * and panes you can see through a fifth, `glass`.
  * App-built bases use `ground` and `decal`, overhead wires `wire`. All
  * instances share these few shader programs, and the look is tuned in one
- * place.
+ * place. The weather wets or snows on `base`, `foliage` and `ground`
+ * through two uniforms (setWeatherSurface).
  */
 
 /** Glow of every `emissive` slot (windows, shop interiors, vending fronts): one
@@ -33,10 +35,50 @@ let emissiveLevel = TIME_OF_DAY_LOOKS.day.emissive;
 /** Glow of backlit prints, set by the time of day (setSignGlow); off until a scene sets it. */
 let signGlow = TIME_OF_DAY_LOOKS.day.signs;
 
+/** What the weather shader patch reads: how wet and how snowed on surfaces are (0–1), and the colors of snow and of standing water. */
+const weatherSurface = {
+  weatherWet: { value: 0 },
+  weatherSnow: { value: 0 },
+  weatherSnowColor: { value: new Color(DIORAMA_COLORS.snow) },
+  weatherPuddleColor: { value: new Color(DIORAMA_COLORS.puddle) },
+};
+
+/** How much of road lettering shows through full snow. */
+const DECAL_UNDER_SNOW = 0.15;
+let decalOpacity = 1;
+
+const WEATHER_UNIFORMS_GLSL = "uniform float weatherWet;\nuniform float weatherSnow;\nuniform vec3 weatherSnowColor;\nuniform vec3 weatherPuddleColor;";
+
+/**
+ * Adds the weather to a standard material's shader, once its normal is
+ * known (r184 chunk names): snow whitens faces that look up, rain darkens
+ * every face a little and makes the up-facing ones glossy. `puddle` is a
+ * GLSL expression, 0–1, for where water stands: there the surface shows
+ * the sky instead of itself. (The environment map is a few Lightformers,
+ * so a real mirror would mostly reflect nothing.) With both uniforms at
+ * 0 — clear weather — no pixel changes.
+ */
+function patchWeather(shader: WebGLProgramParametersWithUniforms, puddle = "0.0"): void {
+  Object.assign(shader.uniforms, weatherSurface);
+  const surface = [
+    "float weatherUp = smoothstep(0.35, 0.75, inverseTransformDirection(normal, viewMatrix).y);",
+    `float weatherPuddle = weatherWet * weatherUp * (${puddle});`,
+    "diffuseColor.rgb = mix(diffuseColor.rgb * (1.0 - 0.2 * weatherWet), weatherPuddleColor, 0.5 * weatherPuddle);",
+    "diffuseColor.rgb = mix(diffuseColor.rgb, weatherSnowColor, weatherSnow * weatherUp);",
+    "roughnessFactor = mix(roughnessFactor, mix(0.35, 0.08, weatherPuddle), weatherWet * weatherUp);",
+  ];
+  shader.fragmentShader = shader.fragmentShader
+    .replace("#include <common>", `#include <common>\n${WEATHER_UNIFORMS_GLSL}`)
+    .replace("#include <normal_fragment_maps>", `#include <normal_fragment_maps>\n\t${surface.join("\n\t")}`);
+}
+
 const BASE_ROUGHNESS = 0.65;
 
 function createBaseMaterial() {
-  return new MeshStandardMaterial({ vertexColors: true, roughness: BASE_ROUGHNESS, metalness: 0 });
+  const material = new MeshStandardMaterial({ vertexColors: true, roughness: BASE_ROUGHNESS, metalness: 0 });
+  material.onBeforeCompile = (shader) => patchWeather(shader);
+  material.customProgramCacheKey = () => "diorama-base-weather";
+  return material;
 }
 
 /** Lit like `base`, plus an emission tinted by the vertex color — as in the
@@ -82,6 +124,7 @@ function createFoliageMaterial() {
         "#include <color_fragment>",
         "#include <color_fragment>\n\tdiffuseColor.rgb = mix(diffuseColor.rgb, seasonLeaf * dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)), seasonMix);"
       );
+    patchWeather(shader);
   };
   material.customProgramCacheKey = () => "diorama-foliage-season";
   return material;
@@ -168,6 +211,11 @@ float groundGrain() {
   float speckle = texture2D(grainMap, p * ${(GRAIN_FREQUENCY / GRAIN_SIZE).toFixed(5)}).r - 0.5;
   return 1.0 + vGrain.x * speckle * 2.0 + vGrain.y * blotch * 2.0;
 }
+// Where water stands on wet ground: 0 = damp, 1 = a puddle. Patches a meter or two across.
+float groundPuddle() {
+  vec2 p = vGroundPosition.xz;
+  return smoothstep(0.56, 0.64, 0.65 * texture2D(grainMap, p / 190.0 + 0.11).r + 0.35 * texture2D(grainMap, p / 70.0 + 0.53).r);
+}
 `;
 
 /** Matte vertex-colored surfaces of an app-built base: asphalt, concrete,
@@ -187,6 +235,7 @@ function createGroundMaterial() {
     shader.fragmentShader = shader.fragmentShader
       .replace("#include <common>", `#include <common>\n${GROUND_GRAIN_GLSL}`)
       .replace("#include <color_fragment>", "#include <color_fragment>\n\tdiffuseColor.rgb *= groundGrain();");
+    patchWeather(shader, "groundPuddle()");
   };
   material.customProgramCacheKey = () => "diorama-ground-grain";
   return material;
@@ -198,6 +247,7 @@ function createDecalMaterial() {
   return new MeshStandardMaterial({
     map: getGraphicsAtlas(),
     transparent: true,
+    opacity: decalOpacity,
     depthWrite: false,
     polygonOffset: true,
     polygonOffsetFactor: -4,
@@ -269,6 +319,15 @@ export function setSignGlow(level: number): void {
   signGlow = level;
   const material = materials.get("printed") as MeshStandardMaterial | undefined;
   if (material) material.emissiveIntensity = level;
+}
+
+/** Sets how wet and how snowed on surfaces are (a weather's `wet` and `snow`, 0–1). Road lettering fades under snow. */
+export function setWeatherSurface(wet: number, snow: number): void {
+  weatherSurface.weatherWet.value = wet;
+  weatherSurface.weatherSnow.value = snow;
+  decalOpacity = 1 - (1 - DECAL_UNDER_SNOW) * snow;
+  const decal = materials.get("decal");
+  if (decal) decal.opacity = decalOpacity;
 }
 
 /**

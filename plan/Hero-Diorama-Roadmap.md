@@ -591,8 +591,7 @@ a plot, and it reads as the same miniature as the corner base.
 
 ### Stage 12 — Glass and lit signs
 
-**Status:** implemented and verified on branch `stage12-glass`,
-2026-10-04; not merged yet. See [Stage-12-Implementation.md](Stage-12-Implementation.md) §6.
+**Status:** done, merged (PR #15). See [Stage-12-Implementation.md](Stage-12-Implementation.md) §6.
 
 * A fifth material slot, **`glass`**; the draw-call limit is four.
 * **Glass and a room behind it** for the small shop and the convenience
@@ -604,6 +603,21 @@ a plot, and it reads as the same miniature as the corner base.
 
 **Done when:** windows that should be glass are glass, and signs are not
 dark after sunset.
+
+### Stage 13 — Weather
+
+**Status:** implemented and verified on branch `stage13-weather`,
+2026-10-05; not merged yet. See [Stage-13-Implementation.md](Stage-13-Implementation.md) §6.
+
+* **`environment.weather`:** clear, cloudy, rain, fog, snow — one record
+  each in `utils/weather.ts`, applied to the time of day's look.
+* **Wet ground with puddles and snow on every face that looks up,** as two
+  uniforms of the shared materials.
+* **Falling rain and snow,** one draw call each.
+* Chosen in the Scene panel and in the photo bar.
+
+**Done when:** a scene can be photographed in the rain, in fog and under
+snow, and a clear scene has not changed.
 
 ---
 

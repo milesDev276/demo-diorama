@@ -20,13 +20,15 @@ import { GroundBar } from "./GroundBar";
 import { CameraControls } from "./CameraControls";
 import { PostEffects } from "./PostEffects";
 import { SceneFog } from "./SceneFog";
+import { WeatherParticles } from "./WeatherParticles";
 import { HeroBlockout } from "./dev/HeroBlockout";
 import { DevRendererHandle } from "./dev/DevRendererHandle";
 import { cn } from "@/lib/cn";
 import { ASSET_REGISTRY, MODEL_URLS } from "../assets/assetRegistry";
 import { getBaseTemplate } from "../utils/baseTemplates";
 import { PHOTO_ASPECT_RATIOS } from "../utils/photo";
-import { skyGradient, TIME_OF_DAY_LOOKS } from "../utils/timeOfDay";
+import { skyGradient } from "../utils/timeOfDay";
+import { sceneLook } from "../utils/weather";
 
 /** The mat around a photo frame. Its padding keeps the frame clear of the photo bar. */
 const MAT_STYLE = { background: "#26201c", containerType: "size" } as const;
@@ -54,12 +56,13 @@ export function DioramaCanvas() {
   // Only what the canvas itself draws with: a painted ground changes `environment` on every stamp of the brush.
   const timeOfDay = useDioramaStore((s) => s.environment.timeOfDay);
   const season = useDioramaStore((s) => s.environment.season);
-  const sceneEnvironment = useMemo(() => ({ timeOfDay, season }), [timeOfDay, season]);
+  const weather = useDioramaStore((s) => s.environment.weather);
+  const sceneEnvironment = useMemo(() => ({ timeOfDay, season, weather }), [timeOfDay, season, weather]);
   const template = useDioramaStore((s) => getBaseTemplate(s.environment));
   // In Preview a photo frame gives the canvas itself its shape, so what is framed is what is exported.
   const frameRatio = useDioramaStore((s) => (s.isPreviewMode ? PHOTO_ASPECT_RATIOS[s.photo.aspect] : null));
-  // Inline because the stops come from the time of day, which SkyBackdrop in Preview also uses.
-  const skyStyle = { background: skyGradient(TIME_OF_DAY_LOOKS[timeOfDay]) };
+  // Inline because the stops come from the time of day and the weather, which SkyBackdrop in Preview also uses.
+  const skyStyle = { background: skyGradient(sceneLook(timeOfDay, weather)) };
   const clearSelection = useDioramaStore((s) => s.clearSelection);
   const [devFlag] = useState(getDevFlag);
   const showBlockout = devFlag === "blockout";
@@ -95,7 +98,7 @@ export function DioramaCanvas() {
           }}
           gl={{ antialias: true, toneMapping: NeutralToneMapping }}
         >
-          {/* Everything in the canvas is drawn in the scene's time of day and season. */}
+          {/* Everything in the canvas is drawn in the scene's time of day, season and weather. */}
           <SceneEnvironmentContext.Provider value={sceneEnvironment}>
             <CameraControls />
             <SceneFog />
@@ -104,6 +107,7 @@ export function DioramaCanvas() {
             <EnvironmentDriver />
             <SceneLighting />
             {!showBlockout && <SceneGlowLights />}
+            <WeatherParticles />
             {/* The blockout is the hero scene, so it always stands on the corner base. */}
             <Ground blockout={showBlockout} />
             {showBlockout && (

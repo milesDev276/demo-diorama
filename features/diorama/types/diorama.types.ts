@@ -189,6 +189,11 @@ export const SEASONS = ["spring", "summer", "autumn", "winter"] as const;
 
 export type Season = (typeof SEASONS)[number];
 
+/** What the sky is doing (utils/weather.ts). */
+export const WEATHERS = ["clear", "cloudy", "rain", "fog", "snow"] as const;
+
+export type Weather = (typeof WEATHERS)[number];
+
 /** Scene-level environment settings. `background` and `ground` have one
  *  variant each today; `base` selects the base template. */
 export interface DioramaEnvironment {
@@ -197,6 +202,7 @@ export interface DioramaEnvironment {
   base: DioramaBase;
   timeOfDay: TimeOfDay;
   season: Season;
+  weather: Weather;
   plinth: PlinthStyle;
   /** The painted ground of the `plot` base. Kept, but not drawn, on the other bases. */
   surface?: SurfaceMap;

@@ -1,4 +1,4 @@
-# Handoff — Hero Diorama Work (as of 2026-10-04, after Stage 12)
+# Handoff — Hero Diorama Work (as of 2026-10-05, after Stage 13)
 
 Read this first when picking up the work. It summarizes where things
 stand, what was decided and why, how to run and verify things, and what
@@ -24,19 +24,20 @@ comes next. Details live in the linked plan files.
 | Stage 9: finished streets on a plot (and a hydration-warning fix) | Done | `main` (PR #12) |
 | Stage 10: legacy cleanup | Done | `main` (PR #13) |
 | Stage 11: library breadth (eleven assets) | Done | `main` (PR #14) |
-| Stage 12: glass and lit signs | Implemented and verified; **not committed** | branch `stage12-glass` (working tree) |
+| Stage 12: glass and lit signs | Done | `main` (PR #15) |
+| Stage 13: weather | Implemented and verified; **not committed** | branch `stage13-weather` (working tree) |
 
-Stage 7 was the last stage of the original roadmap; Stages 8 to 12 were added
+Stage 7 was the last stage of the original roadmap; Stages 8 to 13 were added
 at the user's request.
 
-**`main` holds Stages 0–11** (last merge: PR #14, `d5c80c4`). Stage 12 is
-in the working tree of `stage12-glass`, uncommitted.
+**`main` holds Stages 0–12** (last merge: PR #15, `c63af07`). Stage 13 is
+in the working tree of `stage13-weather`, uncommitted.
 
-**Immediate next action:** the user commits Stage 12 and opens its PR; then
+**Immediate next action:** the user commits Stage 13 and opens its PR; then
 ask what comes next (§7 lists the candidates).
 The user merges PRs themselves, one branch per stage; cut the
 next branch from an up-to-date `main` (`git fetch`, then fast-forward).
-(For Stages 6 to 12 the user handed every decision
+(For Stages 6 to 13 the user handed every decision
 to Claude, so the plan was settled with its defaults and implemented without
 a separate approval round. Ask again at the start of new work; it is not a
 standing rule.)
@@ -65,6 +66,7 @@ can be dropped once the user agrees.
 | [Stage-10-Implementation.md](Stage-10-Implementation.md) | The house, shop, garden tree and stone as GLBs, the street strip read into a plot, the legacy unit deleted: decisions D1–D4 and results (§6) |
 | [Stage-11-Implementation.md](Stage-11-Implementation.md) | Eleven assets for the thin categories (konbini, bus stop, street light, utility cabinet, bench, cone, garbage cage, kei truck, scooter, shopkeeper, schoolchild), two atlas cells, two kits: decisions D1–D5 and results (§6) |
 | [Stage-12-Implementation.md](Stage-12-Implementation.md) | The `glass` slot, rooms behind shop glass, hollow vehicle cabins, the lit atlas, two sign cells: decisions D1–D7 and results (§6) |
+| [Stage-13-Implementation.md](Stage-13-Implementation.md) | Weather as scene data, the weather looks, wet and snowed-on surfaces, falling rain and snow: decisions D1–D7 and results (§6) |
 | `Phase-*.md` | Earlier phases, kept for history |
 
 ## 3. Decisions That Must Not Be Re-litigated
@@ -324,6 +326,34 @@ Stage 12:
   and under `bus_stop_board` (from y 792); the strip under `plate_kei` is
   used by the two sign cells.
 
+Stage 13:
+
+* **`environment.weather` is scene data,** additive (files stay v2); a
+  missing or unknown value loads as `"clear"`. Not on the undo stack.
+* **One record per weather, in `utils/weather.ts`,** and it holds factors
+  only. `sceneLook(timeOfDay, weather)` applies one to a time of day and
+  returns a `TimeOfDayLook`; `useTimeOfDayLook()` returns that. Read a look
+  through one of the two, never `TIME_OF_DAY_LOOKS[...]` directly, or the
+  weather is skipped. Absolute lighting numbers stay in `utils/timeOfDay.ts`.
+* **Clear weather is the time of day's own record** (the same object), and
+  the weather shader patch leaves every pixel alone at 0: a clear scene is
+  pixel-identical to Stage 12.
+* **Wet and snow are uniforms** of `base`, `foliage` and `ground`
+  (`patchWeather`, `setWeatherSurface` in `objects/materials.ts`), pushed by
+  `EnvironmentDriver`. A new lit material that should get snow needs the
+  patch; `emissive`, `printed` and `glass` do not have it.
+* **A puddle is a color, not a mirror:** the environment map is four
+  Lightformers, and from the editing camera a mirror on the ground reflects
+  the empty part of it. Puddles blend toward the palette's `puddle`.
+* **A look has `shadow` and `haze`** (shadow strength and radius, fog
+  distances); `SceneLighting` and `SceneFog` hold no numbers any more. Each
+  Lightformer has a `name`, which the weather scales by.
+* **Rain and snow are `components/WeatherParticles.tsx`:** one
+  `LineSegments` or `Points` over the base, moved in the vertex shader from
+  one time uniform, written through the material's ref. A flake's size is
+  in meters: the shader gets the height of the target it is drawn into
+  (`onBeforeRender`), so a larger export keeps it.
+
 ## 4. How to Run and Verify
 
 The platform is Windows. Node 22.14, Chrome, and Blender 5.2.2 LTS at
@@ -522,6 +552,12 @@ node scripts/capture-template.mjs
   (`keys`). `renderOrder` is not among Clone's default keys.
 * **A transparent material still casts a full shadow** in three. Switch
   `castShadow` off on the mesh.
+* **Low roughness alone shows nothing on the ground:** there is little in
+  the environment map to reflect. A glossy surface only catches the sun and
+  the glow lights (which is what a wet road at night should do).
+* **A scripted edit that fails halfway writes nothing** if the script writes
+  once at the end — and `sed -i` in Git Bash turns a CRLF file into LF.
+  Check `file <path>` after scripted edits.
 
 ## 6. Known Limitations and Existing Behaviors (not bugs of these stages)
 
@@ -550,6 +586,10 @@ node scripts/capture-template.mjs
 * **Glass has one opacity, reflects nothing and casts no shadow;** panes
   inside an object are not sorted; sign texts are fixed. The full list is
   in Stage-12-Implementation.md §6.
+* **Rain and snow fall through roofs and only over the base; snow lies
+  on every face that looks up, also under a roof; rain streaks are one
+  pixel wide at every export size.** The full list is in
+  Stage-13-Implementation.md §6.
 * **Redo does not restore the selection.**
 * **Duplicates are not clamped to the plot.**
 * **The editing camera does not fit the scene to a small window.**
@@ -564,12 +604,14 @@ node scripts/capture-template.mjs
 
 ## 7. Next
 
-The roadmap's seven stages and Stages 8 to 12 are implemented; Stage 12 is
+The roadmap's seven stages and Stages 8 to 13 are implemented; Stage 13 is
 not committed yet. Nothing further is planned or approved; ask the user
 what comes next.
 
-* **Open from Stage 12:** not committed; not tried in the user's own
-  browser. Old scenes change in look (panes, a narrower shop signboard).
+* **Open from Stage 13:** not committed; not tried in the user's own
+  browser. The starters do not use a weather.
+* **Open from Stage 12:** not tried in the user's own browser. Old scenes
+  change in look (panes, a narrower shop signboard).
 * **Open from Stage 11:** the starters do not use the new assets; the two
   new kits were checked as thumbnails only; not tried in the user's own
   browser.
@@ -591,7 +633,8 @@ what comes next.
   * more figures in other poses (walking, sitting, cycling)
   * more buildings as fixed models (apartment block, traditional house)
   * a saved camera and photo settings per scene (CLAUDE.md §12)
-  * weather (CLAUDE.md §25; outside the hero roadmap)
+  * weather props and details: umbrellas, a figure with one, rain that
+    stops at roofs, snow as a ground kind
 * **Backend (CLAUDE.md Phase 6):** the user raised it after Stage 9
   (2026-10-03), worried about file sizes. `public/` was 3.7 MB, so assets
   stay in the repo; the proposal made was Supabase (Postgres + Auth +
