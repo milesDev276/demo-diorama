@@ -8,6 +8,7 @@ export const DEFAULT_ENVIRONMENT: DioramaEnvironment = {
   base: "corner",
   timeOfDay: "day",
   season: "autumn",
+  weather: "clear",
   plinth: "dark",
 };
 

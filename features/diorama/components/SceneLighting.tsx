@@ -4,7 +4,7 @@ import { useDioramaStore } from "../store/dioramaStore";
 import { getBaseTemplate } from "../utils/baseTemplates";
 
 /**
- * Soft miniature lighting (meters), set by the canvas's time of day
+ * Soft miniature lighting (meters), set by the canvas's time of day and weather
  * (utils/timeOfDay.ts, hooks/useSceneEnvironment.ts). One sun — the moon at night — casts soft PCF
  * shadows. A small procedural environment — Lightformers, no HDRI file —
  * gives sky fill from above, a glow from the sun side and a little ground
@@ -37,7 +37,8 @@ export function SceneLighting() {
         shadow-camera-far={120}
         shadow-bias={-0.001}
         shadow-normalBias={0.02}
-        shadow-radius={4}
+        shadow-radius={look.shadow.radius}
+        shadow-intensity={look.shadow.strength}
       />
       <Environment resolution={256} frames={1} environmentIntensity={look.environment.intensity}>
         {look.environment.formers.map((former, i) => (

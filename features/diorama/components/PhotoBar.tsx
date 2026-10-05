@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Camera, Loader2 } from "lucide-react";
 import { useDioramaStore } from "../store/dioramaStore";
 import { PHOTO_ASPECTS } from "../types/diorama.types";
-import { timeOfDayOptions } from "../utils/environmentOptions";
+import { timeOfDayOptions, WEATHER_OPTIONS } from "../utils/environmentOptions";
 import { PHOTO_ASPECT_LABELS, PHOTO_BLUR_RANGE, PHOTO_EXPOSURE_RANGE, PHOTO_SCALES } from "../utils/photo";
 import { SegmentedControl } from "./SegmentedControl";
 
@@ -44,13 +44,15 @@ const Divider = () => <span aria-hidden className="hidden h-5 w-px bg-[#8b6f52]/
 type SaveState = { status: "idle" } | { status: "saving" } | { status: "saved"; text: string } | { status: "failed" };
 
 /**
- * The photo studio's controls, along the bottom of Preview: the light, the
+ * The photo studio's controls, along the bottom of Preview: the light, the weather, the
  * frame, focus blur and exposure, and saving the frame as a PNG. Clicking
  * the scene sets the focus (PhotoStudio). Esc leaves Preview.
  */
 export function PhotoBar({ onExit }: { onExit: () => void }) {
   const timeOfDay = useDioramaStore((s) => s.environment.timeOfDay);
   const setTimeOfDay = useDioramaStore((s) => s.setTimeOfDay);
+  const weather = useDioramaStore((s) => s.environment.weather);
+  const setWeather = useDioramaStore((s) => s.setWeather);
   const photo = useDioramaStore((s) => s.photo);
   const setPhoto = useDioramaStore((s) => s.setPhoto);
   const photoApi = useDioramaStore((s) => s.photoApi);
@@ -96,6 +98,7 @@ export function PhotoBar({ onExit }: { onExit: () => void }) {
 
         <Divider />
         <SegmentedControl label="Time of day" options={TIME_OPTIONS} value={timeOfDay} onChange={setTimeOfDay} compact />
+        <SegmentedControl label="Weather" options={WEATHER_OPTIONS} value={weather} onChange={setWeather} compact />
         <SegmentedControl label="Photo frame" options={ASPECT_OPTIONS} value={photo.aspect} onChange={(aspect) => setPhoto({ aspect })} />
 
         <Divider />

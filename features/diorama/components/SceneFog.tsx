@@ -4,13 +4,10 @@ import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import type { Fog, Vector3 } from "three";
 import { useTimeOfDayLook } from "../hooks/useSceneEnvironment";
-/** Haze starts this far (meters) past the orbit target and is complete this far past it. */
-const FOG_START = 11;
-const FOG_END = 83;
 
 /**
- * Soft haze on the far edge of the diorama, in the middle color of the
- * sky. Measured from the orbit target rather than the camera, so the
+ * Soft haze on the far edge of the diorama — or, in fog, over most of it —
+ * in the middle color of the sky. Its distances are the look's `haze`, measured from the orbit target rather than the camera, so the
  * orthographic editing camera and the more distant perspective Preview
  * camera fade the scene the same way.
  */
@@ -23,8 +20,8 @@ export function SceneFog() {
     const target = (controls as { target?: Vector3 } | null)?.target;
     if (!fog || !target) return;
     const distance = camera.position.distanceTo(target);
-    fog.near = distance + FOG_START;
-    fog.far = distance + FOG_END;
+    fog.near = distance + look.haze.start;
+    fog.far = distance + look.haze.end;
   });
 
   return <fog ref={fogRef} attach="fog" args={[look.sky.middle, 90, 162]} />;

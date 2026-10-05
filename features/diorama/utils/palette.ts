@@ -107,6 +107,10 @@ export const DIORAMA_COLORS = {
   skin: "#dfb896",
   hairDark: "#3b322c",
 
+  // Weather
+  snow: "#eef2f6",
+  puddle: "#b4c2cf",
+
   // Editor
   selection: "#f0b27a",
   locked: "#9db4c0",

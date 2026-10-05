@@ -24,6 +24,7 @@ import type {
   TimeOfDay,
   TransformMode,
   Vector3Tuple,
+  Weather,
 } from "../types/diorama.types";
 import { ASSET_REGISTRY } from "../assets/assetRegistry";
 import { FIRST_VISIT_TEMPLATE, SCENE_TEMPLATES } from "../assets/sceneTemplates";
@@ -202,6 +203,8 @@ interface DioramaState {
   setTimeOfDay: (timeOfDay: TimeOfDay) => void;
   /** Changes the season. Not on the undo stack. */
   setSeason: (season: Season) => void;
+  /** Changes the weather. Not on the undo stack. */
+  setWeather: (weather: Weather) => void;
   /** Changes the finish of the platform. Not on the undo stack. */
   setPlinth: (plinth: PlinthStyle) => void;
   resetScene: () => void;
@@ -705,6 +708,9 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
 
   setSeason: (season) =>
     set((state) => (state.environment.season === season ? state : { environment: { ...state.environment, season } })),
+
+  setWeather: (weather) =>
+    set((state) => (state.environment.weather === weather ? state : { environment: { ...state.environment, weather } })),
 
   setPlinth: (plinth) =>
     set((state) => (state.environment.plinth === plinth ? state : { environment: { ...state.environment, plinth } })),

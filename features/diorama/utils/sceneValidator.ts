@@ -1,4 +1,4 @@
-import { DIORAMA_BASES, DIORAMA_OBJECT_TYPES, PLINTH_STYLES, SEASONS, TIMES_OF_DAY } from "../types/diorama.types";
+import { DIORAMA_BASES, DIORAMA_OBJECT_TYPES, PLINTH_STYLES, SEASONS, TIMES_OF_DAY, WEATHERS } from "../types/diorama.types";
 import type {
   DioramaEnvironment,
   DioramaObject,
@@ -87,7 +87,7 @@ function oneOf<T extends string>(known: readonly T[], value: unknown, fallback: 
 }
 
 /**
- * Keeps the file's base, time of day, season, plinth and painted ground
+ * Keeps the file's base, time of day, season, weather, plinth and painted ground
  * where this app knows them; everything else is the default. A plot
  * without a usable ground gets the default one. A scene on the retired
  * street strip (`strip`) becomes a plot with the strip's ground, on the
@@ -99,6 +99,7 @@ function normalizeEnvironment(raw: Record<string, unknown>, strip: boolean): Dio
     base: strip ? "plot" : oneOf(DIORAMA_BASES, raw.base, DEFAULT_ENVIRONMENT.base),
     timeOfDay: oneOf(TIMES_OF_DAY, raw.timeOfDay, DEFAULT_ENVIRONMENT.timeOfDay),
     season: oneOf(SEASONS, raw.season, DEFAULT_ENVIRONMENT.season),
+    weather: oneOf(WEATHERS, raw.weather, DEFAULT_ENVIRONMENT.weather),
     plinth: oneOf(PLINTH_STYLES, raw.plinth, strip ? "earth" : DEFAULT_ENVIRONMENT.plinth),
   };
   // Optional fields are only written when present, so files without them round-trip unchanged.
