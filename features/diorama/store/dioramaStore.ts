@@ -18,6 +18,7 @@ import type {
   PlinthStyle,
   SaveStatus,
   ScatterKind,
+  ScenePhotoSettings,
   Season,
   SurfaceKind,
   SurfaceMap,
@@ -30,11 +31,14 @@ import { ASSET_REGISTRY } from "../assets/assetRegistry";
 import { FIRST_VISIT_TEMPLATE, SCENE_TEMPLATES } from "../assets/sceneTemplates";
 import {
   deltaToParentFrame,
+  getSelectionCenter,
   getSubtreeIds,
   getTopLevelIds,
+  getTurnableIds,
   getWorldTransform,
   indexObjects,
   toParentFrame,
+  turnAbout,
   type Transform,
 } from "../utils/sceneGraph";
 import {
@@ -44,25 +48,28 @@ import {
   jitteredScale,
   nextSpawnPosition,
 } from "../utils/objectDefaults";
-import { getBaseTemplate } from "../utils/baseTemplates";
+import { getBaseTemplate, type BaseTemplate } from "../utils/baseTemplates";
 import { instantiateKit } from "../utils/kits";
 import { buildingParamsOf, scatterParamsOf } from "../utils/objectParams";
 import { newScatterSeed, roundPoint } from "../utils/scatterParams";
 import { createId } from "../utils/id";
-import { DEFAULT_PHOTO_SETTINGS } from "../utils/photo";
-import { DEFAULT_CAMERA_STATE, DEFAULT_ENVIRONMENT } from "../utils/sceneDefaults";
+import { DEFAULT_PHOTO_SETTINGS, scenePhotoOf } from "../utils/photo";
+import { DEFAULT_ENVIRONMENT } from "../utils/sceneDefaults";
 import { buildScene, downloadSceneAsJson, serializeScene, STORAGE_KEY } from "../utils/sceneSerializer";
+import { refitAttachments } from "../utils/buildingAttachments";
 import { normalizeBuildingParams } from "../utils/buildingParams";
 import { validateAndNormalizeScene } from "../utils/sceneValidator";
 import {
   createSurface,
   DEFAULT_PLOT_LAYOUT,
   paintCells,
+  reseatMoved,
   reseatObjects,
   resizeSurface,
   type SurfaceLayout,
 } from "../utils/surfaceMap";
 import {
+  changedObjectIds,
   createInitialHistory,
   pushHistory,
   redoHistory,
@@ -80,7 +87,10 @@ interface DioramaState {
   sceneId: string;
   sceneName: string;
   environment: DioramaEnvironment;
-  camera: DioramaCameraState;
+  /** The view the scene was left in (the editing camera); undefined until the user has framed it. */
+  camera: DioramaCameraState | undefined;
+  /** How Preview frames, focuses and exposes a photo. Saved with the scene, except `scale`. */
+  photo: PhotoSettings;
 
   // --- Undo/redo history (snapshots of `objects` and the painted ground) ---
   history: HistoryEntry[];
@@ -113,8 +123,8 @@ interface DioramaState {
   groundBrush: GroundBrushState | null;
   /** Edge of the ground brush's square, in cells. Kept between brush sessions. */
   groundBrushSize: number;
-  /** How Preview frames, focuses and exposes a photo. Kept between Preview sessions. */
-  photo: PhotoSettings;
+  /** Goes up whenever another scene is opened, so the camera rig goes to the view of that scene. */
+  cameraRevision: number;
   photoApi: PhotoApi | null;
 
   // --- Object CRUD ---
@@ -179,6 +189,14 @@ interface DioramaState {
   updateObjects: (ids: string[], changes: DioramaObjectChanges) => void;
   /** Moves objects by a world-space offset. Objects whose parent also moves are left to follow it. */
   translateObjectsBy: (ids: string[], delta: Vector3Tuple) => void;
+  /**
+   * Turns objects about the vertical axis through `pivot` (world), without an
+   * undo step. With `from` — the objects as they were when a drag began — the
+   * turn starts from those, so a long drag does not accumulate error.
+   */
+  turnObjectsAbout: (ids: string[], pivot: Vector3Tuple, radians: number, from?: DioramaObject[]) => void;
+  /** Turns the selection about its center. One undo step. */
+  turnSelection: (radians: number) => void;
   commitTransform: () => void;
 
   // --- Selection ---
@@ -230,6 +248,8 @@ interface DioramaState {
   setRotationSnapDegrees: (degrees: number) => void;
   setPreviewMode: (enabled: boolean) => void;
   registerCameraApi: (api: CameraControlsApi | null) => void;
+  /** Records the view the camera rig has settled in. Not on the undo stack. */
+  setCamera: (camera: DioramaCameraState) => void;
   setPhoto: (changes: Partial<PhotoSettings>) => void;
   registerPhotoApi: (api: PhotoApi | null) => void;
   setSaveStatus: (status: SaveStatus) => void;
@@ -252,13 +272,42 @@ function commitSurface(state: DioramaState, surface: SurfaceMap) {
   return { objects, environment: { ...state.environment, surface }, ...commit(state, objects, surface) };
 }
 
-/** Multi-select can only move together — rotate/scale fall back to translate. */
+/** A multi-selection moves and turns together, but is not scaled — scale falls back to translate. */
 function clampTransformMode(selectionSize: number, mode: TransformMode): TransformMode {
-  return selectionSize > 1 && mode !== "translate" ? "translate" : mode;
+  return selectionSize > 1 && mode === "scale" ? "translate" : mode;
+}
+
+/**
+ * The state after undo or redo moved to another history step. What the step
+ * added or changed is selected; a step that only removed objects or edited
+ * the ground keeps the selection it can.
+ */
+function restoreStep(state: DioramaState, step: { historyIndex: number } & HistoryEntry) {
+  const changed = changedObjectIds(state.history[state.historyIndex], step);
+  const validIds = new Set(step.objects.map((o) => o.id));
+  const selectedObjectIds = changed.length ? changed : state.selectedObjectIds.filter((id) => validIds.has(id));
+  return {
+    objects: step.objects,
+    // Steps from before the scene became a plot carry no ground; the current one stays.
+    environment: step.surface ? { ...state.environment, surface: step.surface } : state.environment,
+    historyIndex: step.historyIndex,
+    selectedObjectIds,
+    transformMode: clampTransformMode(selectedObjectIds.length, state.transformMode),
+    placement: null,
+  };
 }
 
 /** How far (meters, along X and Z) a duplicate lands from its source. */
 const DUPLICATE_OFFSET = 3;
+/** The diagonals a duplicate is tried on, in this order. */
+const DUPLICATE_DIRECTIONS: Array<[number, number]> = [
+  [1, 1],
+  [-1, 1],
+  [1, -1],
+  [-1, -1],
+];
+/** How far duplicates stay from the edge of the base. */
+const DUPLICATE_INSET = 0.25;
 
 export const BRUSH_RADIUS_RANGE = { min: 0.25, max: 3 } as const;
 export const BRUSH_DENSITY_RANGE = { min: 0.25, max: 1 } as const;
@@ -266,6 +315,54 @@ export const BRUSH_DENSITY_RANGE = { min: 0.25, max: 1 } as const;
 export const GROUND_BRUSH_RANGE = { min: 1, max: 10 } as const;
 
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
+
+/** `objects` with the turnable ones among `ids` turned about `pivot`, starting from `from` if given. */
+function turnObjects(
+  objects: DioramaObject[],
+  ids: string[],
+  pivot: Vector3Tuple,
+  radians: number,
+  from?: DioramaObject[]
+): DioramaObject[] {
+  const turning = getTurnableIds(objects, ids);
+  const start = from && indexObjects(from);
+  return objects.map((o) => (turning.has(o.id) ? { ...o, ...turnAbout(start?.get(o.id) ?? o, pivot, radians) } : o));
+}
+
+/**
+ * Where duplicates of objects at `positions` go, as an offset on X and Z:
+ * the first diagonal that keeps all of them on the base, else the first
+ * diagonal pulled back as a whole until they are.
+ */
+function duplicateOffset(positions: Vector3Tuple[], template: BaseTemplate): [number, number] {
+  if (!positions.length) return [DUPLICATE_OFFSET, DUPLICATE_OFFSET];
+  const xs = positions.map((p) => p[0]);
+  const zs = positions.map((p) => p[2]);
+  const box = { minX: Math.min(...xs), maxX: Math.max(...xs), minZ: Math.min(...zs), maxZ: Math.max(...zs) };
+  const halfX = template.width / 2 - DUPLICATE_INSET;
+  const halfZ = template.depth / 2 - DUPLICATE_INSET;
+  const fits = (dx: number, dz: number) =>
+    box.minX + dx >= -halfX && box.maxX + dx <= halfX && box.minZ + dz >= -halfZ && box.maxZ + dz <= halfZ;
+  for (const [sx, sz] of DUPLICATE_DIRECTIONS) {
+    if (fits(sx * DUPLICATE_OFFSET, sz * DUPLICATE_OFFSET)) return [sx * DUPLICATE_OFFSET, sz * DUPLICATE_OFFSET];
+  }
+  // A group wider than the base is centered on it.
+  const pull = (min: number, max: number, half: number) =>
+    max - min > 2 * half ? -(min + max) / 2 : clamp(DUPLICATE_OFFSET, -half - min, half - max);
+  return [pull(box.minX, box.maxX, halfX), pull(box.minZ, box.maxZ, halfZ)];
+}
+
+/**
+ * The view and photo settings of a scene that is being opened: its own, or
+ * none and the defaults. The export size belongs to the user, so it stays.
+ */
+function freshView(state: Pick<DioramaState, "photo" | "cameraRevision">, scene?: Pick<DioramaScene, "camera" | "photo">) {
+  return {
+    camera: scene?.camera,
+    photo: { ...DEFAULT_PHOTO_SETTINGS, ...scene?.photo, scale: state.photo.scale },
+    cameraRevision: state.cameraRevision + 1,
+  };
+}
 
 /** The object a placement moves, if it moves an existing one. */
 function movingIdOf(placement: Placement | null): string | undefined {
@@ -283,11 +380,20 @@ const ATTACHED_DUPLICATE_OFFSET = 0.5;
 /**
  * Copies of the given objects with new ids. A building brings its
  * attachments along, re-linked to the copy; an attached object duplicated
- * on its own becomes a sibling on the same building. Returns the copies and
- * which of them to select.
+ * on its own becomes a sibling on the same building. The others land where
+ * the base has room for them (duplicateOffset). Returns the copies, which
+ * of them to select, and the offset that was used.
  */
-function duplicateWithChildren(objects: DioramaObject[], ids: string[]): { copies: DioramaObject[]; selectIds: string[] } {
+function duplicateWithChildren(
+  objects: DioramaObject[],
+  ids: string[],
+  template: BaseTemplate
+): { copies: DioramaObject[]; selectIds: string[]; offset: [number, number] } {
   const roots = new Set(getTopLevelIds(objects, ids));
+  const offset = duplicateOffset(
+    objects.filter((o) => roots.has(o.id) && !o.parentId).map((o) => o.position),
+    template
+  );
   const copies: DioramaObject[] = [];
   const selectIds: string[] = [];
   const copyIdOf = new Map<string, string>();
@@ -300,14 +406,14 @@ function duplicateWithChildren(objects: DioramaObject[], ids: string[]): { copie
     const [x, y, z] = source.position;
     const position: Vector3Tuple = source.parentId
       ? [x + ATTACHED_DUPLICATE_OFFSET, y, z]
-      : [x + DUPLICATE_OFFSET, y, z + DUPLICATE_OFFSET];
+      : [x + offset[0], y, z + offset[1]];
     copies.push(varied({ ...source, id, position }));
   }
   for (const source of objects) {
     const parentCopy = source.parentId && copyIdOf.get(source.parentId);
     if (parentCopy) copies.push({ ...source, id: createId(), parentId: parentCopy });
   }
-  return { copies, selectIds };
+  return { copies, selectIds, offset };
 }
 
 function loadInitialState(): {
@@ -315,6 +421,8 @@ function loadInitialState(): {
   sceneId: string;
   sceneName: string;
   environment: DioramaEnvironment;
+  camera?: DioramaCameraState;
+  photo?: ScenePhotoSettings;
 } {
   if (typeof window !== "undefined") {
     try {
@@ -327,6 +435,8 @@ function loadInitialState(): {
             sceneId: result.scene.id,
             sceneName: result.scene.name,
             environment: result.scene.environment,
+            camera: result.scene.camera,
+            photo: result.scene.photo,
           };
         }
       }
@@ -350,7 +460,8 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   sceneId: initial.sceneId,
   sceneName: initial.sceneName,
   environment: initial.environment,
-  camera: DEFAULT_CAMERA_STATE,
+  camera: initial.camera,
+  photo: { ...DEFAULT_PHOTO_SETTINGS, ...initial.photo },
 
   ...createInitialHistory(initial.objects, initial.environment.surface),
 
@@ -372,7 +483,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   brushErase: false,
   groundBrush: null,
   groundBrushSize: 2,
-  photo: DEFAULT_PHOTO_SETTINGS,
+  cameraRevision: 0,
   photoApi: null,
 
   addObject: (type, params) =>
@@ -499,10 +610,13 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
 
   setBuildingParams: (id, update) =>
     set((state) => {
-      const objects = state.objects.map((o) => {
-        const params = buildingParamsOf(o);
-        return o.id === id && params && !o.locked ? { ...o, params: normalizeBuildingParams(update(params)) ?? params } : o;
-      });
+      const building = state.objects.find((o) => o.id === id);
+      const before = building && buildingParamsOf(building);
+      if (!building || !before || building.locked) return state;
+      const after = normalizeBuildingParams(update(before)) ?? before;
+      const resized = state.objects.map((o) => (o.id === id ? { ...o, params: after } : o));
+      // What is attached to the building follows its walls and its roof.
+      const objects = refitAttachments(resized, id, before, after);
       return { objects, ...commit(state, objects) };
     }),
 
@@ -640,6 +754,17 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
       };
     }),
 
+  turnObjectsAbout: (ids, pivot, radians, from) =>
+    set((state) => ({ objects: turnObjects(state.objects, ids, pivot, radians, from) })),
+
+  turnSelection: (radians) =>
+    set((state) => {
+      const pivot = getSelectionCenter(state.objects, state.selectedObjectIds);
+      if (!pivot) return state;
+      const objects = turnObjects(state.objects, state.selectedObjectIds, pivot, radians);
+      return { objects, ...commit(state, objects) };
+    }),
+
   commitTransform: () => set((state) => commit(state, state.objects)),
 
   selectObject: (id) =>
@@ -664,9 +789,13 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
 
   duplicateObjects: (ids) =>
     set((state) => {
-      const { copies, selectIds } = duplicateWithChildren(state.objects, ids);
+      const { environment } = state;
+      const { copies, selectIds, offset } = duplicateWithChildren(state.objects, ids, getBaseTemplate(environment));
       if (!copies.length) return state;
-      const objects = [...state.objects, ...copies];
+      // On a plot the road and the sidewalk are at different heights: a copy stands on the ground it lands on.
+      const seated =
+        environment.base === "plot" && environment.surface ? reseatMoved(copies, environment.surface, ...offset) : copies;
+      const objects = [...state.objects, ...seated];
       return {
         objects,
         selectedObjectIds: selectIds,
@@ -739,6 +868,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
         environment,
         sceneId: createId("scene"),
         sceneName: DEFAULT_SCENE_NAME,
+        ...freshView(state),
         selectedObjectIds: [],
         placement: null,
         brush: null,
@@ -758,6 +888,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
         environment: template.environment,
         sceneId: createId("scene"),
         sceneName: template.name,
+        ...freshView(state),
         selectedObjectIds: [],
         placement: null,
         brush: null,
@@ -776,6 +907,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
       objects: state.objects,
       environment: state.environment,
       camera: state.camera,
+      photo: scenePhotoOf(state.photo),
     });
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeScene(scene)));
@@ -786,12 +918,12 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   },
 
   loadScene: (scene) =>
-    set(() => ({
+    set((state) => ({
       objects: scene.objects,
       sceneId: scene.id,
       sceneName: scene.name,
       environment: scene.environment,
-      camera: scene.camera,
+      ...freshView(state, scene),
       selectedObjectIds: [],
       placement: null,
       brush: null,
@@ -811,6 +943,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
         objects: state.objects,
         environment: state.environment,
         camera: state.camera,
+      photo: scenePhotoOf(state.photo),
       })
     );
   },
@@ -837,35 +970,17 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   undo: () =>
     set((state) => {
       const result = undoHistory({ history: state.history, historyIndex: state.historyIndex });
-      if (!result) return state;
-      const validIds = new Set(result.objects.map((o) => o.id));
-      return {
-        objects: result.objects,
-        // Steps from before the scene became a plot carry no ground; the current one stays.
-        environment: result.surface ? { ...state.environment, surface: result.surface } : state.environment,
-        historyIndex: result.historyIndex,
-        selectedObjectIds: state.selectedObjectIds.filter((id) => validIds.has(id)),
-        placement: null,
-      };
+      return result ? restoreStep(state, result) : state;
     }),
 
   redo: () =>
     set((state) => {
       const result = redoHistory({ history: state.history, historyIndex: state.historyIndex });
-      if (!result) return state;
-      const validIds = new Set(result.objects.map((o) => o.id));
-      return {
-        objects: result.objects,
-        // Steps from before the scene became a plot carry no ground; the current one stays.
-        environment: result.surface ? { ...state.environment, surface: result.surface } : state.environment,
-        historyIndex: result.historyIndex,
-        selectedObjectIds: state.selectedObjectIds.filter((id) => validIds.has(id)),
-        placement: null,
-      };
+      return result ? restoreStep(state, result) : state;
     }),
 
   setTransformMode: (mode) =>
-    set((state) => (state.selectedObjectIds.length > 1 && mode !== "translate" ? state : { transformMode: mode })),
+    set((state) => (state.selectedObjectIds.length > 1 && mode === "scale" ? state : { transformMode: mode })),
 
   setSnapEnabled: (enabled) => set({ snapEnabled: enabled }),
   setGridSize: (size) => set({ gridSize: size }),
@@ -873,6 +988,8 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   setRotationSnapDegrees: (degrees) => set({ rotationSnapDegrees: degrees }),
   setPreviewMode: (enabled) => set({ isPreviewMode: enabled, placement: null, brush: null, groundBrush: null }),
   registerCameraApi: (api) => set({ cameraApi: api }),
+  setCamera: (camera) =>
+    set((state) => (JSON.stringify(state.camera) === JSON.stringify(camera) ? state : { camera })),
   setPhoto: (changes) => set((state) => ({ photo: { ...state.photo, ...changes } })),
   registerPhotoApi: (api) => set({ photoApi: api }),
   setSaveStatus: (status) => set({ saveStatus: status }),

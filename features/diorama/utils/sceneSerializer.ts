@@ -39,29 +39,44 @@ export function serializeScene(scene: DioramaScene): DioramaSceneFile {
   return { version: SCENE_FILE_VERSION, savedAt: Date.now(), scene };
 }
 
-function slugify(name: string): string {
+/** What marks an exported kit file (utils/kitFile.ts), so it is never read as a scene. */
+export const KIT_FILE_KIND = "diorama-kit";
+
+/** True if parsed JSON is a kit file rather than a scene. */
+export function isKitFile(data: unknown): boolean {
+  if (!data || typeof data !== "object") return false;
+  const container = data as Record<string, unknown>;
+  return container.kind === KIT_FILE_KIND || (Array.isArray(container.kits) && !container.scene && !container.objects);
+}
+
+/** A file-name stem from a scene's or a kit's name. */
+export function slugify(name: string, fallback: string): string {
   const slug = name
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-  return slug || "untitled-diorama";
+  return slug || fallback;
 }
 
-/** Triggers a browser download of the scene as a `.diorama.json` file. */
-export function downloadSceneAsJson(scene: DioramaScene): void {
-  const payload = serializeScene(scene);
+/** Triggers a browser download of `payload` as a JSON file. */
+export function downloadJson(fileName: string, payload: unknown): void {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
 
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `${slugify(scene.name)}.diorama.json`;
+  anchor.download = fileName;
   document.body.appendChild(anchor);
   anchor.click();
   document.body.removeChild(anchor);
 
   URL.revokeObjectURL(url);
+}
+
+/** Triggers a browser download of the scene as a `.diorama.json` file. */
+export function downloadSceneAsJson(scene: DioramaScene): void {
+  downloadJson(`${slugify(scene.name, "untitled-diorama")}.diorama.json`, serializeScene(scene));
 }
 
 /** Reads a File (from an <input type="file">) as text. */
@@ -80,7 +95,8 @@ export function buildScene(params: {
   name: string;
   objects: DioramaObject[];
   environment: DioramaScene["environment"];
-  camera: DioramaScene["camera"];
+  camera?: DioramaScene["camera"];
+  photo?: DioramaScene["photo"];
 }): DioramaScene {
   return { ...params };
 }

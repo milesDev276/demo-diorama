@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, MousePointerClick, Copy, Eye, EyeOff, Lock, Unlock, X } from "lucide-react";
+import { Trash2, MousePointerClick, Copy, Eye, EyeOff, Lock, Unlock, RotateCcw, RotateCw, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useDioramaStore } from "../store/dioramaStore";
 import type { Vector3Tuple } from "../types/diorama.types";
@@ -73,6 +73,8 @@ export function PropertiesPanel() {
   const setObjectVisibility = useDioramaStore((s) => s.setObjectVisibility);
   const setObjectLocked = useDioramaStore((s) => s.setObjectLocked);
   const clearSelection = useDioramaStore((s) => s.clearSelection);
+  const turnSelection = useDioramaStore((s) => s.turnSelection);
+  const rotationSnapDegrees = useDioramaStore((s) => s.rotationSnapDegrees);
 
   const selectedObjects = objects.filter((o) => selectedObjectIds.includes(o.id));
   const object = selectedObjects.length === 1 ? selectedObjects[0] : null;
@@ -232,9 +234,29 @@ export function PropertiesPanel() {
               {selectedObjects.length} Objects Selected
             </p>
             <p className="text-xs text-[#4A3421]/50">
-              Drag any of the selected objects in the scene to move the whole group. Rotate and
-              scale apply to a single object at a time — narrow your selection to use them.
+              Move or rotate the group with the handle at its center. Scale applies to a single
+              object at a time.
             </p>
+
+            <div className="grid grid-cols-2 gap-1.5">
+              {(
+                [
+                  { label: "Turn left", icon: RotateCcw, sign: 1 },
+                  { label: "Turn right", icon: RotateCw, sign: -1 },
+                ] as const
+              ).map(({ label, icon: Icon, sign }) => (
+                <button
+                  key={label}
+                  type="button"
+                  title={`${label} by ${rotationSnapDegrees}°`}
+                  onClick={() => turnSelection(sign * degToRad(rotationSnapDegrees))}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-[#8b6f52]/15 bg-white/50 px-3 py-2.5 text-sm font-medium text-[#4A3421] transition-colors hover:bg-white cursor-pointer"
+                >
+                  <Icon size={15} />
+                  {label}
+                </button>
+              ))}
+            </div>
 
             <div className="flex flex-col gap-1.5">
               <SaveKitAction ids={selectedObjectIds} />

@@ -1,4 +1,5 @@
-import type { PhotoAspect, PhotoSettings } from "../types/diorama.types";
+import { PHOTO_ASPECTS } from "../types/diorama.types";
+import type { PhotoAspect, PhotoSettings, ScenePhotoSettings, Vector3Tuple } from "../types/diorama.types";
 
 /** Width ÷ height of each frame; `free` fills the window. */
 export const PHOTO_ASPECT_RATIOS: Record<PhotoAspect, number | null> = {
@@ -31,6 +32,30 @@ export const DEFAULT_PHOTO_SETTINGS: PhotoSettings = {
   exposure: 0,
   scale: 2,
 };
+
+/** The photo settings a scene file keeps: everything but the export size. */
+export function scenePhotoOf(photo: PhotoSettings): ScenePhotoSettings {
+  return { aspect: photo.aspect, focus: photo.focus, blur: photo.blur, exposure: photo.exposure };
+}
+
+/**
+ * The photo settings of a scene from untrusted data, or undefined if there
+ * are none. Unknown or out-of-range values become the defaults.
+ */
+export function normalizeScenePhoto(raw: unknown): ScenePhotoSettings | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as Record<string, unknown>;
+  const inRange = (value: unknown, range: { min: number; max: number }, fallback: number) =>
+    typeof value === "number" && Number.isFinite(value) ? Math.min(range.max, Math.max(range.min, value)) : fallback;
+  const isPoint = (value: unknown): value is Vector3Tuple =>
+    Array.isArray(value) && value.length === 3 && value.every((n) => typeof n === "number" && Number.isFinite(n));
+  return {
+    aspect: (PHOTO_ASPECTS as readonly unknown[]).includes(r.aspect) ? (r.aspect as PhotoAspect) : DEFAULT_PHOTO_SETTINGS.aspect,
+    focus: isPoint(r.focus) ? r.focus : null,
+    blur: inRange(r.blur, PHOTO_BLUR_RANGE, DEFAULT_PHOTO_SETTINGS.blur),
+    exposure: inRange(r.exposure, PHOTO_EXPOSURE_RANGE, DEFAULT_PHOTO_SETTINGS.exposure),
+  };
+}
 
 /** Largest image an export may produce: the composer's buffers grow with it. */
 const MAX_EXPORT_PIXELS = 26_000_000;

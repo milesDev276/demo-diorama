@@ -2,6 +2,9 @@ import type { CameraPreset, Vector3Tuple } from "../types/diorama.types";
 
 export const DEFAULT_CAMERA_TARGET: Vector3Tuple = [0, 1.8, 0];
 
+/** Orthographic zoom limits, in screen pixels per meter. */
+export const CAMERA_ZOOM_RANGE = { min: 5, max: 80 } as const;
+
 interface CameraPresetConfig {
   position: Vector3Tuple;
   label: string;

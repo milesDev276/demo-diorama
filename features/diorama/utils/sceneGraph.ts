@@ -97,6 +97,43 @@ export function getTopLevelIds(objects: DioramaObject[], ids: string[]): string[
   });
 }
 
+/**
+ * The point a multi-selection moves and turns about: the mean of its
+ * top-level objects' world positions on X/Z — which a turn about it leaves
+ * where it is — at the lowest of their heights. Null if `ids` names nothing.
+ */
+export function getSelectionCenter(objects: DioramaObject[], ids: string[]): Vector3Tuple | null {
+  const byId = indexObjects(objects);
+  const positions = getTopLevelIds(objects, ids).flatMap((id) => {
+    const object = byId.get(id);
+    return object ? [getWorldPosition(object, byId)] : [];
+  });
+  if (!positions.length) return null;
+  const mean = (axis: 0 | 2) => positions.reduce((sum, p) => sum + p[axis], 0) / positions.length;
+  return [mean(0), Math.min(...positions.map((p) => p[1])), mean(2)];
+}
+
+/** The ids among `ids` that a group turn moves: top-level, standing on the base, not locked. An object on a
+ *  building whose building is not selected stays on its wall. */
+export function getTurnableIds(objects: DioramaObject[], ids: string[]): Set<string> {
+  const byId = indexObjects(objects);
+  return new Set(
+    getTopLevelIds(objects, ids).filter((id) => {
+      const object = byId.get(id);
+      return object && !object.parentId && !object.locked;
+    })
+  );
+}
+
+/** A world transform turned by `radians` about the vertical axis through `pivot`. */
+export function turnAbout(transform: Transform, pivot: Vector3Tuple, radians: number): Transform {
+  const turn = new Matrix4()
+    .makeTranslation(pivot[0], 0, pivot[2])
+    .multiply(new Matrix4().makeRotationY(radians))
+    .multiply(new Matrix4().makeTranslation(-pivot[0], 0, -pivot[2]));
+  return fromMatrix(turn.multiply(toMatrix(transform)));
+}
+
 /** Children grouped under their parent's id. Objects with a missing parent are left out. */
 export function groupChildren(objects: DioramaObject[]): Map<string, DioramaObject[]> {
   const groups = new Map<string, DioramaObject[]>();

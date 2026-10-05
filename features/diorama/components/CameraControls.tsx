@@ -6,16 +6,20 @@ import { OrbitControls, OrthographicCamera, PerspectiveCamera } from "@react-thr
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
 import { useDioramaStore } from "../store/dioramaStore";
-import { CAMERA_PRESETS, DEFAULT_CAMERA_TARGET } from "../utils/cameraPresets";
+import { CAMERA_PRESETS, CAMERA_ZOOM_RANGE, DEFAULT_CAMERA_TARGET } from "../utils/cameraPresets";
 import { getBaseTemplate } from "../utils/baseTemplates";
-import type { CameraPreset, Vector3Tuple } from "../types/diorama.types";
+import type { CameraPreset, DioramaCameraState, Vector3Tuple } from "../types/diorama.types";
 
 /** Vertical field of view of the Preview camera — narrow, like a lens photographing a model. */
 const PREVIEW_FOV = 24;
 
-/** Orthographic zoom limits, in screen pixels per meter. */
-const MIN_ZOOM = 5;
-const MAX_ZOOM = 80;
+const { min: MIN_ZOOM, max: MAX_ZOOM } = CAMERA_ZOOM_RANGE;
+
+/** The camera counts as at rest when it moved less than this (meters, and zoom) since the last frame. */
+const REST_EPSILON = 1e-5;
+
+const roundMm = (n: number) => Math.round(n * 1000) / 1000;
+const roundPoint = (v: THREE.Vector3): Vector3Tuple => [roundMm(v.x), roundMm(v.y), roundMm(v.z)];
 
 interface Transition {
   fromPos: THREE.Vector3;
@@ -26,6 +30,8 @@ interface Transition {
   toZoom: number;
   start: number;
   duration: number;
+  /** Whether the view it ends in is recorded as the view of the scene. */
+  record: boolean;
 }
 
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
@@ -47,13 +53,16 @@ interface PreviewEntry {
  * camera and OrbitControls, plus an imperative API (presets, reset, focus)
  * registered into the store so toolbar buttons and keyboard shortcuts can
  * drive the camera without the store ever holding a live, per-frame position.
+ *
+ * The scene remembers one view (plan/Stage-14-Implementation.md D6): the rig
+ * opens on it, goes to it when another scene is opened, and records it
+ * again each time the camera comes to rest after a gesture or a preset.
  */
 export function CameraControls() {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const orthoRef = useRef<THREE.OrthographicCamera>(null);
   const perspectiveRef = useRef<THREE.PerspectiveCamera>(null);
   const transitionRef = useRef<Transition | null>(null);
-  const targetRef = useRef(new THREE.Vector3(...DEFAULT_CAMERA_TARGET));
   const previousCameraRef = useRef<THREE.Camera | null>(null);
   const previewEntryRef = useRef<PreviewEntry | null>(null);
   const camera = useThree((s) => s.camera);
@@ -61,10 +70,24 @@ export function CameraControls() {
   // The same base and size always give the same template object (getBaseTemplate).
   const template = useDioramaStore((s) => getBaseTemplate(s.environment));
   const registerCameraApi = useDioramaStore((s) => s.registerCameraApi);
-  // The zoom the editing camera is created with. Later base changes animate
-  // through the camera API instead of jumping with a changed prop.
-  const [initialZoom] = useState(() => template.presetZoom.isometric);
+  const setCamera = useDioramaStore((s) => s.setCamera);
+  const cameraRevision = useDioramaStore((s) => s.cameraRevision);
+  // What the editing camera is created with: the view the scene was saved in, else the
+  // isometric preset. Later changes animate through the rig instead of jumping with a changed prop.
+  const [initialView] = useState<DioramaCameraState>(
+    () =>
+      useDioramaStore.getState().camera ?? {
+        position: CAMERA_PRESETS.isometric.position,
+        target: DEFAULT_CAMERA_TARGET,
+        zoom: template.presetZoom.isometric,
+      }
+  );
+  const targetRef = useRef(new THREE.Vector3(...initialView.target));
   const framedTemplateRef = useRef(template);
+  const openedRevisionRef = useRef(cameraRevision);
+  // Set while the camera is still gliding after a gesture or a transition; the view is recorded once it rests.
+  const settlingRef = useRef(false);
+  const lastPoseRef = useRef({ position: new THREE.Vector3(), target: new THREE.Vector3(), zoom: 0 });
 
   // Switching between the editing and Preview cameras keeps the composition:
   // same orbit target, same viewing direction, same visible world height.
@@ -105,7 +128,7 @@ export function CameraControls() {
   }, [camera]);
 
   useEffect(() => {
-    function startTransition(toPos: Vector3Tuple, toTarget: Vector3Tuple, toZoom: number, duration = 550) {
+    function startTransition(toPos: Vector3Tuple, toTarget: Vector3Tuple, toZoom: number, duration = 550, record = true) {
       const controls = controlsRef.current;
       if (!controls) return;
       transitionRef.current = {
@@ -117,11 +140,12 @@ export function CameraControls() {
         toZoom,
         start: performance.now(),
         duration,
+        record,
       };
     }
 
-    function applyPreset(preset: CameraPreset) {
-      startTransition(CAMERA_PRESETS[preset].position, DEFAULT_CAMERA_TARGET, template.presetZoom[preset]);
+    function applyPreset(preset: CameraPreset, record = true) {
+      startTransition(CAMERA_PRESETS[preset].position, DEFAULT_CAMERA_TARGET, template.presetZoom[preset], 550, record);
     }
 
     registerCameraApi({
@@ -157,14 +181,41 @@ export function CameraControls() {
       },
     });
 
-    // A different base, or a plot of another size: reframe it with its own presets.
-    if (framedTemplateRef.current !== template) {
+    if (openedRevisionRef.current !== cameraRevision) {
+      // Another scene was opened: go to its view, or frame it if it has none. That is not the user framing it.
+      openedRevisionRef.current = cameraRevision;
+      framedTemplateRef.current = template;
+      const view = useDioramaStore.getState().camera;
+      if (view) startTransition(view.position, view.target, view.zoom, 450, false);
+      else applyPreset("isometric", false);
+    } else if (framedTemplateRef.current !== template) {
+      // A different base, or a plot of another size: reframe it with its own presets.
       framedTemplateRef.current = template;
       applyPreset("isometric");
     }
 
     return () => registerCameraApi(null);
-  }, [camera, template, registerCameraApi]);
+  }, [camera, template, cameraRevision, registerCameraApi]);
+
+  // The view as the editing camera sees it. In Preview that is the view leaving Preview would give.
+  const recordView = () => {
+    const controls = controlsRef.current;
+    const ortho = orthoRef.current;
+    const perspective = perspectiveRef.current;
+    if (!controls || !ortho || !perspective) return;
+    const target = controls.target;
+    if (camera === ortho) {
+      setCamera({ position: roundPoint(ortho.position), target: roundPoint(target), zoom: roundMm(ortho.zoom) });
+      return;
+    }
+    const entry = previewEntryRef.current;
+    if (camera !== perspective || !entry) return;
+    const direction = perspective.position.clone().sub(target).normalize();
+    const position = target.clone().addScaledVector(direction, ortho.position.distanceTo(targetRef.current));
+    const height = 2 * perspective.position.distanceTo(target) * halfFovTan(perspective);
+    const zoom = THREE.MathUtils.clamp((entry.zoom * entry.height) / height, MIN_ZOOM, MAX_ZOOM);
+    setCamera({ position: roundPoint(position), target: roundPoint(target), zoom: roundMm(zoom) });
+  };
 
   // R3F's whole model is imperative mutation of Three.js objects each frame —
   // `camera` here is the live scene camera, not React-owned render state, so
@@ -191,7 +242,24 @@ export function CameraControls() {
       }
       controls.update();
 
-      if (progress >= 1) transitionRef.current = null;
+      if (progress >= 1) {
+        transitionRef.current = null;
+        settlingRef.current = transition.record;
+      }
+    } else if (settlingRef.current) {
+      // Damping keeps the camera gliding after the pointer lets go; record the view when it has stopped.
+      const last = lastPoseRef.current;
+      const atRest =
+        last.position.distanceTo(camera.position) < REST_EPSILON &&
+        last.target.distanceTo(controls.target) < REST_EPSILON &&
+        Math.abs(last.zoom - camera.zoom) < REST_EPSILON;
+      last.position.copy(camera.position);
+      last.target.copy(controls.target);
+      last.zoom = camera.zoom;
+      if (atRest) {
+        settlingRef.current = false;
+        recordView();
+      }
     }
 
     targetRef.current.copy(controls.target);
@@ -202,8 +270,8 @@ export function CameraControls() {
       <OrthographicCamera
         ref={orthoRef}
         makeDefault={!isPreviewMode}
-        position={CAMERA_PRESETS.isometric.position}
-        zoom={initialZoom}
+        position={initialView.position}
+        zoom={initialView.zoom}
         near={0.6}
         far={600}
       />
@@ -211,7 +279,13 @@ export function CameraControls() {
       <OrbitControls
         ref={controlsRef}
         makeDefault
-        target={DEFAULT_CAMERA_TARGET}
+        target={initialView.target}
+        onStart={() => {
+          settlingRef.current = false;
+        }}
+        onEnd={() => {
+          settlingRef.current = true;
+        }}
         enableDamping
         dampingFactor={0.08}
         minZoom={MIN_ZOOM}

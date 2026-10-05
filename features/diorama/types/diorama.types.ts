@@ -208,9 +208,11 @@ export interface DioramaEnvironment {
   surface?: SurfaceMap;
 }
 
+/** The view a scene opens on: the orthographic editing camera, which the Preview camera is derived from. */
 export interface DioramaCameraState {
   position: Vector3Tuple;
   target: Vector3Tuple;
+  /** Screen pixels per meter. */
   zoom: number;
 }
 
@@ -221,7 +223,10 @@ export interface DioramaScene {
   name: string;
   objects: DioramaObject[];
   environment: DioramaEnvironment;
-  camera: DioramaCameraState;
+  /** Missing until the user has framed the scene; it then opens on the isometric preset. */
+  camera?: DioramaCameraState;
+  /** How the scene is photographed in Preview. Missing = the defaults (utils/photo.ts). */
+  photo?: ScenePhotoSettings;
 }
 
 export type CameraPreset = "isometric" | "front" | "side" | "top";
@@ -233,7 +238,7 @@ export const PHOTO_ASPECTS = ["free", "1:1", "4:5", "16:9"] as const;
 
 export type PhotoAspect = (typeof PHOTO_ASPECTS)[number];
 
-/** How Preview frames and exposes a photo. Editor state: not saved with the scene. */
+/** How Preview frames and exposes a photo. Saved with the scene, except the export size. */
 export interface PhotoSettings {
   aspect: PhotoAspect;
   /** World point the tilt-shift keeps sharp; null = the middle of the frame. */
@@ -245,6 +250,9 @@ export interface PhotoSettings {
   /** Export size, as a multiple of the frame's size on screen. */
   scale: number;
 }
+
+/** The part of the photo settings that belongs to the scene: the picture, not the size of the file. */
+export type ScenePhotoSettings = Omit<PhotoSettings, "scale">;
 
 /** What a finished export reports back. */
 export interface PhotoExport {
