@@ -1,5 +1,6 @@
 import { DIORAMA_BASES, DIORAMA_OBJECT_TYPES, PLINTH_STYLES, SEASONS, TIMES_OF_DAY, WEATHERS } from "../types/diorama.types";
 import type {
+  DioramaCameraState,
   DioramaEnvironment,
   DioramaObject,
   DioramaObjectType,
@@ -12,8 +13,10 @@ import { normalizeScatterParams } from "./scatterParams";
 import { createId } from "./id";
 import { DEFAULT_SCENE_NAME } from "./objectDefaults";
 import { repairParentLinks } from "./sceneGraph";
-import { DEFAULT_CAMERA_STATE, DEFAULT_ENVIRONMENT } from "./sceneDefaults";
-import { migrateRawObjects, SCENE_FILE_VERSION } from "./sceneSerializer";
+import { CAMERA_ZOOM_RANGE } from "./cameraPresets";
+import { normalizeScenePhoto } from "./photo";
+import { DEFAULT_ENVIRONMENT, LEGACY_CAMERA_PLACEHOLDER } from "./sceneDefaults";
+import { isKitFile, migrateRawObjects, SCENE_FILE_VERSION } from "./sceneSerializer";
 import { createStripSurface, isStreetStrip, seatStripObjects } from "./streetStrip";
 import { createSurface, DEFAULT_PLOT_LAYOUT, normalizeSurface } from "./surfaceMap";
 
@@ -22,6 +25,7 @@ const VALID_TYPES: ReadonlySet<DioramaObjectType> = new Set(DIORAMA_OBJECT_TYPES
 const POSITION_LIMIT = 180; // meters — generous but bounded, well beyond the plot
 const SCALE_MIN = 0.1;
 const SCALE_MAX = 6;
+const CAMERA_LIMIT = 1000; // meters — the rig keeps the camera within 400 m of its target
 
 function isFiniteVector3(value: unknown): value is Vector3Tuple {
   return (
@@ -111,6 +115,28 @@ function normalizeEnvironment(raw: Record<string, unknown>, strip: boolean): Dio
 }
 
 /**
+ * The view a scene file was saved with, or undefined if it has none: no
+ * camera, a broken one, or the constant every file carried before views
+ * were saved (LEGACY_CAMERA_PLACEHOLDER).
+ */
+function normalizeCamera(raw: unknown): DioramaCameraState | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as Record<string, unknown>;
+  if (!isFiniteVector3(r.position) || !isFiniteVector3(r.target)) return undefined;
+  if (typeof r.zoom !== "number" || !Number.isFinite(r.zoom)) return undefined;
+  if (JSON.stringify({ position: r.position, target: r.target, zoom: r.zoom }) === JSON.stringify(LEGACY_CAMERA_PLACEHOLDER)) {
+    return undefined;
+  }
+  const camera: DioramaCameraState = {
+    position: clampVector3(r.position, -CAMERA_LIMIT, CAMERA_LIMIT),
+    target: clampVector3(r.target, -CAMERA_LIMIT, CAMERA_LIMIT),
+    zoom: Math.min(CAMERA_ZOOM_RANGE.max, Math.max(CAMERA_ZOOM_RANGE.min, r.zoom)),
+  };
+  // A camera on its own target looks nowhere.
+  return camera.position.every((n, i) => n === camera.target[i]) ? undefined : camera;
+}
+
+/**
  * Validates and normalizes arbitrary JSON into a safe DioramaScene. Never
  * throws — always returns either the scene or a human-readable error.
  * Tolerant of both `{ version, scene: {...} }` (save/export format) and a bare
@@ -122,6 +148,11 @@ export function validateAndNormalizeScene(data: unknown): { scene: DioramaScene 
   try {
     if (!data || typeof data !== "object") {
       return { error: "The file is invalid or corrupted." };
+    }
+
+    // The scene reader is tolerant enough to open a kit file as an empty scene; say what it is instead.
+    if (isKitFile(data)) {
+      return { error: "This is a kit file. Import it under Kits in the library." };
     }
 
     const container = data as Record<string, unknown>;
@@ -150,8 +181,12 @@ export function validateAndNormalizeScene(data: unknown): { scene: DioramaScene 
       name,
       objects: strip && environment.surface ? seatStripObjects(objects, environment.surface) : objects,
       environment,
-      camera: DEFAULT_CAMERA_STATE,
     };
+    // Optional fields are only written when present, so files without them round-trip unchanged.
+    const camera = normalizeCamera(root.camera);
+    if (camera) scene.camera = camera;
+    const photo = normalizeScenePhoto(root.photo);
+    if (photo) scene.photo = photo;
 
     return { scene };
   } catch {

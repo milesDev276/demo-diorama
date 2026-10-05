@@ -1,4 +1,4 @@
-# Handoff — Hero Diorama Work (as of 2026-10-05, after Stage 13)
+# Handoff — Hero Diorama Work (as of 2026-10-05, after Stage 14)
 
 Read this first when picking up the work. It summarizes where things
 stand, what was decided and why, how to run and verify things, and what
@@ -25,19 +25,20 @@ comes next. Details live in the linked plan files.
 | Stage 10: legacy cleanup | Done | `main` (PR #13) |
 | Stage 11: library breadth (eleven assets) | Done | `main` (PR #14) |
 | Stage 12: glass and lit signs | Done | `main` (PR #15) |
-| Stage 13: weather | Implemented and verified; **not committed** | branch `stage13-weather` (working tree) |
+| Stage 13: weather | Done | `main` (PR #16) |
+| Stage 14: editor polish | Implemented and verified; **not committed** | branch `stage14-editor` (working tree) |
 
-Stage 7 was the last stage of the original roadmap; Stages 8 to 13 were added
+Stage 7 was the last stage of the original roadmap; Stages 8 to 14 were added
 at the user's request.
 
-**`main` holds Stages 0–12** (last merge: PR #15, `c63af07`). Stage 13 is
-in the working tree of `stage13-weather`, uncommitted.
+**`main` holds Stages 0–13** (last merge: PR #16, `144a612`). Stage 14 is
+in the working tree of `stage14-editor`, uncommitted.
 
-**Immediate next action:** the user commits Stage 13 and opens its PR; then
+**Immediate next action:** the user commits Stage 14 and opens its PR; then
 ask what comes next (§7 lists the candidates).
 The user merges PRs themselves, one branch per stage; cut the
 next branch from an up-to-date `main` (`git fetch`, then fast-forward).
-(For Stages 6 to 13 the user handed every decision
+(For Stages 6 to 14 the user handed every decision
 to Claude, so the plan was settled with its defaults and implemented without
 a separate approval round. Ask again at the start of new work; it is not a
 standing rule.)
@@ -67,6 +68,7 @@ can be dropped once the user agrees.
 | [Stage-11-Implementation.md](Stage-11-Implementation.md) | Eleven assets for the thin categories (konbini, bus stop, street light, utility cabinet, bench, cone, garbage cage, kei truck, scooter, shopkeeper, schoolchild), two atlas cells, two kits: decisions D1–D5 and results (§6) |
 | [Stage-12-Implementation.md](Stage-12-Implementation.md) | The `glass` slot, rooms behind shop glass, hollow vehicle cabins, the lit atlas, two sign cells: decisions D1–D7 and results (§6) |
 | [Stage-13-Implementation.md](Stage-13-Implementation.md) | Weather as scene data, the weather looks, wet and snowed-on surfaces, falling rain and snow: decisions D1–D7 and results (§6) |
+| [Stage-14-Implementation.md](Stage-14-Implementation.md) | Attachments following a building, group move and turn, undo/redo selection, duplicates on the base, kit rename / export / import, the saved view and photo settings: decisions D1–D8 and results (§7) |
 | `Phase-*.md` | Earlier phases, kept for history |
 
 ## 3. Decisions That Must Not Be Re-litigated
@@ -121,7 +123,7 @@ can be dropped once the user agrees.
   a building is a parent; one level; a child's transform is in the
   building's frame. All world/local math and subtree logic goes through
   `utils/sceneGraph.ts`. Both `params` and `parentId` are additive (files
-  stay v2).
+  stay v2). So is the optional `camera` and `photo` of a scene (Stage 14).
 * **Adding with the pointer is click-to-place.** A library click starts a
   placement; `PlacementLayer` raycasts onto meshes tagged
   `userData.placementSurface` (the base, buildings) and
@@ -150,7 +152,7 @@ can be dropped once the user agrees.
   `public/thumbnails/*.webp` and `assets/thumbnails.json`. Re-run it after
   changing or adding an asset, preset or built-in kit.
 * **While placing, R / Shift+R turn the ghost by 45°** (`placementYaw` in
-  the store). That is the only way to turn a kit.
+  the store). Once placed, a kit turns as a multi-selection (Stage 14).
 * **Tone mapping is Neutral, not AgX.** AgX greyed the palette; see Stage 2
   D2.
 * **`@react-three/postprocessing` is pinned to exactly `3.0.4`.** Anything
@@ -192,7 +194,7 @@ Stage 7:
   base's outline by the `wire` material's clipping planes, and the wire
   mesh's own `raycast` ignores the cut-off part.
 * **Photo mode is Preview.** `photo` in the store (frame, focus, blur,
-  exposure, scale) is editor state and is not saved. With a ratio chosen
+  exposure, scale) is saved with the scene since Stage 14, except `scale`. With a ratio chosen
   the canvas itself takes that shape, so an export is never cropped.
 * **The focus band and blur go to the tilt-shift shader's uniforms every
   frame,** not through the effect's props: the wrapper rebuilds the pass
@@ -353,6 +355,52 @@ Stage 13:
   one time uniform, written through the material's ref. A flake's size is
   in meters: the shader gets the height of the target it is drawn into
   (`onBeforeRender`), so a larger export keeps it.
+
+Stage 14:
+
+* **A building's attachments are refit when its size changes**
+  (`utils/buildingAttachments.ts`, called by `setBuildingParams` in the
+  same undo step). The rule is positions only: nearest wall, distance from
+  it, distance from the side's left end (= its bay, because `fitBays`
+  adds and removes bays at the right end), whole floors down; roof things
+  keep their distance from the nearer edge. Change `fitBays` and this
+  file together.
+* **A multi-selection has its own gizmo,** `components/SelectionPivot.tsx`:
+  a pivot group at the scene root that is not scene data, put on
+  `getSelectionCenter` (the mean on X/Z, the lowest Y) outside a drag. A
+  turn is computed from the objects as they were at drag start
+  (`turnObjectsAbout(ids, pivot, radians, from)`), never accumulated. The
+  single-object gizmo in `SceneObjects.tsx` is unchanged.
+* **Only scale is single-object now** (`clampTransformMode`).
+  `getTurnableIds` says what a group turn moves: top-level, on the base,
+  unlocked.
+* **Undo and redo select what the step changed** (`restoreStep`,
+  `changedObjectIds` in the history manager): the difference between the
+  two entries. History entries still hold objects and ground only.
+* **A duplicate's offset is chosen, not fixed** (`duplicateOffset`), and on
+  a plot the copies are seated with `reseatMoved` (`utils/surfaceMap.ts`).
+* **Kit files are `{ kind: "diorama-kit", version, kits }`**
+  (`utils/kitFile.ts`). `isKitFile` in `sceneSerializer.ts` keeps the
+  tolerant scene reader from opening one as an empty scene. Imported kits
+  always get new ids.
+* **`scene.camera` is real since Stage 14 and optional.** Every older file
+  carries the constant `LEGACY_CAMERA_PLACEHOLDER` (zoom 12), which the
+  validator reads as "no view"; never change that constant. The store's
+  `camera` is `undefined` until the user has framed the scene.
+* **The rig records the view when the camera comes to rest**
+  (`CameraControls.tsx`: OrbitControls `end`, then a frame without
+  movement; the end of a preset or focus transition) through `setCamera`,
+  rounded to millimeters — never per frame. In Preview it records the
+  editing view that leaving Preview would give.
+* **`cameraRevision` goes up whenever another scene is opened**
+  (`freshView` in the store: load, import, new, starter); the rig then
+  glides to that scene's view or its preset, and that glide records
+  nothing.
+* **`scene.photo` is frame, focus, blur and exposure** (`scenePhotoOf`,
+  `normalizeScenePhoto` in `utils/photo.ts`). The export size stays editor
+  state. The autosave fingerprint includes `camera` and this.
+* **The zoom limits are `CAMERA_ZOOM_RANGE`** in `utils/cameraPresets.ts`,
+  shared by the rig and the validator.
 
 ## 4. How to Run and Verify
 
@@ -574,15 +622,13 @@ node scripts/capture-template.mjs
   objects follow a level change only if their origin stood on the ground.
   The full list is in
   Stage-8-Implementation.md §7.
-* **Attachments do not follow a building resize;** the inspector edits a
-  facade side at once, not per bay; the gizmo neither snaps to surfaces
-  nor re-parents. The full list is in Stage-5-Implementation.md §7.
-* **Scatter only on the base; erase acts on every layer of the kind; kits
-  cannot be renamed or exported; a placed kit cannot be turned afterwards.**
-  The full list is in Stage-6-Implementation.md §7.
+* **The inspector edits a facade side at once, not per bay; the gizmo
+  neither snaps to surfaces nor re-parents.** The full list is in
+  Stage-5-Implementation.md §7.
+* **Scatter only on the base; erase acts on every layer of the kind; user
+  kits have no thumbnail.** The full list is in Stage-6-Implementation.md §7.
 * **Glow lights cast no shadows and shine through walls** within their
-  reach; photo settings are not saved with the scene. The full list is in
-  Stage-7-Implementation.md §7.
+  reach. The full list is in Stage-7-Implementation.md §7.
 * **Glass has one opacity, reflects nothing and casts no shadow;** panes
   inside an object are not sorted; sign texts are fixed. The full list is
   in Stage-12-Implementation.md §6.
@@ -590,8 +636,9 @@ node scripts/capture-template.mjs
   on every face that looks up, also under a roof; rain streaks are one
   pixel wide at every export size.** The full list is in
   Stage-13-Implementation.md §6.
-* **Redo does not restore the selection.**
-* **Duplicates are not clamped to the plot.**
+* **No stored groups, no group scale; attachments are refit by position
+  only; one saved view per scene, in pixels per meter.** The full list is
+  in Stage-14-Implementation.md §7.
 * **The editing camera does not fit the scene to a small window.**
 * **Old scenes changed with Stage 7:** emissive surfaces no longer glow by
   day; the utility pole is 10 m (was 12 m) and carries six wires.
@@ -604,12 +651,14 @@ node scripts/capture-template.mjs
 
 ## 7. Next
 
-The roadmap's seven stages and Stages 8 to 13 are implemented; Stage 13 is
+The roadmap's seven stages and Stages 8 to 14 are implemented; Stage 14 is
 not committed yet. Nothing further is planned or approved; ask the user
 what comes next.
 
-* **Open from Stage 13:** not committed; not tried in the user's own
-  browser. The starters do not use a weather.
+* **Open from Stage 14:** not committed; not tried in the user's own
+  browser or with the user's own autosave and kits.
+* **Open from Stage 13:** not tried in the user's own browser. The starters
+  do not use a weather.
 * **Open from Stage 12:** not tried in the user's own browser. Old scenes
   change in look (panes, a narrower shop signboard).
 * **Open from Stage 11:** the starters do not use the new assets; the two
@@ -626,21 +675,21 @@ what comes next.
 * **Candidates that came up, none decided:**
   * glass on houses and upper floors (needs rooms), a driver in vehicles,
     sign text the user can edit
-  * editor limits: attachments following a building resize, redo keeping
-    the selection, renaming and exporting kits, turning a placed kit
+  * editor limits left after Stage 14: stored groups, group scale,
+    per-bay facade editing, the gizmo snapping to surfaces, thumbnails
+    for user kits, fitting the view to the window
   * ground: more levels or slopes, curved roads, arrow markings
   * a parametric wall or fence (one object by length) instead of runs
   * more figures in other poses (walking, sitting, cycling)
   * more buildings as fixed models (apartment block, traditional house)
-  * a saved camera and photo settings per scene (CLAUDE.md §12)
   * weather props and details: umbrellas, a figure with one, rain that
     stops at roofs, snow as a ground kind
 * **Backend (CLAUDE.md Phase 6):** the user raised it after Stage 9
   (2026-10-03), worried about file sizes. `public/` was 3.7 MB, so assets
   stay in the repo; the proposal made was Supabase (Postgres + Auth +
   Storage), scenes as `jsonb`, local-first with cloud as a sync layer, and
-  a saved camera per scene first. Nothing was decided or written down as a
-  design; Phases 6–7 still need an explicit request.
+  a saved camera per scene first (done locally in Stage 14). Nothing was
+  decided or written down as a design; Phases 6–7 still need an explicit request.
 
 ## 8. Working With This User
 
@@ -648,7 +697,7 @@ what comes next.
   docs are in English.
 * **Plan first:** at the start of each stage, write the plan doc and get it
   approved, then implement — unless the user hands over the decisions, as
-  for Stages 6 to 12.
+  for Stages 6 to 14.
 * **Git:** the user commits, pushes and merges through GitHub PRs
   themselves. When asked, provide a commit message and a PR description.
 * **Reporting:** follow CLAUDE.md §46 — implemented, files, verification

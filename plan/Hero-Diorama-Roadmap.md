@@ -606,8 +606,7 @@ dark after sunset.
 
 ### Stage 13 — Weather
 
-**Status:** implemented and verified on branch `stage13-weather`,
-2026-10-05; not merged yet. See [Stage-13-Implementation.md](Stage-13-Implementation.md) §6.
+**Status:** done, merged to `main` (PR #16). See [Stage-13-Implementation.md](Stage-13-Implementation.md) §6.
 
 * **`environment.weather`:** clear, cloudy, rain, fog, snow — one record
   each in `utils/weather.ts`, applied to the time of day's look.
@@ -618,6 +617,24 @@ dark after sunset.
 
 **Done when:** a scene can be photographed in the rain, in fog and under
 snow, and a clear scene has not changed.
+
+### Stage 14 — Editor polish
+
+**Status:** implemented and verified on branch `stage14-editor`,
+2026-10-05; not merged yet. See [Stage-14-Implementation.md](Stage-14-Implementation.md) §7.
+
+* **Attachments follow a building** whose bays or floors change: same wall,
+  same bay, same distance; roof things rise and sink with the walls.
+* **A multi-selection moves and turns about its center,** with the gizmo
+  or from the inspector; a placed kit can be turned.
+* **Undo and redo select what the step changed;** a duplicate lands on the
+  base, on the ground it lands on.
+* **Kits can be renamed, exported and imported** (`.kit.json`).
+* **A scene remembers its view and its photo settings** (`camera`,
+  `photo`; files stay v2).
+
+**Done when:** none of these five gets in the way of building a dense
+scene, and nothing looks different.
 
 ---
 
@@ -636,10 +653,12 @@ snow, and a clear scene has not changed.
 | 9 | Phase 4 (roads, street props) and Phase 3 (assets) |
 | 10 | Cleanup after Stage 1 (§18 scale) |
 | 11 | Phase 3 (assets, §15 taxonomy) |
+| 12 | Phase 4 (materials, lit signs) |
+| 13 | Phase 4 (weather, §25) |
+| 14 | Phase 2 (editor) and §12 (camera in the scene) |
 
 Not in this roadmap:
 
-* weather (rain, snow, fog)
 * terrain editor
 * backend, auth, cloud save
 * publishing, social features

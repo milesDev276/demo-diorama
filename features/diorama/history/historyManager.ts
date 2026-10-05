@@ -41,6 +41,18 @@ export function pushHistory(state: HistoryState, entry: HistoryEntry): HistorySt
   return { history: nextHistory, historyIndex: nextHistory.length - 1 };
 }
 
+/**
+ * Ids of the objects that differ between two history entries: those of `to`
+ * that `from` does not have, or has differently. Empty if the ground
+ * changed as well — then the step was a ground edit, and the objects only
+ * followed it.
+ */
+export function changedObjectIds(from: HistoryEntry, to: HistoryEntry): string[] {
+  if (JSON.stringify(from.surface) !== JSON.stringify(to.surface)) return [];
+  const before = new Map(from.objects.map((object) => [object.id, JSON.stringify(object)]));
+  return to.objects.filter((object) => before.get(object.id) !== JSON.stringify(object)).map((object) => object.id);
+}
+
 export function undoHistory(state: HistoryState): ({ historyIndex: number } & HistoryEntry) | null {
   if (state.historyIndex <= 0) return null;
   const nextIndex = state.historyIndex - 1;

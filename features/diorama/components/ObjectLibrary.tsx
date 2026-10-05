@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { Paintbrush, Search, X } from "lucide-react";
+import { Paintbrush, Search, Upload } from "lucide-react";
 import { motion } from "framer-motion";
 import { useDioramaStore } from "../store/dioramaStore";
 import { useKitStore } from "../store/kitStore";
@@ -11,7 +11,10 @@ import { getLibraryItems, type LibraryItem } from "../assets/assetRegistry";
 import { BUILT_IN_KITS } from "../assets/builtInKits";
 import { SURFACE_KIND_SPECS, surfaceSwatch } from "../assets/surfaceKinds";
 import { SURFACE_KINDS, type SurfaceKind } from "../types/diorama.types";
+import { parseKitFile } from "../utils/kitFile";
 import { scatterPatchParams } from "../utils/objectDefaults";
+import { readFileAsText } from "../utils/sceneSerializer";
+import { KitCardActions } from "./KitCardActions";
 
 /** Whether the item's placement or brush is the one running now. */
 function useIsActive(item: LibraryItem): boolean {
@@ -26,7 +29,6 @@ function useIsActive(item: LibraryItem): boolean {
 
 function LibraryCard({ item }: { item: LibraryItem }) {
   const isActive = useIsActive(item);
-  const deleteKit = useKitStore((s) => s.deleteKit);
   const Icon = item.icon;
   const userKit = item.action === "kit" && !item.kit.builtIn ? item.kit : null;
 
@@ -80,18 +82,7 @@ function LibraryCard({ item }: { item: LibraryItem }) {
         </span>
         <span className="line-clamp-2 text-[11px] font-medium leading-tight text-[#4A3421]">{item.label}</span>
       </motion.button>
-      {userKit && (
-        <button
-          type="button"
-          aria-label={`Delete kit ${userKit.name}`}
-          onClick={() => {
-            if (window.confirm(`Delete the kit “${userKit.name}”?`)) deleteKit(userKit.id);
-          }}
-          className="absolute right-1 top-1 rounded-full bg-white/90 p-1 text-red-400 opacity-0 shadow-sm transition-opacity hover:text-red-500 focus:opacity-100 group-hover:opacity-100 cursor-pointer"
-        >
-          <X size={11} />
-        </button>
-      )}
+      {userKit && <KitCardActions kit={userKit} />}
     </div>
   );
 }
@@ -128,6 +119,41 @@ function GroundCard({ kind }: { kind: SurfaceKind }) {
   );
 }
 
+/** "Import" beside the Kits heading: reads kit files into the library and says what went wrong, if anything. */
+function KitImport({ onMessage }: { onMessage: (message: string | null) => void }) {
+  const importKits = useKitStore((s) => s.importKits);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = ""; // allow importing the same file again later
+    const kits = [];
+    let error: string | null = null;
+    for (const file of files) {
+      const result = parseKitFile(await readFileAsText(file).catch(() => ""));
+      if ("error" in result) error = files.length > 1 ? `${file.name}: ${result.error}` : result.error;
+      else kits.push(...result.kits);
+    }
+    if (kits.length) importKits(kits);
+    onMessage(error);
+  };
+
+  return (
+    <>
+      <input ref={inputRef} type="file" accept="application/json,.json" multiple className="hidden" onChange={handleFiles} />
+      <button
+        type="button"
+        title="Import kit files"
+        onClick={() => inputRef.current?.click()}
+        className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium text-[#4A3421]/60 transition-colors hover:bg-white hover:text-[#4A3421] cursor-pointer"
+      >
+        <Upload size={11} aria-hidden />
+        Import
+      </button>
+    </>
+  );
+}
+
 /**
  * Left panel: click an item, then click a surface in the scene to put it
  * there; a scatter item starts the brush instead, and a kit places a whole
@@ -138,6 +164,7 @@ function GroundCard({ kind }: { kind: SurfaceKind }) {
 export function ObjectLibrary() {
   const userKits = useKitStore((s) => s.kits);
   const [query, setQuery] = useState("");
+  const [kitMessage, setKitMessage] = useState<string | null>(null);
   const groups = useMemo(() => getLibraryItems(query, [...userKits, ...BUILT_IN_KITS]), [query, userKits]);
   const isPlot = useDioramaStore((s) => s.environment.base === "plot");
   const groundKinds = useMemo(() => {
@@ -190,7 +217,15 @@ export function ObjectLibrary() {
 
       {groups.map(({ title, items }) => (
         <div key={title} className="flex flex-col gap-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#4A3421]/40">{title}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#4A3421]/40">{title}</p>
+            {title === "Kits" && <KitImport onMessage={setKitMessage} />}
+          </div>
+          {title === "Kits" && kitMessage && (
+            <p role="alert" className="rounded-lg bg-red-50 px-2 py-1.5 text-[11px] text-red-600">
+              {kitMessage}
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-2">
             {items.map((item) => (
               <LibraryCard key={item.key} item={item} />

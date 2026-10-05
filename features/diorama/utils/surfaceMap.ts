@@ -237,6 +237,18 @@ export function reseatObjects(objects: DioramaObject[], before: SurfaceMap, afte
 }
 
 /**
+ * Objects that were just moved by (`dx`, `dz`) over the same ground: whatever
+ * stood on the ground where it came from stands on it where it is now.
+ */
+export function reseatMoved(objects: DioramaObject[], surface: SurfaceMap, dx: number, dz: number): DioramaObject[] {
+  return liftObjects(objects, (x, y, z) => {
+    const from = levelAt(surface, x - dx, z - dz);
+    const to = levelAt(surface, x, z);
+    return from === undefined || to === undefined || from === to || Math.abs(y - from) > ON_GROUND ? 0 : to - from;
+  });
+}
+
+/**
  * Objects with every top-level object (by its origin) and every scatter
  * piece raised by `lift` of its world position. Attachments of buildings
  * are left alone. Returns the same array if nothing moved.

@@ -113,7 +113,7 @@ export function EditorSubToolbar() {
         ))}
       </div>
       {isMultiSelect && (
-        <span className="text-[11px] text-[#4A3421]/40">Rotate/Scale need a single object</span>
+        <span className="text-[11px] text-[#4A3421]/40">Scale needs a single object</span>
       )}
 
       <div className="h-4 w-px bg-[#8b6f52]/15" />

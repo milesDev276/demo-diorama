@@ -20,7 +20,7 @@ const BRUSH_STEP = 1.2;
  * Ctrl+S            Save scene
  * Esc               Cancel placing, else end the scatter or ground brush, else clear selection
  * F                 Focus selected object(s)
- * W / E / R         Move / Rotate / Scale mode
+ * W / E / R         Move / Rotate / Scale mode (several objects move and rotate together)
  * R / Shift+R       While placing: turn the ghost by 45°
  * [ / ]             While brushing or painting ground: smaller / larger brush
  */

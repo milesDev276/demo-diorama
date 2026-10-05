@@ -15,7 +15,12 @@ export const DEFAULT_ENVIRONMENT: DioramaEnvironment = {
 const ISOMETRIC_POSITION: Vector3Tuple = [48, 42, 48];
 const DEFAULT_TARGET: Vector3Tuple = [0, 1.8, 0];
 
-export const DEFAULT_CAMERA_STATE: DioramaCameraState = {
+/**
+ * What every scene file carried as its camera before Stage 14: a constant
+ * that was never the real view. A file with exactly this has no saved view.
+ * Fixed forever — it describes old files.
+ */
+export const LEGACY_CAMERA_PLACEHOLDER: DioramaCameraState = {
   position: ISOMETRIC_POSITION,
   target: DEFAULT_TARGET,
   zoom: 12,
