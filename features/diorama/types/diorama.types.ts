@@ -48,6 +48,10 @@ export const DIORAMA_OBJECT_TYPES = [
   "scooter",
   "shopkeeper",
   "student",
+  "apartment",
+  "traditionalHouse",
+  "gatePost",
+  "propaneTanks",
 ] as const;
 
 export type DioramaObjectType = (typeof DIORAMA_OBJECT_TYPES)[number];
@@ -91,8 +95,20 @@ export interface ScatterParams {
   points: Vector3Tuple[];
 }
 
-/** `BuildingParams` on a `building`, `ScatterParams` on a `scatter` layer (utils/objectParams.ts). */
-export type ObjectParams = BuildingParams | ScatterParams;
+/** Tiling models that are one object of any length: a run of pieces laid
+ *  end to end along the object's X axis (utils/runParams.ts). */
+export const RUN_TYPES = ["blockWall", "fence", "guardRail", "hedge"] as const satisfies readonly DioramaObjectType[];
+export type RunType = (typeof RUN_TYPES)[number];
+
+/** What a run object is. Missing params = one piece. */
+export interface RunParams {
+  /** Integer, 1 … MAX_RUN_PIECES; the object's origin is the middle of the run. */
+  pieces: number;
+}
+
+/** `BuildingParams` on a `building`, `ScatterParams` on a `scatter` layer,
+ *  `RunParams` on a run (utils/objectParams.ts). */
+export type ObjectParams = BuildingParams | ScatterParams | RunParams;
 
 export interface DioramaObject {
   id: string;
@@ -107,7 +123,7 @@ export interface DioramaObject {
   /** The building this object is attached to. Position, rotation and scale
    *  are then in that building's frame (utils/sceneGraph.ts). */
   parentId?: string;
-  /** Only on parametric objects: `building` and `scatter`. */
+  /** Only on parametric objects: `building`, `scatter` and runs. */
   params?: ObjectParams;
 }
 

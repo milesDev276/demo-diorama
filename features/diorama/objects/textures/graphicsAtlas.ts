@@ -324,10 +324,54 @@ function paintKonbiniSign(ctx: CanvasRenderingContext2D, w: number, h: number) {
   ctx.fillText("24h", w * 0.905, h * 0.53, w * 0.11);
 }
 
+/** 表札: a wooden name plate with a fictional family name written top to bottom. */
+function paintNamePlate(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  const grain = ctx.createLinearGradient(0, 0, w, 0);
+  grain.addColorStop(0, "#c9a77c");
+  grain.addColorStop(0.5, "#d8b98f");
+  grain.addColorStop(1, "#c39f73");
+  ctx.fillStyle = grain;
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = "rgba(90, 60, 35, 0.18)";
+  ctx.lineWidth = 1;
+  for (const x of [0.22, 0.41, 0.68, 0.83]) {
+    ctx.beginPath();
+    ctx.moveTo(w * x, 0);
+    ctx.lineTo(w * x, h);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = "#2e2620";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = font(700, w * 0.62);
+  ctx.fillText("中", w / 2, h * 0.3);
+  ctx.fillText("村", w / 2, h * 0.7);
+}
+
+/** Name board of a fictional two-storey apartment: ハイツ若葉 over a small romanized line. */
+function paintApartmentBoard(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  ctx.fillStyle = DIORAMA_COLORS.signBoard;
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = "#5f7f6a";
+  ctx.lineWidth = h * 0.05;
+  ctx.strokeRect(h * 0.06, h * 0.06, w - h * 0.12, h - h * 0.12);
+
+  ctx.fillStyle = "#3f5f4a";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = font(800, h * 0.46);
+  ctx.fillText("ハイツ若葉", w / 2, h * 0.43, w * 0.86);
+  ctx.font = font(600, h * 0.16);
+  ctx.fillText("HEIGHTS WAKABA", w / 2, h * 0.78, w * 0.7);
+}
+
 /** One painter per cell; the Record type fails the build if the layout gains a cell with no painter. */
 const PAINTERS: Record<CellName, CellPainter> = {
   vending_ad: paintVendingAd,
   plate_kei: paintKeiPlate,
+  name_plate: paintNamePlate,
+  apartment_board: paintApartmentBoard,
   road_tomare: paintTomare,
   kanban_sakaya: paintKanbanSakaya,
   post_front: paintPostFront,

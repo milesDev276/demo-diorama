@@ -3,6 +3,7 @@ import type {
   DioramaObject,
   DioramaObjectType,
   ObjectParams,
+  RunType,
   ScatterKind,
   ScatterParams,
   Vector3Tuple,
@@ -187,6 +188,21 @@ export function run(
     const t = (i + 0.5) / count;
     return place(type, from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t, alongX ? 0 : Math.PI / 2);
   });
+}
+
+/**
+ * One run object (a wall, fence, rail or hedge) on the ground from `from` to
+ * `to` (x, z), in whole pieces: its middle on the line's middle, its X axis
+ * along the line. The line should be close to a whole number of pieces long.
+ */
+export function runObject(type: RunType, from: [number, number], to: [number, number]): DioramaObject {
+  const tile = ASSET_REGISTRY[type].tile ?? 1;
+  const [dx, dz] = [to[0] - from[0], to[1] - from[1]];
+  const pieces = Math.max(1, Math.round(Math.hypot(dx, dz) / tile));
+  return {
+    ...place(type, (from[0] + to[0]) / 2, (from[1] + to[1]) / 2, -Math.atan2(dz, dx)),
+    params: { pieces },
+  };
 }
 
 /**

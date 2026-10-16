@@ -336,6 +336,25 @@ class MeshBuilder:
         if print:
             self._print(faces, print, _PRINT_DIRS[print_dir])
 
+    def solid(
+        self,
+        corners: list[Vec3],
+        faces: list[tuple[int, ...]],
+        color: str,
+        *,
+        shade: float = 1.0,
+        material: str = "base",
+    ) -> None:
+        """A closed polyhedron from its corners and its faces (corner indices),
+        for shapes a box or an extrusion cannot make, such as a hipped roof.
+        Face windings are made consistent and outward."""
+        before = set(self.bm.faces)
+        verts = [self.bm.verts.new(c) for c in corners]
+        for face in faces:
+            self.bm.faces.new([verts[i] for i in face])
+        bmesh.ops.recalc_face_normals(self.bm, faces=self._new_faces(before))
+        self._paint(self._new_faces(before), self.color(color, shade), material, smooth=False)
+
     # ── Output ──────────────────────────────────────────────────────────
 
     def to_object(self) -> bpy.types.Object:

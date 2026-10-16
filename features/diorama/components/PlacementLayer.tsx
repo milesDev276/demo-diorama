@@ -6,10 +6,11 @@ import * as THREE from "three";
 import type { Group } from "three";
 import type { Placement, Vector3Tuple } from "../types/diorama.types";
 import { useDioramaStore } from "../store/dioramaStore";
-import { ASSET_REGISTRY, getFootprintRadius } from "../assets/assetRegistry";
+import { ASSET_REGISTRY, getFootprintRadius, getRunSpan } from "../assets/assetRegistry";
 import { jitteredScale, spawnYaw } from "../utils/objectDefaults";
 import { kitNeedsBase, kitRadius } from "../utils/kits";
 import { canBeChild, canBeParent, getWorldTransform, indexObjects, type Transform } from "../utils/sceneGraph";
+import { MAX_RUN_PIECES } from "../utils/runParams";
 import { roadFrameAt } from "../utils/surfaceMap";
 import { collectSurfaces, isSliver, surfaceOwnerId, toPointer, worldNormal } from "../utils/surfacePicking";
 import { resolvePlacement, type SurfaceHit } from "../utils/surfaceSnap";
@@ -19,9 +20,8 @@ import { SelectionRing } from "./SelectionRing";
 
 /** A press that travels further than this (pixels) is an orbit drag, not a placing click. */
 const CLICK_TOLERANCE = 5;
-/** A run of tiling pieces: its direction snaps to this, and it never has more pieces than MAX_RUN. */
+/** A run of tiling pieces: its direction snaps to this, and it never has more pieces than MAX_RUN_PIECES. */
 const RUN_ANGLE_STEP = Math.PI / 12;
-const MAX_RUN = 40;
 
 /** The heading and scale a new object starts from; varied again after every Shift+click for jittered assets. */
 function freshPose(placement: Placement): { yaw: number; scale: Vector3Tuple } {
@@ -41,7 +41,7 @@ function runPieces(start: Transform, end: Vector3Tuple, tile: number): Transform
   const length = Math.hypot(dx, dz);
   if (length < tile / 2) return null;
   const angle = Math.round(Math.atan2(dz, dx) / RUN_ANGLE_STEP) * RUN_ANGLE_STEP;
-  const count = Math.min(MAX_RUN, Math.max(1, Math.round(length / tile)));
+  const count = Math.min(MAX_RUN_PIECES, Math.max(1, Math.round(length / tile)));
   const [ux, uz] = [Math.cos(angle), Math.sin(angle)];
   return Array.from({ length: count }, (_, i) => ({
     position: [start.position[0] + ux * (i + 0.5) * tile, start.position[1], start.position[2] + uz * (i + 0.5) * tile],
@@ -64,7 +64,7 @@ function PlacementGhost({ placement }: { placement: Placement }) {
   return (
     <>
       <AssetVisual object={object} />
-      <SelectionRing radius={getFootprintRadius(object)} />
+      <SelectionRing radius={getFootprintRadius(object)} length={getRunSpan(object)} />
     </>
   );
 }
@@ -252,7 +252,8 @@ function placementKey(placement: Placement): string {
  * (or of a whole kit) follows the pointer over the base and the buildings,
  * snapped by utils/surfaceSnap, and a click puts it there — attached to the
  * building if it landed on one. R turns the ghost. An asset that tiles
- * (walls, rails, lines) can also be dragged out into a row on the base.
+ * (walls, rails, lines) can also be dragged out into a row on the base; a
+ * wall, fence, rail or hedge row becomes one run object (placeRun).
  * The ghost's transform is written straight to its group; the store only
  * changes on the click, and React state only while a row is dragged.
  */

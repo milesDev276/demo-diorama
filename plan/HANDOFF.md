@@ -1,4 +1,4 @@
-# Handoff — Hero Diorama Work (as of 2026-10-05, after Stage 14)
+# Handoff — Hero Diorama Work (as of 2026-10-06, after Stage 15)
 
 Read this first when picking up the work. It summarizes where things
 stand, what was decided and why, how to run and verify things, and what
@@ -26,28 +26,25 @@ comes next. Details live in the linked plan files.
 | Stage 11: library breadth (eleven assets) | Done | `main` (PR #14) |
 | Stage 12: glass and lit signs | Done | `main` (PR #15) |
 | Stage 13: weather | Done | `main` (PR #16) |
-| Stage 14: editor polish | Implemented and verified; **not committed** | branch `stage14-editor` (working tree) |
+| Stage 14: editor polish | Done | `main` (PR #17) |
+| Stage 15: residential street | Implemented and verified; **not committed** | branch `stage15-residential` (working tree) |
 
-Stage 7 was the last stage of the original roadmap; Stages 8 to 14 were added
+Stage 7 was the last stage of the original roadmap; Stages 8 to 15 were added
 at the user's request.
 
-**`main` holds Stages 0–13** (last merge: PR #16, `144a612`). Stage 14 is
-in the working tree of `stage14-editor`, uncommitted.
+**`main` holds Stages 0–14** (last merge: PR #17, `9b6ef3b`). Stage 15 is
+in the working tree of `stage15-residential`, uncommitted.
 
-**Immediate next action:** the user commits Stage 14 and opens its PR; then
+**Immediate next action:** the user commits Stage 15 and opens its PR; then
 ask what comes next (§7 lists the candidates).
 The user merges PRs themselves, one branch per stage; cut the
 next branch from an up-to-date `main` (`git fetch`, then fast-forward).
 (For Stages 6 to 14 the user handed every decision
 to Claude, so the plan was settled with its defaults and implemented without
-a separate approval round. Ask again at the start of new work; it is not a
-standing rule.)
+a separate approval round. Stage 15's plan was approved with "theo mặc định":
+its defaults. Ask again at the start of new work; it is not a standing rule.)
 
-**A stash to know about.** `git stash list` holds "stage5 draft slice by
-another tool": six edited files and a box-shaped `Building.tsx` that
-another tool wrote on 2026-10-01 while the Stage 5 plan was being drafted.
-The approved plan replaced that slice, so it was stashed, not applied. It
-can be dropped once the user agrees.
+The old Stage 5 stash was dropped on 2026-10-06; `git stash list` is empty.
 
 ## 2. Documents
 
@@ -69,6 +66,7 @@ can be dropped once the user agrees.
 | [Stage-12-Implementation.md](Stage-12-Implementation.md) | The `glass` slot, rooms behind shop glass, hollow vehicle cabins, the lit atlas, two sign cells: decisions D1–D7 and results (§6) |
 | [Stage-13-Implementation.md](Stage-13-Implementation.md) | Weather as scene data, the weather looks, wet and snowed-on surfaces, falling rain and snow: decisions D1–D7 and results (§6) |
 | [Stage-14-Implementation.md](Stage-14-Implementation.md) | Attachments following a building, group move and turn, undo/redo selection, duplicates on the base, kit rename / export / import, the saved view and photo settings: decisions D1–D8 and results (§7) |
+| [Stage-15-Implementation.md](Stage-15-Implementation.md) | The apartment, the traditional house, the gate post and the propane cylinders; walls, fences, rails and hedges as one object by length; the Residential Lane starter and the Front Gate kit: decisions D1–D5 and results (§6) |
 | `Phase-*.md` | Earlier phases, kept for history |
 
 ## 3. Decisions That Must Not Be Re-litigated
@@ -324,9 +322,9 @@ Stage 12:
   order of its random calls; do not reorder them.
 * **A fixed building with a room is built from wall blocks,** one box per
   side wall, so the siding's per-face jitter shows no seam.
-* **The atlas has room left** right of `plate_kei` (x 752–1016, y 8–136)
-  and under `bus_stop_board` (from y 792); the strip under `plate_kei` is
-  used by the two sign cells.
+* **The atlas has room left** under `bus_stop_board` (from y 792); the
+  strip under `plate_kei` is used by the two sign cells, the one right of it
+  by the two Stage 15 cells.
 
 Stage 13:
 
@@ -402,6 +400,33 @@ Stage 14:
 * **The zoom limits are `CAMERA_ZOOM_RANGE`** in `utils/cameraPresets.ts`,
   shared by the rig and the validator.
 
+Stage 15:
+
+* **Walls, fences, rails and hedges are runs:** `RUN_TYPES` in
+  `diorama.types.ts`, `params: { pieces }` (1 … `MAX_RUN_PIECES` = 40, in
+  `utils/runParams.ts`), read through `runParamsOf` / `runPiecesOf`.
+  Additive: an object without params is one piece (files stay v2). The
+  origin is the middle of the run; the pieces lie along its X axis
+  (`runPieceOffsets`). A run is drawn as one GLB clone per piece.
+* **A dragged row of a run type becomes one object** (`placeRun`); other
+  tiling types (road markings) still lay separate objects, each lined up
+  with the road. Runs in older scenes stay separate pieces.
+* **Changing a run's length keeps its left (−X) end** (`setRunPieces`,
+  `resizedRunPosition`); one undo step.
+* **A run's selection ring is a stadium** (`SelectionRing` `length`,
+  `getRunSpan`); `getFootprintRadius` stays the radius of one piece.
+* **`apartment` and `traditionalHouse` are fixed GLBs** like `house` and
+  `konbini`; nothing attaches to them. Their windows and shoji are
+  `emissive`, not `glass`.
+* **`MeshBuilder.solid`** builds a closed polyhedron from corners and faces;
+  the 入母屋 roof's hipped part uses it.
+* **Atlas cells `name_plate` and `apartment_board`** sit right of
+  `plate_kei` (x 760–1016, y 8–136), which fills that strip. The next free
+  space is under `bus_stop_board` (from y 792).
+* **Starter grounds are `surfaceFrom(width, depth, rects)`**
+  (`utils/plotStarter.ts`); `runObject` (`utils/objectDefaults.ts`) makes
+  one run between two points.
+
 ## 4. How to Run and Verify
 
 The platform is Windows. Node 22.14, Chrome, and Blender 5.2.2 LTS at
@@ -462,7 +487,7 @@ node scripts/capture-template.mjs
   running, `git stash push -u`, wait a few seconds for the hot reload,
   capture or measure, then `git stash pop`. Do it in one command so the pop
   cannot be forgotten, and check `git stash list` afterwards (the old
-  Stage 5 stash must still be the only one).
+  stash list must be empty again).
 * **Comparing two folders of screenshots** needs no image library: load both
   PNGs into a canvas in the headless browser and compare the pixels there.
 * **A fresh browser profile now opens the hero scene** at golden hour.
@@ -639,6 +664,9 @@ node scripts/capture-template.mjs
 * **No stored groups, no group scale; attachments are refit by position
   only; one saved view per scene, in pixels per meter.** The full list is
   in Stage-14-Implementation.md §7.
+* **A run is straight, at one level, and costs a draw call per piece; old
+  separate-piece runs are not merged.** The full list is in
+  Stage-15-Implementation.md §6.
 * **The editing camera does not fit the scene to a small window.**
 * **Old scenes changed with Stage 7:** emissive surfaces no longer glow by
   day; the utility pole is 10 m (was 12 m) and carries six wires.
@@ -651,12 +679,15 @@ node scripts/capture-template.mjs
 
 ## 7. Next
 
-The roadmap's seven stages and Stages 8 to 14 are implemented; Stage 14 is
+The roadmap's seven stages and Stages 8 to 15 are implemented; Stage 15 is
 not committed yet. Nothing further is planned or approved; ask the user
 what comes next.
 
-* **Open from Stage 14:** not committed; not tried in the user's own
-  browser or with the user's own autosave and kits.
+* **Open from Stage 15:** not committed; not tried in the user's own
+  browser. The two-storey house is not in the Residential Lane starter (it
+  did not fit); the hero and Back Street still use separate wall pieces.
+* **Open from Stage 14:** not tried in the user's own browser or with the
+  user's own autosave and kits.
 * **Open from Stage 13:** not tried in the user's own browser. The starters
   do not use a weather.
 * **Open from Stage 12:** not tried in the user's own browser. Old scenes
@@ -679,9 +710,11 @@ what comes next.
     per-bay facade editing, the gizmo snapping to surfaces, thumbnails
     for user kits, fitting the view to the window
   * ground: more levels or slopes, curved roads, arrow markings
-  * a parametric wall or fence (one object by length) instead of runs
+  * runs with corners or a gate inside them; runs following a change of
+    ground level; instanced runs
   * more figures in other poses (walking, sitting, cycling)
-  * more buildings as fixed models (apartment block, traditional house)
+  * more buildings as fixed models (a mid-rise apartment block, a small
+    factory or workshop, a 古民家-style shop)
   * weather props and details: umbrellas, a figure with one, rain that
     stops at roofs, snow as a ground kind
 * **Backend (CLAUDE.md Phase 6):** the user raised it after Stage 9

@@ -3,12 +3,15 @@
   "building:house-2f",
   "house",
   "shop",
+  "apartment",
+  "traditionalHouse",
   "konbini",
   "sign",
   "busStop",
   "curveMirror",
   "manhole",
   "blockWall",
+  "gatePost",
   "gutterGrate",
   "crosswalk",
   "stopLine",
@@ -25,6 +28,7 @@
   "kanbanSign",
   "laundry",
   "pottedPlant",
+  "propaneTanks",
   "waterTank",
   "rooftopShed",
   "postBox",
@@ -56,5 +60,6 @@
   "kit:shop-entrance",
   "kit:rooftop-set",
   "kit:bus-stop",
-  "kit:collection-point"
+  "kit:collection-point",
+  "kit:front-gate"
 ]

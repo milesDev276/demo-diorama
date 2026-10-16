@@ -9,6 +9,7 @@ import type {
 } from "../types/diorama.types";
 import { DEFAULT_BUILDING_PARAMS } from "../assets/buildingPresets";
 import { normalizeBuildingParams } from "./buildingParams";
+import { isRunType, normalizeRunParams } from "./runParams";
 import { normalizeScatterParams } from "./scatterParams";
 import { createId } from "./id";
 import { DEFAULT_SCENE_NAME } from "./objectDefaults";
@@ -70,6 +71,10 @@ function normalizeObject(raw: unknown, seenIds: Set<string>): DioramaObject | nu
     const params = normalizeScatterParams(r.params);
     if (!params) return null;
     object.params = params;
+  }
+  if (isRunType(object.type)) {
+    const params = normalizeRunParams(r.params);
+    if (params) object.params = params;
   }
   return object;
 }

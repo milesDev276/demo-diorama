@@ -7,6 +7,7 @@ import { useDioramaStore } from "../store/dioramaStore";
 import type { Vector3Tuple } from "../types/diorama.types";
 import { objectLabel } from "../assets/assetRegistry";
 import { BuildingPanel } from "./BuildingPanel";
+import { RunPanel } from "./RunPanel";
 import { SaveKitAction } from "./SaveKitAction";
 import { ScatterPanel } from "./ScatterPanel";
 import { ScenePanel } from "./ScenePanel";
@@ -175,6 +176,7 @@ export function PropertiesPanel() {
 
             {object.type === "building" && <BuildingPanel object={object} />}
             {object.type === "scatter" && <ScatterPanel object={object} />}
+            <RunPanel object={object} />
             <SurfaceActions object={object} />
 
             <div className="flex flex-col gap-1.5 border-t border-[#8b6f52]/10 pt-4">

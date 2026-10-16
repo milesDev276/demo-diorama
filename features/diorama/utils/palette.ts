@@ -39,6 +39,13 @@ export const DIORAMA_COLORS = {
   foundation: "#b4afa3",
   roofSlab: "#a3a79e",
   doorDark: "#4d423a",
+  // Residential (Stage 15)
+  roofMetal: "#6b7378",
+  steelPaint: "#7b6c5f",
+  doorSteel: "#d3cbbb",
+  charredBoard: "#3f3934",
+  woodLight: "#a07a55",
+  shojiPaper: "#f2ead6",
 
   // Street
   asphalt: "#55575a",
@@ -90,6 +97,7 @@ export const DIORAMA_COLORS = {
   tankCream: "#e3dcc4",
   coneRed: "#cf5236",
   lampWhite: "#f3f0e4",
+  propaneBlue: "#97a3a8",
 
   // Vehicles
   carBody: "#a9c4b6",
