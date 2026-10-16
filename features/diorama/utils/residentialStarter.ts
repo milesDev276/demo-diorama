@@ -10,7 +10,9 @@ import { patch, surfaceFrom, type GroundRect } from "./plotStarter";
  * traditional house behind a block wall with a gate; right of it a
  * two-storey apartment whose corridor faces the lane and whose stair is on
  * the right (both toward the isometric camera), bicycles and the garbage
- * cage on its front strip and a kei car parked behind it. X runs −12 … 12,
+ * cage on its front strip and a kei car parked behind it. On the lane a
+ * walker, an elder with her cart, a cyclist and a schoolchild; a cat on the
+ * wall (Stage 16). X runs −12 … 12,
  * Z −8 … 8 (front). All numbers are meters.
  */
 const WIDTH = 24;
@@ -99,6 +101,10 @@ export function getResidentialObjects(): DioramaObject[] {
     onRoad(place("gutterGrate", -9.5, 4.65)),
     onRoad(place("gutterGrate", 5.0, 4.65)),
     onRoad(place("student", -1.6, 6.2, half)),
-    onRoad(place("pedestrian", 7.8, 6.9, -half)),
+    // People on the lane, and a cat on top of the house's wall (1.2 m)
+    onRoad(place("walker", 4.2, 6.8, -half)),
+    onRoad(place("elder", -4.6, 5.9, -half)),
+    onRoad(place("cyclist", -2.6, 6.95)),
+    place("cat", -10.0, WALL_Z, 0.3, undefined, 1.2),
   ];
 }

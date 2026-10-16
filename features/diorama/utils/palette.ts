@@ -114,6 +114,9 @@ export const DIORAMA_COLORS = {
   clothGray: "#77757a",
   skin: "#dfb896",
   hairDark: "#3b322c",
+  hairGray: "#aaa59d",
+  clothMauve: "#8e7a82",
+  catGinger: "#c98d55",
 
   // Weather
   snow: "#eef2f6",

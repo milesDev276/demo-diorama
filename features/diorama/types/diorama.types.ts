@@ -52,6 +52,12 @@ export const DIORAMA_OBJECT_TYPES = [
   "traditionalHouse",
   "gatePost",
   "propaneTanks",
+  "walker",
+  "sittingFigure",
+  "cyclist",
+  "umbrellaFigure",
+  "elder",
+  "cat",
 ] as const;
 
 export type DioramaObjectType = (typeof DIORAMA_OBJECT_TYPES)[number];
