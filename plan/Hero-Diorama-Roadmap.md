@@ -620,8 +620,7 @@ snow, and a clear scene has not changed.
 
 ### Stage 14 — Editor polish
 
-**Status:** implemented and verified on branch `stage14-editor`,
-2026-10-05; not merged yet. See [Stage-14-Implementation.md](Stage-14-Implementation.md) §7.
+**Status:** done, merged to `main` (PR #17). See [Stage-14-Implementation.md](Stage-14-Implementation.md) §7.
 
 * **Attachments follow a building** whose bays or floors change: same wall,
   same bay, same distance; roof things rise and sink with the walls.
@@ -635,6 +634,23 @@ snow, and a clear scene has not changed.
 
 **Done when:** none of these five gets in the way of building a dense
 scene, and nothing looks different.
+
+### Stage 15 — Residential street
+
+**Status:** implemented and verified on branch `stage15-residential`,
+2026-10-06; not merged yet. See [Stage-15-Implementation.md](Stage-15-Implementation.md) §6.
+
+* **Two buildings as fixed models:** a two-storey wooden apartment with an
+  open corridor and an outside stair, and a one-storey traditional house
+  with an 入母屋 tile roof and an engawa.
+* **Two residential props:** a gate post with a name plate, propane
+  cylinders.
+* **Walls, fences, rails and hedges are one object of any length**
+  (`params: { pieces }`; files stay v2), lengthened in the inspector.
+* **A third starter, Residential Lane,** and a Front Gate kit.
+
+**Done when:** an ordinary residential lane can be built from the library,
+and the existing starters look the same.
 
 ---
 
@@ -656,6 +672,7 @@ scene, and nothing looks different.
 | 12 | Phase 4 (materials, lit signs) |
 | 13 | Phase 4 (weather, §25) |
 | 14 | Phase 2 (editor) and §12 (camera in the scene) |
+| 15 | Phase 3 (assets, §15 taxonomy) and Phase 2 (editor) |
 
 Not in this roadmap:
 

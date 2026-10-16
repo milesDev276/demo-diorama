@@ -24,8 +24,11 @@ const PARKING_Z = -3;
 const GARDEN = { x1: -6, z1: -2 };
 const CROSSWALK_X = -6.25;
 
-/** Rectangles painted in order, later ones over earlier ones: [kind, x0, x1, z0, z1]. */
-const GROUND: Array<[SurfaceKind, number, number, number, number]> = [
+/** A rectangle of ground, in meters from the plot's middle: [kind, x0, x1, z0, z1]. */
+export type GroundRect = [SurfaceKind, number, number, number, number];
+
+/** Rectangles painted in order, later ones over earlier ones. */
+const GROUND: GroundRect[] = [
   ["gravel", -12, 12, -8, 8],
   ["grass", -12, GARDEN.x1, -8, GARDEN.z1],
   ["concrete", LANE.x1, 12, -8, PARKING_Z],
@@ -39,21 +42,26 @@ const GROUND: Array<[SurfaceKind, number, number, number, number]> = [
   ["ramp", CROSSWALK_X - 1.25, CROSSWALK_X + 1.25, FRONT_ROAD_Z - 0.5, FRONT_ROAD_Z],
 ];
 
-export function getBackStreetSurface(): SurfaceMap {
-  const cols = WIDTH / SURFACE_CELL;
-  const rows = DEPTH / SURFACE_CELL;
+/** The ground of a `width` × `depth` plot: gravel, with `rects` painted over it in order. */
+export function surfaceFrom(width: number, depth: number, rects: GroundRect[]): SurfaceMap {
+  const cols = width / SURFACE_CELL;
+  const rows = depth / SURFACE_CELL;
   const cells = Array.from({ length: rows }, () => new Array<string>(cols).fill(SURFACE_KIND_SPECS.gravel.code));
-  for (const [kind, x0, x1, z0, z1] of GROUND) {
+  for (const [kind, x0, x1, z0, z1] of rects) {
     const { code } = SURFACE_KIND_SPECS[kind];
-    for (let j = Math.round((z0 + DEPTH / 2) / SURFACE_CELL); j < Math.round((z1 + DEPTH / 2) / SURFACE_CELL); j++) {
-      for (let i = Math.round((x0 + WIDTH / 2) / SURFACE_CELL); i < Math.round((x1 + WIDTH / 2) / SURFACE_CELL); i++) cells[j][i] = code;
+    for (let j = Math.round((z0 + depth / 2) / SURFACE_CELL); j < Math.round((z1 + depth / 2) / SURFACE_CELL); j++) {
+      for (let i = Math.round((x0 + width / 2) / SURFACE_CELL); i < Math.round((x1 + width / 2) / SURFACE_CELL); i++) cells[j][i] = code;
     }
   }
   return { cols, rows: cells.map((row) => row.join("")) };
 }
 
+export function getBackStreetSurface(): SurfaceMap {
+  return surfaceFrom(WIDTH, DEPTH, GROUND);
+}
+
 /** A round patch of scatter at a world position. */
-function patch(kind: "leaves" | "grass" | "weeds", x: number, z: number, radius: number, seed: number): DioramaObject {
+export function patch(kind: "leaves" | "grass" | "weeds", x: number, z: number, radius: number, seed: number): DioramaObject {
   return createDioramaObject("scatter", 0, BASE_TEMPLATES.plot, {
     position: [x, 0, z],
     rotation: [0, 0, 0],

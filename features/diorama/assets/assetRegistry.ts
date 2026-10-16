@@ -14,13 +14,17 @@ import {
   Circle,
   CircleDot,
   CupSoda,
+  DoorClosed,
   Cylinder,
   Fence,
+  Flame,
   Footprints,
   Gauge,
   Gem,
   Grid3x3,
+  Hotel,
   House as HouseIcon,
+  Landmark,
   LampCeiling,
   Mailbox,
   Minus,
@@ -64,7 +68,7 @@ import { BuildingAsset } from "../objects/building/Building";
 import { BUILDING_MODULES } from "../objects/building/buildingLayout";
 import { ScatterLayer } from "../objects/scatter/ScatterLayer";
 import { buildingSize } from "../utils/buildingParams";
-import { buildingParamsOf, scatterParamsOf } from "../utils/objectParams";
+import { buildingParamsOf, runPiecesOf, scatterParamsOf } from "../utils/objectParams";
 import { scatterRadius } from "../utils/scatterParams";
 import { BUILDING_PRESETS, DEFAULT_BUILDING_PARAMS } from "./buildingPresets";
 import { SCATTER_KIND_SPECS } from "./scatterKinds";
@@ -180,6 +184,32 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     randomSpawnRotation: false,
     glow: { ...SHOP_GLOW, position: [0, 1.9, 3.2] },
     tags: ["store", "shop", "commercial", "building"],
+  },
+  apartment: {
+    type: "apartment",
+    label: "Apartment",
+    category: "Buildings",
+    icon: Hotel,
+    modelUrl: "/models/buildings/building_apartment_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 5.6,
+    randomSpawnRotation: false,
+    // The corridor lamps
+    glow: { position: [0, 4.4, 3.0], color: "#ffe6bf", intensity: 8, distance: 8 },
+    tags: ["apartment", "apato", "heights", "corridor", "stairs", "residential", "home", "building"],
+  },
+  traditionalHouse: {
+    type: "traditionalHouse",
+    label: "Traditional House",
+    category: "Buildings",
+    icon: Landmark,
+    modelUrl: "/models/buildings/building_house_traditional_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 6.4,
+    randomSpawnRotation: false,
+    // The shoji behind the engawa
+    glow: { ...SHOP_GLOW, position: [-1.8, 1.6, 3.9], intensity: 6 },
+    tags: ["house", "traditional", "washitsu", "hiraya", "engawa", "tile roof", "irimoya", "residential", "home", "building"],
   },
   konbini: {
     type: "konbini",
@@ -318,6 +348,17 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     tile: 2,
     tags: ["wall", "block", "burokku-bei", "concrete", "boundary", "fence"],
   },
+  gatePost: {
+    type: "gatePost",
+    label: "Gate Post",
+    category: "Street",
+    icon: DoorClosed,
+    modelUrl: "/models/street/street_gate_post_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 0.4,
+    randomSpawnRotation: false,
+    tags: ["gate", "post", "monchu", "name plate", "hyosatsu", "intercom", "mail", "wall", "boundary"],
+  },
   gutterGrate: {
     type: "gutterGrate",
     label: "Gutter Grate",
@@ -436,6 +477,17 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     randomSpawnRotation: true,
     jitter: 0.12,
     tags: ["plant", "pot", "hachiue", "green"],
+  },
+  propaneTanks: {
+    type: "propaneTanks",
+    label: "Propane Tanks",
+    category: "Props",
+    icon: Flame,
+    modelUrl: "/models/props/prop_propane_tanks_01.glb",
+    defaultScale: [1, 1, 1],
+    footprintRadius: 0.6,
+    randomSpawnRotation: false,
+    tags: ["propane", "gas", "cylinder", "puropan", "lpg", "wall", "house"],
   },
   waterTank: {
     type: "waterTank",
@@ -713,6 +765,11 @@ export function getFootprintRadius(object: Pick<DioramaObject, "type" | "params"
   }
   if (object.type === "scatter") return Math.max(0.5, scatterRadius(scatterParamsOf(object)?.points ?? []) + 0.3);
   return ASSET_REGISTRY[object.type].footprintRadius;
+}
+
+/** How far apart the ends of a run's selection ring are: the run's length less one piece. 0 for anything else. */
+export function getRunSpan(object: Pick<DioramaObject, "type" | "params">): number {
+  return (runPiecesOf(object) - 1) * (ASSET_REGISTRY[object.type].tile ?? 0);
 }
 
 /** What the scene list and the inspector call an object: a scatter layer is named after its kind. */

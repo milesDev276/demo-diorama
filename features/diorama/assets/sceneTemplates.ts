@@ -1,6 +1,7 @@
 import type { DioramaEnvironment, DioramaObject } from "../types/diorama.types";
 import { getDefaultScene } from "../utils/objectDefaults";
 import { getBackStreetObjects, getBackStreetSurface } from "../utils/plotStarter";
+import { getResidentialObjects, getResidentialSurface } from "../utils/residentialStarter";
 import { DEFAULT_ENVIRONMENT } from "../utils/sceneDefaults";
 
 /** A built-in starting point: a whole scene, offered by the New-diorama dialog. */
@@ -41,6 +42,23 @@ export const SCENE_TEMPLATES: SceneTemplate[] = [
       surface: getBackStreetSurface(),
     },
     objects: getBackStreetObjects,
+  },
+  {
+    // The residential lane of plan/Stage-15-Implementation.md D4.
+    id: "residential-lane",
+    name: "Residential Lane",
+    description: "A traditional house and a small apartment on a quiet lane, on a summer morning.",
+    thumbnail: "/templates/residential-lane.webp",
+    environment: {
+      ...DEFAULT_ENVIRONMENT,
+      base: "plot",
+      timeOfDay: "morning",
+      season: "summer",
+      weather: "clear",
+      plinth: "wood",
+      surface: getResidentialSurface(),
+    },
+    objects: getResidentialObjects,
   },
 ];
 

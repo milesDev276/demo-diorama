@@ -50,7 +50,8 @@ import {
 } from "../utils/objectDefaults";
 import { getBaseTemplate, type BaseTemplate } from "../utils/baseTemplates";
 import { instantiateKit } from "../utils/kits";
-import { buildingParamsOf, scatterParamsOf } from "../utils/objectParams";
+import { buildingParamsOf, runPiecesOf, scatterParamsOf } from "../utils/objectParams";
+import { isRunType, MAX_RUN_PIECES, resizedRunPosition } from "../utils/runParams";
 import { newScatterSeed, roundPoint } from "../utils/scatterParams";
 import { createId } from "../utils/id";
 import { DEFAULT_PHOTO_SETTINGS, scenePhotoOf } from "../utils/photo";
@@ -142,12 +143,15 @@ interface DioramaState {
   rotatePlacement: (radians: number) => void;
   /** Finishes the current placement at a world transform, attached to `parentId` if given. */
   placeObject: (world: Transform, parentId: string | undefined, keepPlacing: boolean) => void;
-  /** Finishes the current placement as a row of new objects on the base, one per world transform. One undo step. */
+  /** Finishes the current placement as a row on the base, one piece per world transform: one run object
+   *  for walls, fences, rails and hedges (utils/runParams.ts), separate objects for anything else. One undo step. */
   placeRun: (worlds: Transform[], keepPlacing: boolean) => void;
   /** Frees an attached object from its building without moving it. */
   detachObject: (id: string) => void;
   /** Changes a building through a function of its current params. One undo step. */
   setBuildingParams: (id: string, update: (current: BuildingParams) => BuildingParams) => void;
+  /** Makes a run `pieces` long, its left end kept in place. One undo step. */
+  setRunPieces: (id: string, pieces: number) => void;
 
   // --- Scatter brush ---
   /** Starts the brush for `kind`, painting into `layerId` if given. Ends any placement. */
@@ -315,6 +319,12 @@ export const BRUSH_DENSITY_RANGE = { min: 0.25, max: 1 } as const;
 export const GROUND_BRUSH_RANGE = { min: 1, max: 10 } as const;
 
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
+
+/** The transform of one run object made of the pieces at `worlds`: their middle, their heading. */
+function runOf(worlds: Transform[]): Transform {
+  const mean = (axis: 0 | 1 | 2) => Math.round((worlds.reduce((sum, w) => sum + w.position[axis], 0) / worlds.length) * 1000) / 1000;
+  return { position: [mean(0), mean(1), mean(2)], rotation: worlds[0].rotation, scale: worlds[0].scale };
+}
 
 /** `objects` with the turnable ones among `ids` turned about `pivot`, starting from `from` if given. */
 function turnObjects(
@@ -586,7 +596,10 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
       const { placement } = state;
       if (!placement || "kit" in placement || placement.movingId || !worlds.length) return state;
       const template = getBaseTemplate(state.environment);
-      const placed = worlds.map((world) => createDioramaObject(placement.type, 0, template, { ...world, params: placement.params }));
+      const placed =
+        isRunType(placement.type) && worlds.length > 1
+          ? [createDioramaObject(placement.type, 0, template, { ...runOf(worlds), params: { pieces: worlds.length } })]
+          : worlds.map((world) => createDioramaObject(placement.type, 0, template, { ...world, params: placement.params }));
       const objects = [...state.objects, ...placed];
       return {
         objects,
@@ -617,6 +630,19 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
       const resized = state.objects.map((o) => (o.id === id ? { ...o, params: after } : o));
       // What is attached to the building follows its walls and its roof.
       const objects = refitAttachments(resized, id, before, after);
+      return { objects, ...commit(state, objects) };
+    }),
+
+  setRunPieces: (id, pieces) =>
+    set((state) => {
+      const run = state.objects.find((o) => o.id === id);
+      const tile = run && ASSET_REGISTRY[run.type].tile;
+      if (!run || !tile || !isRunType(run.type) || run.locked) return state;
+      const before = runPiecesOf(run);
+      const after = clamp(Math.round(pieces), 1, MAX_RUN_PIECES);
+      if (after === before) return state;
+      const resized: DioramaObject = { ...run, position: resizedRunPosition(run, before, after, tile), params: { pieces: after } };
+      const objects = state.objects.map((o) => (o.id === id ? resized : o));
       return { objects, ...commit(state, objects) };
     }),
 

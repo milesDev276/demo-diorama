@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import type { Group } from "three";
 import type { DioramaObject as DioramaObjectData } from "../types/diorama.types";
 import { useDioramaStore } from "../store/dioramaStore";
-import { ASSET_REGISTRY, getFootprintRadius } from "../assets/assetRegistry";
+import { ASSET_REGISTRY, getFootprintRadius, getRunSpan } from "../assets/assetRegistry";
 import { GltfAsset } from "../objects/GltfAsset";
 import { ScatterSelection } from "../objects/scatter/ScatterSelection";
-import { scatterParamsOf } from "../utils/objectParams";
+import { runPiecesOf, scatterParamsOf } from "../utils/objectParams";
+import { runPieceOffsets } from "../utils/runParams";
 import { SelectionRing } from "./SelectionRing";
 
 interface AssetVisualProps {
@@ -19,16 +20,25 @@ interface AssetVisualProps {
 /** The asset's geometry at its natural size in meters. */
 export function AssetVisual({ object, surfaceId }: AssetVisualProps) {
   const asset = ASSET_REGISTRY[object.type];
-  if ("modelUrl" in asset) return <GltfAsset url={asset.modelUrl} footprintRadius={asset.footprintRadius} />;
-  const Visual = asset.component;
-  return <Visual object={object} surfaceId={surfaceId} />;
+  if (!("modelUrl" in asset)) {
+    const Visual = asset.component;
+    return <Visual object={object} surfaceId={surfaceId} />;
+  }
+  const pieces = runPiecesOf(object);
+  if (pieces === 1 || !asset.tile) return <GltfAsset url={asset.modelUrl} footprintRadius={asset.footprintRadius} />;
+  // A run: the same model laid end to end along X, centered on the origin.
+  return runPieceOffsets(pieces, asset.tile).map((x) => (
+    <group key={x} position={[x, 0, 0]}>
+      <GltfAsset url={asset.modelUrl} footprintRadius={asset.footprintRadius} />
+    </group>
+  ));
 }
 
-/** A ring under a selected object; a scatter layer marks each of its pieces instead. */
+/** A ring under a selected object, stretched along a run; a scatter layer marks each of its pieces instead. */
 function SelectionMarker({ object }: { object: DioramaObjectData }) {
   const scatter = scatterParamsOf(object);
   if (scatter) return <ScatterSelection params={scatter} locked={object.locked} />;
-  return <SelectionRing locked={object.locked} radius={getFootprintRadius(object)} />;
+  return <SelectionRing locked={object.locked} radius={getFootprintRadius(object)} length={getRunSpan(object)} />;
 }
 
 interface DioramaObjectProps {

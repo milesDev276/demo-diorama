@@ -91,4 +91,18 @@ export const BUILT_IN_KITS: Kit[] = [
       cluster("weeds", 701, [[-0.9, 0.05, 0.3]]),
     ],
   },
+  {
+    id: "front-gate",
+    name: "Front Gate",
+    builtIn: true,
+    // A gap in a block wall between two gate posts; each wall is one run of two pieces.
+    objects: [
+      { ...item("blockWall", -3.075, 0), params: { pieces: 2 } },
+      { ...item("blockWall", 3.075, 0), params: { pieces: 2 } },
+      item("gatePost", -0.85, 0),
+      item("gatePost", 0.85, 0),
+      item("pottedPlant", 1.3, 0.45, 0.6),
+      cluster("weeds", 801, [[-2.4, 0.3, 0.3]]),
+    ],
+  },
 ];
