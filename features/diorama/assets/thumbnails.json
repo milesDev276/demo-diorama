@@ -55,11 +55,18 @@
   "pedestrian",
   "shopkeeper",
   "student",
+  "walker",
+  "sittingFigure",
+  "cyclist",
+  "umbrellaFigure",
+  "elder",
+  "cat",
   "kit:vending-corner",
   "kit:bike-parking",
   "kit:shop-entrance",
   "kit:rooftop-set",
   "kit:bus-stop",
   "kit:collection-point",
-  "kit:front-gate"
+  "kit:front-gate",
+  "kit:bench-rest"
 ]

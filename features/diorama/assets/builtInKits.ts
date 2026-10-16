@@ -105,4 +105,11 @@ export const BUILT_IN_KITS: Kit[] = [
       cluster("weeds", 801, [[-2.4, 0.3, 0.3]]),
     ],
   },
+  {
+    id: "bench-rest",
+    name: "Bench Rest",
+    builtIn: true,
+    // The sitting figure stands where the bench does, so it sits on the seat.
+    objects: [item("bench", 0, 0), item("sittingFigure", -0.35, 0), item("cat", 0.95, 0.25, -0.5), cluster("weeds", 901, [[1.3, -0.2, 0.25]])],
+  },
 ];

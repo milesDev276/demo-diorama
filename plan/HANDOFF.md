@@ -1,4 +1,4 @@
-# Handoff — Hero Diorama Work (as of 2026-10-06, after Stage 15)
+# Handoff — Hero Diorama Work (as of 2026-10-17, after Stage 16)
 
 Read this first when picking up the work. It summarizes where things
 stand, what was decided and why, how to run and verify things, and what
@@ -27,22 +27,23 @@ comes next. Details live in the linked plan files.
 | Stage 12: glass and lit signs | Done | `main` (PR #15) |
 | Stage 13: weather | Done | `main` (PR #16) |
 | Stage 14: editor polish | Done | `main` (PR #17) |
-| Stage 15: residential street | Implemented and verified; **not committed** | branch `stage15-residential` (working tree) |
+| Stage 15: residential street | Done | `main` (PR #18) |
+| Stage 16: everyday people | Implemented and verified; **not committed** | branch `stage16-people` (working tree) |
 
-Stage 7 was the last stage of the original roadmap; Stages 8 to 15 were added
+Stage 7 was the last stage of the original roadmap; Stages 8 to 16 were added
 at the user's request.
 
-**`main` holds Stages 0–14** (last merge: PR #17, `9b6ef3b`). Stage 15 is
-in the working tree of `stage15-residential`, uncommitted.
+**`main` holds Stages 0–15** (last merge: PR #18, `7232618`). Stage 16 is
+in the working tree of `stage16-people`, uncommitted.
 
-**Immediate next action:** the user commits Stage 15 and opens its PR; then
+**Immediate next action:** the user commits Stage 16 and opens its PR; then
 ask what comes next (§7 lists the candidates).
 The user merges PRs themselves, one branch per stage; cut the
 next branch from an up-to-date `main` (`git fetch`, then fast-forward).
 (For Stages 6 to 14 the user handed every decision
 to Claude, so the plan was settled with its defaults and implemented without
-a separate approval round. Stage 15's plan was approved with "theo mặc định":
-its defaults. Ask again at the start of new work; it is not a standing rule.)
+a separate approval round. Stage 15's plan was approved with "theo mặc định",
+Stage 16's with "hãy thực hiện": their defaults. Ask again at the start of new work; it is not a standing rule.)
 
 The old Stage 5 stash was dropped on 2026-10-06; `git stash list` is empty.
 
@@ -66,6 +67,7 @@ The old Stage 5 stash was dropped on 2026-10-06; `git stash list` is empty.
 | [Stage-12-Implementation.md](Stage-12-Implementation.md) | The `glass` slot, rooms behind shop glass, hollow vehicle cabins, the lit atlas, two sign cells: decisions D1–D7 and results (§6) |
 | [Stage-13-Implementation.md](Stage-13-Implementation.md) | Weather as scene data, the weather looks, wet and snowed-on surfaces, falling rain and snow: decisions D1–D7 and results (§6) |
 | [Stage-14-Implementation.md](Stage-14-Implementation.md) | Attachments following a building, group move and turn, undo/redo selection, duplicates on the base, kit rename / export / import, the saved view and photo settings: decisions D1–D8 and results (§7) |
+| [Stage-16-Implementation.md](Stage-16-Implementation.md) | The posable figure (`lib/figure.py`), the shared bicycle (`lib/bicycle.py`), six figures (walker, sitting, cyclist, umbrella, elder, cat), people in the Residential Lane starter, the Bench Rest kit: decisions D1–D5 and results (§6) |
 | [Stage-15-Implementation.md](Stage-15-Implementation.md) | The apartment, the traditional house, the gate post and the propane cylinders; walls, fences, rails and hedges as one object by length; the Residential Lane starter and the Front Gate kit: decisions D1–D5 and results (§6) |
 | `Phase-*.md` | Earlier phases, kept for history |
 
@@ -427,6 +429,26 @@ Stage 15:
   (`utils/plotStarter.ts`); `runObject` (`utils/objectDefaults.ts`) makes
   one run between two points.
 
+Stage 16:
+
+* **New figures are built with `art/blender/lib/figure.py`:** `figure()`
+  takes an `Outfit` and a pose (pelvis, ankles, wrists, lean, nod, yaw) and
+  finds knees and elbows by two-bone IK; it returns the joints for props in
+  the hands. The proportions are the 1.65 m pedestrian's, scaled by
+  `height`. The three Stage 3/11 figures are not built with it; do not
+  rebuild them on it (they are approved and in saved scenes).
+* **The bicycle's geometry is `art/blender/lib/bicycle.py`,** shared by
+  `prop_bicycle_01` (stand down) and `people_cyclist_01` (stand folded).
+  The parked bicycle's GLB must stay byte-identical; the build is
+  deterministic, so `cmp` against `main` checks it.
+* **A sitting figure's origin is the floor under its seat** at 0.425 m (the
+  bench's seat top): it sits on a bench placed at the same position and
+  heading.
+* **Figures turned 90° (the cyclist) swap their blobs' X and Y radii:**
+  blobs are axis-aligned.
+* **The umbrella's canopy is `solid(…, orient=False)` in the `glass` slot,**
+  wound to face up and out.
+
 ## 4. How to Run and Verify
 
 The platform is Windows. Node 22.14, Chrome, and Blender 5.2.2 LTS at
@@ -667,6 +689,8 @@ node scripts/capture-template.mjs
 * **A run is straight, at one level, and costs a draw call per piece; old
   separate-piece runs are not merged.** The full list is in
   Stage-15-Implementation.md §6.
+* **Figures are still, one pose and one outfit each; nothing snaps them
+  onto seats or bicycles.** The full list is in Stage-16-Implementation.md §6.
 * **The editing camera does not fit the scene to a small window.**
 * **Old scenes changed with Stage 7:** emissive surfaces no longer glow by
   day; the utility pole is 10 m (was 12 m) and carries six wires.
@@ -679,11 +703,13 @@ node scripts/capture-template.mjs
 
 ## 7. Next
 
-The roadmap's seven stages and Stages 8 to 15 are implemented; Stage 15 is
+The roadmap's seven stages and Stages 8 to 16 are implemented; Stage 16 is
 not committed yet. Nothing further is planned or approved; ask the user
 what comes next.
 
-* **Open from Stage 15:** not committed; not tried in the user's own
+* **Open from Stage 16:** not committed; not tried in the user's own
+  browser.
+* **Open from Stage 15:** not tried in the user's own
   browser. The two-storey house is not in the Residential Lane starter (it
   did not fit); the hero and Back Street still use separate wall pieces.
 * **Open from Stage 14:** not tried in the user's own browser or with the
@@ -712,11 +738,13 @@ what comes next.
   * ground: more levels or slopes, curved roads, arrow markings
   * runs with corners or a gate inside them; runs following a change of
     ground level; instanced runs
-  * more figures in other poses (walking, sitting, cycling)
+  * figures: outfit colors per placed figure, more poses (children
+    playing, someone on a phone, a delivery rider), drivers in vehicles,
+    a "sit on" snapping rule
   * more buildings as fixed models (a mid-rise apartment block, a small
     factory or workshop, a 古民家-style shop)
-  * weather props and details: umbrellas, a figure with one, rain that
-    stops at roofs, snow as a ground kind
+  * weather details: rain that stops at roofs and umbrellas, snow as a
+    ground kind
 * **Backend (CLAUDE.md Phase 6):** the user raised it after Stage 9
   (2026-10-03), worried about file sizes. `public/` was 3.7 MB, so assets
   stay in the repo; the proposal made was Supabase (Postgres + Auth +

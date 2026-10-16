@@ -637,8 +637,7 @@ scene, and nothing looks different.
 
 ### Stage 15 — Residential street
 
-**Status:** implemented and verified on branch `stage15-residential`,
-2026-10-06; not merged yet. See [Stage-15-Implementation.md](Stage-15-Implementation.md) §6.
+**Status:** done, merged to `main` (PR #18). See [Stage-15-Implementation.md](Stage-15-Implementation.md) §6.
 
 * **Two buildings as fixed models:** a two-storey wooden apartment with an
   open corridor and an outside stair, and a one-storey traditional house
@@ -651,6 +650,22 @@ scene, and nothing looks different.
 
 **Done when:** an ordinary residential lane can be built from the library,
 and the existing starters look the same.
+
+### Stage 16 — Everyday people
+
+**Status:** implemented and verified on branch `stage16-people`,
+2026-10-17; not merged yet. See [Stage-16-Implementation.md](Stage-16-Implementation.md) §6.
+
+* **A posable figure in Blender** (`lib/figure.py`): a pose is the pelvis,
+  the trunk's lean and the ankle and wrist positions; knees and elbows come
+  from two-bone IK. Same look as the existing figures.
+* **Six figures:** a walker with a shopping bag, a sitting person who fits
+  the bench, a cyclist on the city bicycle, a walker under a clear vinyl
+  umbrella, an elder with a walker cart, a cat.
+* **People in the Residential Lane starter** and a Bench Rest kit.
+
+**Done when:** a scene can show people walking, sitting, riding and
+sheltering from the rain, in the style of the figures already there.
 
 ---
 
@@ -673,6 +688,7 @@ and the existing starters look the same.
 | 13 | Phase 4 (weather, §25) |
 | 14 | Phase 2 (editor) and §12 (camera in the scene) |
 | 15 | Phase 3 (assets, §15 taxonomy) and Phase 2 (editor) |
+| 16 | Phase 3 (assets) and Phase 4 (making scenes feel alive) |
 
 Not in this roadmap:
 
