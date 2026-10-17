@@ -1,48 +1,46 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { useDioramaStore } from "../store/dioramaStore";
-import { scenePhotoOf } from "../utils/photo";
+import { useEffect } from "react";
+import { sceneFingerprint, useDioramaStore } from "../store/dioramaStore";
 
 const AUTOSAVE_DEBOUNCE_MS = 700;
-const SAVING_FLASH_MS = 120;
 
 /**
- * Watches the serializable parts of the scene and writes to localStorage a
- * short debounce after the last change, flipping the toolbar's save status
- * indicator through unsaved -> saving -> saved along the way.
+ * Saves the open diorama a short debounce after the last change, and at
+ * once when the page is hidden or the editor closes, flipping the
+ * toolbar's indicator through unsaved -> saving -> saved. Nothing is saved
+ * before a diorama is open: the empty store has no id and no saved state.
  */
 export function useAutoSave() {
-  // A primitive string fingerprint is a safe Zustand selector: two calls with
-  // equal content are `===`, so this doesn't cause extra renders on its own.
-  const fingerprint = useDioramaStore((s) =>
-    JSON.stringify({
-      name: s.sceneName,
-      environment: s.environment,
-      objects: s.objects,
-      camera: s.camera,
-      photo: scenePhotoOf(s.photo),
-    })
-  );
-  const setSaveStatus = useDioramaStore((s) => s.setSaveStatus);
-  const saveScene = useDioramaStore((s) => s.saveScene);
-  const isFirstRun = useRef(true);
+  // A primitive string is a safe Zustand selector: equal content is `===`.
+  const fingerprint = useDioramaStore((s) => (s.sceneId ? sceneFingerprint(s) : null));
+  const savedFingerprint = useDioramaStore((s) => s.savedFingerprint);
 
   useEffect(() => {
-    if (isFirstRun.current) {
-      isFirstRun.current = false;
+    if (fingerprint === null || savedFingerprint === null) return;
+    const { saveStatus, setSaveStatus, saveScene } = useDioramaStore.getState();
+    if (fingerprint === savedFingerprint) {
+      // Back to what is stored (an undo, or the save that just finished).
+      if (saveStatus === "unsaved") setSaveStatus("saved");
       return;
     }
-
-    setSaveStatus("unsaved");
-
-    const debounce = window.setTimeout(() => {
-      setSaveStatus("saving");
-      const flash = window.setTimeout(() => saveScene(), SAVING_FLASH_MS);
-      return () => window.clearTimeout(flash);
-    }, AUTOSAVE_DEBOUNCE_MS);
-
+    if (saveStatus !== "error") setSaveStatus("unsaved");
+    const debounce = window.setTimeout(() => void saveScene(), AUTOSAVE_DEBOUNCE_MS);
     return () => window.clearTimeout(debounce);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fingerprint]);
+  }, [fingerprint, savedFingerprint]);
+
+  // Leaving: the last changes are written even if the debounce has not run out.
+  useEffect(() => {
+    const flush = () => useDioramaStore.getState().flushSave();
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, []);
 }

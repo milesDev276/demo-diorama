@@ -8,8 +8,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Farmodoro — Focus • Grow • Relax",
-  description: "A cozy, focus-oriented virtual workspace with a Pomodoro timer, todo list, ambient backgrounds, and lofi music.",
+  title: { default: "Japanese Diorama Builder", template: "%s — Japanese Diorama Builder" },
+  description: "Build a tiny Japanese street, one detail at a time: a cozy 3D miniature you arrange and photograph in the browser.",
 };
 
 export default function RootLayout({

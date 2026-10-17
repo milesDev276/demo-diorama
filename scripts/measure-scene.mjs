@@ -12,6 +12,10 @@
 // --url            editor URL (default http://localhost:3000/diorama)
 // --save-seed      also write the generated scene file (to reuse with capture-presets.mjs)
 //
+// The scene is seeded as the pre-Stage 17 autosave (localStorage); the fresh
+// browser profile has no dioramas, so the app moves it into the collection
+// and /diorama opens it.
+//
 // renderer.info covers the main pass only: three r184 resets it after
 // rendering shadow maps, so shadow-pass draws are not included.
 

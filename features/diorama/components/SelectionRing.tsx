@@ -38,6 +38,9 @@ function useStadiumShape(radius: number, length: number): Shape | null {
  * A soft glowing ring drawn under the selected object. Gently pulses so
  * selection reads clearly without being distracting.
  */
+/** Tells ThumbnailCapture to leave the ring out of thumbnails. */
+const EDITOR_ONLY = { editorOnly: true };
+
 export function SelectionRing({ locked = false, radius = 0.9, length = 0 }: SelectionRingProps) {
   const meshRef = useRef<Mesh>(null);
   const color = locked ? DIORAMA_COLORS.locked : DIORAMA_COLORS.selection;
@@ -50,7 +53,7 @@ export function SelectionRing({ locked = false, radius = 0.9, length = 0 }: Sele
   });
 
   return (
-    <mesh ref={meshRef} position={[0, 0.12, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+    <mesh ref={meshRef} position={[0, 0.12, 0]} rotation={[-Math.PI / 2, 0, 0]} userData={EDITOR_ONLY}>
       {stretched ? <shapeGeometry args={[stretched, 12]} /> : <ringGeometry args={[radius * 0.86, radius, 32]} />}
       <meshBasicMaterial color={color} transparent opacity={0.7} depthWrite={false} />
     </mesh>

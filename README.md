@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Japanese Diorama Builder
 
-## Getting Started
+A browser-based 3D creative tool for building miniature Japanese streets and
+everyday-life scenes — houses, small shops, utility poles, vending machines,
+bicycles and plants on a model base — and photographing them like a physical
+miniature.
 
-First, run the development server:
+Working title. Desktop browsers only.
+
+## Running it
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open <http://localhost:3000>.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Route | What |
+|---|---|
+| `/` | Home page |
+| `/dioramas` | My Dioramas: every diorama kept in this browser |
+| `/diorama/[id]` | The editor, for one diorama |
+| `/diorama` | Opens the most recently edited diorama (or a new one from the hero starter) |
+| `/diorama/new?starter=<id>` / `?base=<corner\|plot>` | Creates a diorama and opens it |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Dioramas are stored locally in IndexedDB; there is no backend yet. A diorama
+can be exported as a `.diorama.json` file and imported again.
 
-## Learn More
+```bash
+npm run lint    # ESLint
+npm run build   # production build (also type-checks)
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Stack
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Next.js (App Router), React, TypeScript, React Three Fiber + drei, Zustand,
+Tailwind CSS. Fixed-shape models are scripted in Blender (`art/blender/`) and
+exported as GLB into `public/models/`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Where things are
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+* `features/diorama/` — the editor: canvas, objects, store, scene format
+* `features/dioramas/` — the local collection (My Dioramas) and its storage
+* `features/home/` — the home page's interactive parts
+* `scripts/` — headless capture and measurement scripts (need the dev server)
+* `plan/` — the roadmap and one plan document per stage; start with
+  `plan/HANDOFF.md`
+* `CLAUDE.md` — product direction, art direction and engineering rules

@@ -7,8 +7,11 @@
 //   node scripts/capture-presets.mjs <outDir> [--url <url>] [--seed-scene <file>] [--save-scene <file>]
 //
 // --seed-scene puts a scene file into localStorage before the app starts, as
-//              if it were an earlier autosave (used to test migrations).
-// --save-scene writes the scene exactly as the app saves it to localStorage.
+//              the editor kept it before Stage 17. The fresh profile has no
+//              dioramas yet, so the app moves it into the collection and
+//              /diorama opens it (used to test migrations).
+// --save-scene writes the open scene exactly as the app stores it (read
+//              through ?dev=stats, which the URL gets for this).
 //
 // Cdp and launchBrowser are exported for one-off verification scripts.
 
@@ -175,7 +178,9 @@ async function main() {
       });
       console.log(`[capture] seeded localStorage from ${args.seedScene}`);
     }
-    await cdp.send("Page.navigate", { url: args.url });
+    const url = new URL(args.url);
+    if (args.saveScene) url.searchParams.set("dev", "stats");
+    await cdp.send("Page.navigate", { url: url.href });
     await waitUntil(() => cdp.evaluate(`Boolean(document.querySelector("canvas"))`), 120_000, "the 3D canvas");
     await sleep(3000); // first frames, shadow maps, fonts
 
@@ -199,11 +204,9 @@ async function main() {
     }
 
     if (args.saveScene) {
-      await cdp.evaluate(`window.dispatchEvent(new KeyboardEvent("keydown", { key: "s", ctrlKey: true, bubbles: true }))`);
-      await sleep(500);
-      const saved = await cdp.evaluate(`localStorage.getItem(${JSON.stringify(STORAGE_KEY)})`);
-      if (!saved) throw new Error("The app did not write a scene to localStorage");
-      await writeFile(args.saveScene, JSON.stringify(JSON.parse(saved), null, 2));
+      const saved = await cdp.evaluate(`window.__dioramaSceneFile?.() ?? null`);
+      if (!saved) throw new Error("The editor did not expose its scene (is ?dev=stats on?)");
+      await writeFile(args.saveScene, JSON.stringify(saved, null, 2));
       console.log(`[capture] scene -> ${args.saveScene}`);
     }
 

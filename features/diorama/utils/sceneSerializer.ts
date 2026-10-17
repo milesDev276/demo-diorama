@@ -1,5 +1,10 @@
 import type { DioramaObject, DioramaScene } from "../types/diorama.types";
 
+/**
+ * Where the editor kept its one scene before Stage 17. Dioramas now live in
+ * IndexedDB (features/dioramas/storage); this key is only read once, to
+ * move that scene into the collection.
+ */
 export const STORAGE_KEY = "diorama-scene";
 
 /**

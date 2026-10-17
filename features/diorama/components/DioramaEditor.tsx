@@ -11,25 +11,38 @@ import { PropertiesPanel } from "./PropertiesPanel";
 import { DioramaCanvas } from "./DioramaCanvas";
 import { NewSceneDialog } from "./NewSceneDialog";
 import { PhotoBar } from "./PhotoBar";
+import { EditorLoadingScreen, EditorMessageScreen } from "./EditorScreens";
 import { useDioramaStore } from "../store/dioramaStore";
 import { useEditorShortcuts } from "../hooks/useEditorShortcuts";
 import { useAutoSave } from "../hooks/useAutoSave";
-import { readFileAsText } from "../utils/sceneSerializer";
+import { useOpenDiorama } from "@/features/dioramas/hooks/useOpenDiorama";
+import { useDioramaLauncher } from "@/features/dioramas/hooks/useDioramaLauncher";
+
+/** The editor for one diorama of the collection: it opens the diorama, then shows the workspace. */
+export function DioramaEditor({ dioramaId }: { dioramaId: string }) {
+  const status = useOpenDiorama(dioramaId);
+  if (status.state === "loading") return <EditorLoadingScreen />;
+  if (status.state === "missing") {
+    return (
+      <EditorMessageScreen
+        title="This diorama isn't here"
+        message="It may have been deleted. Dioramas are kept in the browser they were made in, so a link from another browser or computer does not open here."
+      />
+    );
+  }
+  if (status.state === "error") return <EditorMessageScreen title="This diorama can't be opened" message={status.message} />;
+  return <EditorWorkspace />;
+}
 
 /**
- * Main page: composes the toolbar, object library + scene list, 3D canvas,
- * and properties panel. Preview mode hides everything but the Diorama and
- * the photo bar.
+ * Composes the toolbar, object library + scene list, 3D canvas, and
+ * properties panel. Preview mode hides everything but the Diorama and the
+ * photo bar.
  */
-export function DioramaEditor() {
+function EditorWorkspace() {
   const isPreview = useDioramaStore((s) => s.isPreviewMode);
   const setPreviewMode = useDioramaStore((s) => s.setPreviewMode);
-  const saveStatus = useDioramaStore((s) => s.saveStatus);
-  const newScene = useDioramaStore((s) => s.newScene);
-  const newSceneFromTemplate = useDioramaStore((s) => s.newSceneFromTemplate);
-  const importScene = useDioramaStore((s) => s.importScene);
-  const importError = useDioramaStore((s) => s.importError);
-  const clearImportError = useDioramaStore((s) => s.clearImportError);
+  const launcher = useDioramaLauncher();
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -45,8 +58,7 @@ export function DioramaEditor() {
     const file = event.target.files?.[0];
     event.target.value = ""; // allow re-importing the same filename later
     if (!file) return;
-    const text = await readFileAsText(file);
-    importScene(text);
+    await launcher.importFile(file);
   };
 
   return (
@@ -73,7 +85,7 @@ export function DioramaEditor() {
       {!isPreview && <EditorSubToolbar />}
 
       <AnimatePresence>
-        {importError && (
+        {launcher.error && !newDialogOpen && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -81,10 +93,10 @@ export function DioramaEditor() {
             className="relative z-10 mx-3 mt-2 flex items-center gap-2 rounded-2xl border border-red-300/50 bg-red-50 px-4 py-2.5 text-sm text-red-600 sm:mx-6"
           >
             <AlertTriangle size={15} className="shrink-0" />
-            <span className="flex-1">{importError}</span>
+            <span className="flex-1">{launcher.error}</span>
             <button
               type="button"
-              onClick={clearImportError}
+              onClick={launcher.clearError}
               className="rounded-md p-1 transition-colors hover:bg-red-100 cursor-pointer"
               aria-label="Dismiss"
             >
@@ -145,16 +157,14 @@ export function DioramaEditor() {
 
       <NewSceneDialog
         open={newDialogOpen}
-        hasUnsavedChanges={saveStatus !== "saved"}
-        onCancel={() => setNewDialogOpen(false)}
-        onCreate={(base) => {
+        busy={launcher.busy}
+        error={launcher.error}
+        onCancel={() => {
           setNewDialogOpen(false);
-          newScene(base);
+          launcher.clearError();
         }}
-        onCreateFromTemplate={(templateId) => {
-          setNewDialogOpen(false);
-          newSceneFromTemplate(templateId);
-        }}
+        onCreate={(base) => void launcher.createEmpty(base)}
+        onCreateFromTemplate={(templateId) => void launcher.createFromStarter(templateId)}
       />
     </div>
   );

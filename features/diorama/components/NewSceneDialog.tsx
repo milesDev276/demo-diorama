@@ -33,18 +33,24 @@ function BasePlan({ base }: { base: DioramaBase }) {
 
 interface NewSceneDialogProps {
   open: boolean;
-  /** Adds a warning that the current, unsaved Diorama will be discarded. */
-  hasUnsavedChanges: boolean;
+  /** While the new diorama is being created: the cards are disabled. */
+  busy?: boolean;
+  /** Why the last attempt failed, if it did. */
+  error?: string | null;
   onCreate: (base: DioramaBase) => void;
   onCreateFromTemplate: (templateId: string) => void;
   onCancel: () => void;
 }
 
 const CARD =
-  "rounded-2xl border border-[#8b6f52]/15 bg-white/60 p-3 text-left transition-colors hover:border-[#F0B27A] hover:bg-white focus-visible:border-[#F0B27A] focus-visible:outline-none cursor-pointer";
+  "rounded-2xl border border-[#8b6f52]/15 bg-white/60 p-3 text-left transition-colors hover:border-[#F0B27A] hover:bg-white focus-visible:border-[#F0B27A] focus-visible:outline-none cursor-pointer disabled:cursor-wait disabled:opacity-60";
 
-/** "New Diorama": start from a built-in scene, or pick an empty base to build on. Choosing a card creates the scene. */
-export function NewSceneDialog({ open, hasUnsavedChanges, onCreate, onCreateFromTemplate, onCancel }: NewSceneDialogProps) {
+/**
+ * "New Diorama": start from a built-in scene, or pick an empty base to
+ * build on. Choosing a card creates a new diorama in the collection; the
+ * open one is kept.
+ */
+export function NewSceneDialog({ open, busy = false, error = null, onCreate, onCreateFromTemplate, onCancel }: NewSceneDialogProps) {
   return (
     <AnimatePresence>
       {open && (
@@ -77,6 +83,7 @@ export function NewSceneDialog({ open, hasUnsavedChanges, onCreate, onCreateFrom
                 <button
                   key={template.id}
                   type="button"
+                  disabled={busy}
                   onClick={() => onCreateFromTemplate(template.id)}
                   className={`flex items-center gap-3 ${CARD}`}
                 >
@@ -101,6 +108,7 @@ export function NewSceneDialog({ open, hasUnsavedChanges, onCreate, onCreateFrom
                 <button
                   key={base}
                   type="button"
+                  disabled={busy}
                   onClick={() => onCreate(base)}
                   className={`flex flex-col gap-2 ${CARD}`}
                 >
@@ -111,11 +119,7 @@ export function NewSceneDialog({ open, hasUnsavedChanges, onCreate, onCreateFrom
               ))}
             </div>
 
-            {hasUnsavedChanges && (
-              <p className="mt-4 rounded-xl bg-red-400/10 px-3 py-2 text-xs text-red-600">
-                You have unsaved changes. Starting a new Diorama will discard them.
-              </p>
-            )}
+            {error && <p className="mt-4 rounded-xl bg-red-400/10 px-3 py-2 text-xs text-red-600">{error}</p>}
 
             <div className="mt-4 flex justify-end">
               <button
