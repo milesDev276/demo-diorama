@@ -18,7 +18,6 @@ import type {
   PlinthStyle,
   SaveStatus,
   ScatterKind,
-  ScenePhotoSettings,
   Season,
   SurfaceKind,
   SurfaceMap,
@@ -28,7 +27,6 @@ import type {
   Weather,
 } from "../types/diorama.types";
 import { ASSET_REGISTRY } from "../assets/assetRegistry";
-import { FIRST_VISIT_TEMPLATE, SCENE_TEMPLATES } from "../assets/sceneTemplates";
 import {
   deltaToParentFrame,
   getSelectionCenter,
@@ -56,10 +54,10 @@ import { newScatterSeed, roundPoint } from "../utils/scatterParams";
 import { createId } from "../utils/id";
 import { DEFAULT_PHOTO_SETTINGS, scenePhotoOf } from "../utils/photo";
 import { DEFAULT_ENVIRONMENT } from "../utils/sceneDefaults";
-import { buildScene, downloadSceneAsJson, serializeScene, STORAGE_KEY } from "../utils/sceneSerializer";
+import { buildScene, downloadSceneAsJson } from "../utils/sceneSerializer";
+import { saveDiorama } from "@/features/dioramas/storage/dioramaRepository";
 import { refitAttachments } from "../utils/buildingAttachments";
 import { normalizeBuildingParams } from "../utils/buildingParams";
-import { validateAndNormalizeScene } from "../utils/sceneValidator";
 import {
   createSurface,
   DEFAULT_PLOT_LAYOUT,
@@ -106,7 +104,8 @@ interface DioramaState {
   rotationSnapDegrees: number;
   isPreviewMode: boolean;
   saveStatus: SaveStatus;
-  importError: string | null;
+  /** sceneFingerprint() of what is stored for the open diorama; null while none is open. */
+  savedFingerprint: string | null;
   cameraApi: CameraControlsApi | null;
   /** Set while the user is picking a surface for a new or an existing object, or a kit. */
   placement: Placement | null;
@@ -230,15 +229,13 @@ interface DioramaState {
   /** Changes the finish of the platform. Not on the undo stack. */
   setPlinth: (plinth: PlinthStyle) => void;
   resetScene: () => void;
-  /** Starts an empty scene on the given base (default: the current one), by day, in autumn. */
-  newScene: (base?: DioramaBase) => void;
-  /** Starts a scene from a built-in starter (assets/sceneTemplates.ts). */
-  newSceneFromTemplate: (templateId: string) => void;
-  saveScene: () => void;
+  /** Writes the open diorama to the collection now. Resolves when it is stored (or failed: saveStatus says which). */
+  saveScene: () => Promise<void>;
+  /** Saves the open diorama if it has changes that are not stored yet. */
+  flushSave: () => void;
+  /** Opens a diorama: its scene replaces the open one, which is saved first if it has changes. */
   loadScene: (scene: DioramaScene) => void;
   exportScene: () => void;
-  importScene: (json: string) => void;
-  clearImportError: () => void;
 
   // --- History ---
   undo: () => void;
@@ -426,54 +423,38 @@ function duplicateWithChildren(
   return { copies, selectIds, offset };
 }
 
-function loadInitialState(): {
-  objects: DioramaObject[];
-  sceneId: string;
-  sceneName: string;
-  environment: DioramaEnvironment;
-  camera?: DioramaCameraState;
-  photo?: ScenePhotoSettings;
-} {
-  if (typeof window !== "undefined") {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const result = validateAndNormalizeScene(JSON.parse(raw));
-        if (!("error" in result)) {
-          return {
-            objects: result.scene.objects,
-            sceneId: result.scene.id,
-            sceneName: result.scene.name,
-            environment: result.scene.environment,
-            camera: result.scene.camera,
-            photo: result.scene.photo,
-          };
-        }
-      }
-    } catch {
-      // Corrupted localStorage — fall through to the default scene.
-    }
-  }
-  // A first visit opens the hero scene rather than an empty base.
-  return {
-    objects: FIRST_VISIT_TEMPLATE.objects(),
-    sceneId: createId("scene"),
-    sceneName: FIRST_VISIT_TEMPLATE.name,
-    environment: FIRST_VISIT_TEMPLATE.environment,
-  };
+/** The open diorama as a scene file stores it. */
+export function sceneOf(
+  state: Pick<DioramaState, "sceneId" | "sceneName" | "objects" | "environment" | "camera" | "photo">
+): DioramaScene {
+  return buildScene({
+    id: state.sceneId,
+    name: state.sceneName,
+    objects: state.objects,
+    environment: state.environment,
+    camera: state.camera,
+    photo: scenePhotoOf(state.photo),
+  });
 }
 
-const initial = loadInitialState();
+/**
+ * A string that changes whenever anything a save stores changes. A
+ * primitive, so it is also a safe Zustand selector.
+ */
+export function sceneFingerprint(state: Parameters<typeof sceneOf>[0]): string {
+  return JSON.stringify(sceneOf(state));
+}
 
 export const useDioramaStore = create<DioramaState>((set, get) => ({
-  objects: initial.objects,
-  sceneId: initial.sceneId,
-  sceneName: initial.sceneName,
-  environment: initial.environment,
-  camera: initial.camera,
-  photo: { ...DEFAULT_PHOTO_SETTINGS, ...initial.photo },
+  // Until a diorama is opened (useOpenDiorama) the store holds an empty scene with no id, which is never saved.
+  objects: [],
+  sceneId: "",
+  sceneName: DEFAULT_SCENE_NAME,
+  environment: DEFAULT_ENVIRONMENT,
+  camera: undefined,
+  photo: { ...DEFAULT_PHOTO_SETTINGS },
 
-  ...createInitialHistory(initial.objects, initial.environment.surface),
+  ...createInitialHistory([], DEFAULT_ENVIRONMENT.surface),
 
   selectedObjectIds: [],
   transformMode: "translate",
@@ -483,7 +464,7 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   rotationSnapDegrees: 15,
   isPreviewMode: false,
   saveStatus: "saved",
-  importError: null,
+  savedFingerprint: null,
   cameraApi: null,
   placement: null,
   placementYaw: 0,
@@ -884,66 +865,33 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
       };
     }),
 
-  newScene: (base) =>
-    set((state) => {
-      const objects: DioramaObject[] = [];
-      const environment: DioramaEnvironment = { ...DEFAULT_ENVIRONMENT, base: base ?? state.environment.base };
-      if (environment.base === "plot") environment.surface = createSurface(DEFAULT_PLOT_LAYOUT);
-      return {
-        objects,
-        environment,
-        sceneId: createId("scene"),
-        sceneName: DEFAULT_SCENE_NAME,
-        ...freshView(state),
-        selectedObjectIds: [],
-        placement: null,
-        brush: null,
-        groundBrush: null,
-        transformMode: "translate" as TransformMode,
-        ...createInitialHistory(objects, environment.surface),
-      };
-    }),
-
-  newSceneFromTemplate: (templateId) =>
-    set((state) => {
-      const template = SCENE_TEMPLATES.find((candidate) => candidate.id === templateId);
-      if (!template) return state;
-      const objects = template.objects();
-      return {
-        objects,
-        environment: template.environment,
-        sceneId: createId("scene"),
-        sceneName: template.name,
-        ...freshView(state),
-        selectedObjectIds: [],
-        placement: null,
-        brush: null,
-        groundBrush: null,
-        transformMode: "translate" as TransformMode,
-        ...createInitialHistory(objects, template.environment.surface),
-      };
-    }),
-
-  saveScene: () => {
-    if (typeof window === "undefined") return;
+  saveScene: async () => {
     const state = get();
-    const scene = buildScene({
-      id: state.sceneId,
-      name: state.sceneName,
-      objects: state.objects,
-      environment: state.environment,
-      camera: state.camera,
-      photo: scenePhotoOf(state.photo),
-    });
+    if (!state.sceneId) return;
+    const scene = sceneOf(state);
+    const fingerprint = JSON.stringify(scene);
+    set({ saveStatus: "saving" });
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeScene(scene)));
+      await saveDiorama(scene);
     } catch {
-      // Storage unavailable/full — editor keeps working in-memory.
+      // Storage unavailable or full: the editor keeps working in memory, and says so.
+      if (get().sceneId === scene.id) set({ saveStatus: "error" });
+      return;
     }
-    set({ saveStatus: "saved" });
+    // Only the diorama that is still open reports; a change made during the save keeps it unsaved.
+    if (get().sceneId !== scene.id) return;
+    set({ savedFingerprint: fingerprint, saveStatus: sceneFingerprint(get()) === fingerprint ? "saved" : "unsaved" });
   },
 
-  loadScene: (scene) =>
+  flushSave: () => {
+    const state = get();
+    if (state.sceneId && state.savedFingerprint !== null && sceneFingerprint(state) !== state.savedFingerprint) {
+      void state.saveScene();
+    }
+  },
+
+  loadScene: (scene) => {
+    get().flushSave();
     set((state) => ({
       objects: scene.objects,
       sceneId: scene.id,
@@ -957,41 +905,13 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
       transformMode: "translate" as TransformMode,
       ...createInitialHistory(scene.objects, scene.environment.surface),
       saveStatus: "saved" as SaveStatus,
-      importError: null,
-    })),
-
-  exportScene: () => {
-    const state = get();
-    downloadSceneAsJson(
-      buildScene({
-        id: state.sceneId,
-        name: state.sceneName,
-        objects: state.objects,
-        environment: state.environment,
-        camera: state.camera,
-      photo: scenePhotoOf(state.photo),
-      })
-    );
+      savedFingerprint: null,
+    }));
+    // What was just opened is what is stored.
+    set((state) => ({ savedFingerprint: sceneFingerprint(state) }));
   },
 
-  importScene: (json) => {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(json);
-    } catch {
-      set({ importError: "Unable to import Diorama. The file is invalid or corrupted." });
-      return;
-    }
-    const result = validateAndNormalizeScene(parsed);
-    if ("error" in result) {
-      set({ importError: `Unable to import Diorama. ${result.error}` });
-      return;
-    }
-    get().loadScene(result.scene);
-    get().saveScene();
-  },
-
-  clearImportError: () => set({ importError: null }),
+  exportScene: () => downloadSceneAsJson(sceneOf(get())),
 
   undo: () =>
     set((state) => {

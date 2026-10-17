@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Diorama Editor — Farmodoro",
-  description: "Craft a small, cozy 3D diorama: place trees, a house, and rocks, then move, rotate and scale them.",
+  title: "Editor",
+  description: "Build a miniature Japanese street: place houses, shops, poles and plants, then photograph it.",
 };
 
 export default function DioramaLayout({ children }: { children: React.ReactNode }) {

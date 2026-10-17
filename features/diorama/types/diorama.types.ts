@@ -253,7 +253,7 @@ export interface DioramaScene {
 
 export type CameraPreset = "isometric" | "front" | "side" | "top";
 
-export type SaveStatus = "saved" | "saving" | "unsaved";
+export type SaveStatus = "saved" | "saving" | "unsaved" | "error";
 
 /** The shape of the photo frame in Preview (utils/photo.ts). */
 export const PHOTO_ASPECTS = ["free", "1:1", "4:5", "16:9"] as const;

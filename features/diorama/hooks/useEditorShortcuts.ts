@@ -71,7 +71,7 @@ export function useEditorShortcuts(enabled: boolean) {
 
       if (isMeta && key === "s") {
         event.preventDefault();
-        saveScene();
+        void saveScene();
         return;
       }
 

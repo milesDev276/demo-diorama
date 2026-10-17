@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   Trees,
@@ -12,6 +13,7 @@ import {
   RotateCcw,
   Loader2,
   Circle,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useDioramaStore } from "../store/dioramaStore";
@@ -23,6 +25,14 @@ function SaveStatusLabel({ status }: { status: SaveStatus }) {
       <span className="flex items-center gap-1">
         <Loader2 size={10} className="animate-spin" />
         Saving…
+      </span>
+    );
+  }
+  if (status === "error") {
+    return (
+      <span className="flex items-center gap-1 text-red-600" title="This browser could not store the diorama. Keep this tab open, or export it.">
+        <AlertTriangle size={10} />
+        Not saved
       </span>
     );
   }
@@ -101,9 +111,14 @@ export function EditorToolbar({
       className="relative z-20 mx-3 mt-3 flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-[#8b6f52]/15 bg-white/70 px-4 py-3 shadow-[0_8px_32px_rgba(139,111,82,0.12)] backdrop-blur-xl sm:mx-6 sm:mt-6 sm:px-6"
     >
       <div className="flex min-w-0 items-center gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#A7C4A0]/40 text-[#4A3421]">
+        <Link
+          href="/dioramas"
+          title="My Dioramas"
+          aria-label="My Dioramas"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#A7C4A0]/40 text-[#4A3421] transition-colors hover:bg-[#A7C4A0]/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8B6F52]"
+        >
           <Trees size={17} />
-        </span>
+        </Link>
         <div className="min-w-0 leading-tight">
           {isEditingName ? (
             <input

@@ -1,4 +1,4 @@
-# Handoff — Hero Diorama Work (as of 2026-10-17, after Stage 16)
+# Handoff — Hero Diorama Work (as of 2026-10-17, after Stage 17)
 
 Read this first when picking up the work. It summarizes where things
 stand, what was decided and why, how to run and verify things, and what
@@ -28,22 +28,25 @@ comes next. Details live in the linked plan files.
 | Stage 13: weather | Done | `main` (PR #16) |
 | Stage 14: editor polish | Done | `main` (PR #17) |
 | Stage 15: residential street | Done | `main` (PR #18) |
-| Stage 16: everyday people | Implemented and verified; **not committed** | branch `stage16-people` (working tree) |
+| Stage 16: everyday people | Done | `main` (PR #19) |
+| Stage 17: app shell and My Dioramas | Implemented and verified; **not committed** | branch `stage17-shell` (working tree) |
 
 Stage 7 was the last stage of the original roadmap; Stages 8 to 16 were added
-at the user's request.
+at the user's request. From Stage 17 on, the stages follow
+[Product-Roadmap.md](Product-Roadmap.md) (Stages 17–27).
 
-**`main` holds Stages 0–15** (last merge: PR #18, `7232618`). Stage 16 is
-in the working tree of `stage16-people`, uncommitted.
+**`main` holds Stages 0–16** (last merge: PR #19, `848cd58`). Stage 17 is
+in the working tree of `stage17-shell`, uncommitted, together with the new
+plan documents (Product-Roadmap, Phase-7-Community, Stage-17).
 
-**Immediate next action:** the user commits Stage 16 and opens its PR; then
-ask what comes next (§7 lists the candidates).
+**Immediate next action:** the user commits Stage 17 and opens its PR; then
+plan the next roadmap stage (Stage 18, backend foundation; §7).
 The user merges PRs themselves, one branch per stage; cut the
 next branch from an up-to-date `main` (`git fetch`, then fast-forward).
 (For Stages 6 to 14 the user handed every decision
 to Claude, so the plan was settled with its defaults and implemented without
 a separate approval round. Stage 15's plan was approved with "theo mặc định",
-Stage 16's with "hãy thực hiện": their defaults. Ask again at the start of new work; it is not a standing rule.)
+Stage 16's and Stage 17's with "hãy thực hiện": their defaults. Ask again at the start of new work; it is not a standing rule.)
 
 The old Stage 5 stash was dropped on 2026-10-06; `git stash list` is empty.
 
@@ -69,6 +72,9 @@ The old Stage 5 stash was dropped on 2026-10-06; `git stash list` is empty.
 | [Stage-14-Implementation.md](Stage-14-Implementation.md) | Attachments following a building, group move and turn, undo/redo selection, duplicates on the base, kit rename / export / import, the saved view and photo settings: decisions D1–D8 and results (§7) |
 | [Stage-16-Implementation.md](Stage-16-Implementation.md) | The posable figure (`lib/figure.py`), the shared bicycle (`lib/bicycle.py`), six figures (walker, sitting, cyclist, umbrella, elder, cat), people in the Residential Lane starter, the Bench Rest kit: decisions D1–D5 and results (§6) |
 | [Stage-15-Implementation.md](Stage-15-Implementation.md) | The apartment, the traditional house, the gate post and the propane cylinders; walls, fences, rails and hedges as one object by length; the Residential Lane starter and the Front Gate kit: decisions D1–D5 and results (§6) |
+| [Stage-17-Implementation.md](Stage-17-Implementation.md) | The home page, My Dioramas in IndexedDB, the editor at `/diorama/[id]`, thumbnails from the canvas, the migration of the old single autosave, the template leftovers removed: decisions D1–D11 and results (§6) |
+| [Product-Roadmap.md](Product-Roadmap.md) | From editor to public app: architecture A1–A7 and Stages 17–27 (platform, print export, launch) |
+| [Phase-7-Community.md](Phase-7-Community.md) | Detailed plan of Stages 21–23 (publish, explore, likes, remix, profiles, comments, moderation); not started |
 | `Phase-*.md` | Earlier phases, kept for history |
 
 ## 3. Decisions That Must Not Be Re-litigated
@@ -143,6 +149,17 @@ The old Stage 5 stash was dropped on 2026-10-06; `git stash list` is empty.
 * **Scatter layers and buildings are never attached** (`canBeChild` in
   `utils/sceneGraph.ts`). The brush paints on flat faces of the base only;
   buildings block it.
+* **Dioramas live in IndexedDB** (Stage 17), database `diorama`:
+  `entries` (name, times, object count, base, thumbnail Blob) and `scenes`
+  (the scene file exactly as exported), both keyed by the scene's own id.
+  Only `features/dioramas/storage/dioramaRepository.ts` touches them.
+  Every read goes through `validateAndNormalizeScene`. The old
+  `localStorage["diorama-scene"]` is read once, into the collection, and
+  then left alone as a backup (`diorama-migrated` flag).
+* **The editor store starts empty** (`sceneId: ""`), and nothing is saved
+  until `useOpenDiorama` has loaded a diorama by id. `loadScene` saves the
+  open diorama first if it has changes; `savedFingerprint` is what autosave
+  compares against, so opening a diorama is not an edit.
 * **Kits are library data, not scene data:** `localStorage["diorama-kits"]`
   as `{ version: 1, kits }` (`store/kitStore.ts`), validated with the
   scene validator's `normalizeObjects`. Built-in kits are code
@@ -456,7 +473,7 @@ The platform is Windows. Node 22.14, Chrome, and Blender 5.2.2 LTS at
 test runner.
 
 ```bash
-npm run dev                  # http://localhost:3000/diorama
+npm run dev                  # http://localhost:3000 (/diorama opens the latest diorama)
 npm run lint
 npm run build                # includes the TypeScript check
 
@@ -469,8 +486,9 @@ node scripts/measure-scene.mjs --types keiCar,bicycle --count 100 [--seconds 5] 
 # Library thumbnails (dev server must run): every item, or some keys
 node scripts/capture-thumbnails.mjs [--only vendingMachine,kit:vending-corner]
 
-# Preview image of every built-in starter scene (dev server must run)
-node scripts/capture-template.mjs
+# Preview image of every built-in starter scene (dev server must run);
+# --hero renders the home page picture public/home/hero.webp instead
+node scripts/capture-template.mjs [--hero]
 
 # Blender: build one asset, several, or `all` (GLB → public/models/<category>/, previews → art/previews/)
 # Exits non-zero if an asset is over its triangle budget or over 3 draw calls.
@@ -512,9 +530,14 @@ node scripts/capture-template.mjs
   stash list must be empty again).
 * **Comparing two folders of screenshots** needs no image library: load both
   PNGs into a canvas in the headless browser and compare the pixels there.
-* **A fresh browser profile now opens the hero scene** at golden hour.
-  Seed a scene to test anything else. A seed without an environment is a
-  converted street strip (a 51 × 27 m plot) by day.
+* **A fresh browser profile opening `/diorama` creates a diorama from the
+  hero starter** at golden hour; query parameters such as `?dev=stats` are
+  carried through the redirect. `/diorama/new?starter=<id>` (or
+  `?base=corner|plot`) creates one from a starter. **`--seed-scene` still
+  works by writing the pre-Stage 17 localStorage key:** in a fresh profile
+  the app moves it into the collection and `/diorama` opens it. A seed
+  without an environment is a converted street strip (a 51 × 27 m plot) by
+  day.
 
 ## 5. Gotchas Learned the Hard Way
 
@@ -654,6 +677,20 @@ node scripts/capture-template.mjs
   once at the end — and `sed -i` in Git Bash turns a CRLF file into LF.
   Check `file <path>` after scripted edits.
 
+* **`cdp.evaluate` of an expression that returns a DOM element fails**
+  (it cannot be returned by value) and a polling loop reads that as
+  "not yet": wrap checks in `Boolean(…)`.
+* **`ThumbnailCapture` must stay the first child of the canvas:** its last
+  picture is taken in a layout-effect cleanup, which only sees the whole
+  scene if it runs before the siblings are removed. Taken later, the
+  thumbnail is an empty sky.
+* **drei's `TransformControls` is three-stdlib's** (an `Object3D` with
+  `isTransformControls`), not three's (`getHelper()` /
+  `isTransformControlsRoot`).
+* **Do not open the `diorama` IndexedDB from a script before the app has:**
+  `indexedDB.open("diorama", 1)` on a missing database creates it empty,
+  without the stores, and the app's upgrade never runs.
+
 ## 6. Known Limitations and Existing Behaviors (not bugs of these stages)
 
 * **Old street-strip scenes changed with Stage 10:** they are 51 × 27 m
@@ -703,12 +740,27 @@ node scripts/capture-template.mjs
 
 ## 7. Next
 
-The roadmap's seven stages and Stages 8 to 16 are implemented; Stage 16 is
-not committed yet. Nothing further is planned or approved; ask the user
-what comes next.
+The roadmap's seven stages and Stages 8 to 17 are implemented; Stage 17 is
+not committed yet.
 
-* **Open from Stage 16:** not committed; not tried in the user's own
-  browser.
+**Direction after Stage 16 (user decision, 2026-10-17):** develop the
+project into a complete public application with a Node.js backend of our
+own, backend early, desktop only, plus **3D-print export** (one piece
+first, then a kit; prints ordered from a print service) after the backend
+stages. The stage order (17 to 27) and the
+architecture are in [Product-Roadmap.md](Product-Roadmap.md). The user
+asked for Stage 17 and approved its plan; the later stages and the
+roadmap's open questions are not settled. Asked afterwards about NestJS or
+Spring Boot for the backend, Claude recommended **NestJS** (TypeScript, so
+`shared/` scene validation is one codebase; on the Fastify adapter) over
+Spring Boot; the user has not decided. Next is **Stage 18, backend
+foundation**: its plan settles the framework.
+
+* **Open from Stage 17:** not tried in the user's own browser, so the
+  migration of the user's real autosave is unverified there (the key is
+  kept as a backup). An imported diorama has no thumbnail until it has
+  been open for a few seconds.
+* **Open from Stage 16:** not tried in the user's own browser.
 * **Open from Stage 15:** not tried in the user's own
   browser. The two-storey house is not in the Residential Lane starter (it
   did not fit); the hero and Back Street still use separate wall pieces.
@@ -749,8 +801,9 @@ what comes next.
   (2026-10-03), worried about file sizes. `public/` was 3.7 MB, so assets
   stay in the repo; the proposal made was Supabase (Postgres + Auth +
   Storage), scenes as `jsonb`, local-first with cloud as a sync layer, and
-  a saved camera per scene first (done locally in Stage 14). Nothing was
-  decided or written down as a design; Phases 6–7 still need an explicit request.
+  a saved camera per scene first (done locally in Stage 14). Superseded on
+  2026-10-17: the user chose a backend of their own in Node.js
+  (Product-Roadmap.md), not a hosted one.
 
 ## 8. Working With This User
 

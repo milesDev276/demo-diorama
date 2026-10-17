@@ -21,6 +21,7 @@ import { CameraControls } from "./CameraControls";
 import { PostEffects } from "./PostEffects";
 import { SceneFog } from "./SceneFog";
 import { WeatherParticles } from "./WeatherParticles";
+import { ThumbnailCapture } from "./ThumbnailCapture";
 import { HeroBlockout } from "./dev/HeroBlockout";
 import { DevRendererHandle } from "./dev/DevRendererHandle";
 import { cn } from "@/lib/cn";
@@ -29,6 +30,9 @@ import { getBaseTemplate } from "../utils/baseTemplates";
 import { PHOTO_ASPECT_RATIOS } from "../utils/photo";
 import { skyGradient } from "../utils/timeOfDay";
 import { sceneLook } from "../utils/weather";
+
+/** Marks editor helpers that thumbnails leave out (ThumbnailCapture). */
+const EDITOR_ONLY = { editorOnly: true };
 
 /** The mat around a photo frame. Its padding keeps the frame clear of the photo bar. */
 const MAT_STYLE = { background: "#26201c", containerType: "size" } as const;
@@ -100,6 +104,8 @@ export function DioramaCanvas() {
         >
           {/* Everything in the canvas is drawn in the scene's time of day, season and weather. */}
           <SceneEnvironmentContext.Provider value={sceneEnvironment}>
+            {/* First, so that when the canvas closes it takes its last picture before the scene is torn down. */}
+            {!showBlockout && <ThumbnailCapture />}
             <CameraControls />
             <SceneFog />
             {devFlag === "stats" && <DevRendererHandle />}
@@ -132,6 +138,7 @@ export function DioramaCanvas() {
                 followCamera={false}
                 infiniteGrid={false}
                 renderOrder={-1}
+                userData={EDITOR_ONLY}
               />
             )}
 
