@@ -70,12 +70,14 @@ import type {
   Vector3Tuple,
 } from "../types/diorama.types";
 import { BuildingAsset } from "../objects/building/Building";
+import type { SignCell } from "../objects/textures/graphicsAtlas";
 import { BUILDING_MODULES } from "../objects/building/buildingLayout";
 import { ScatterLayer } from "../objects/scatter/ScatterLayer";
 import { buildingSize } from "../utils/buildingParams";
 import { buildingParamsOf, runPiecesOf, scatterParamsOf } from "../utils/objectParams";
 import { scatterRadius } from "../utils/scatterParams";
 import { BUILDING_PRESETS, DEFAULT_BUILDING_PARAMS } from "./buildingPresets";
+import { PAINT_SWATCHES, type Swatch } from "./paintSwatches";
 import { SCATTER_KIND_SPECS } from "./scatterKinds";
 import thumbnailKeys from "./thumbnails.json";
 import { PowerLine } from "../objects/PowerLine";
@@ -138,6 +140,14 @@ interface AssetBase {
   /** Natural things whose repeats should not look stamped: duplicates and
    *  Shift+click placements get a random heading and a size within ± this fraction. */
   jitter?: number;
+  /** A part of the model each placed object can be recolored: the faces of the
+   *  `paint` material slot. The first swatch is the color it was modeled in
+   *  (its Blender script's PAINT). */
+  paint?: { label: string; swatches: Swatch[] };
+  /** A sign whose text each placed object can change. It is the asset's only
+   *  print, so its `printed` faces take the text (objects/GltfAsset.tsx). Its
+   *  default text is the cell's (SIGN_TEXTS in objects/textures/graphicsAtlas.ts). */
+  sign?: { label: string; cell: SignCell; maxLength: number };
   tags: string[];
 }
 
@@ -171,6 +181,7 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     defaultScale: [1, 1, 1],
     footprintRadius: 4.2,
     randomSpawnRotation: false,
+    paint: { label: "Wall color", swatches: PAINT_SWATCHES.plaster },
     tags: ["building", "modular"],
   },
   house: {
@@ -182,6 +193,7 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     defaultScale: [1, 1, 1],
     footprintRadius: 4.6,
     randomSpawnRotation: false,
+    paint: { label: "Wall color", swatches: PAINT_SWATCHES.plaster },
     tags: ["home", "residential", "building"],
   },
   shop: {
@@ -194,6 +206,7 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     footprintRadius: 4,
     randomSpawnRotation: false,
     glow: { ...SHOP_GLOW, position: [0, 1.9, 3.2] },
+    sign: { label: "Shop name", cell: "shop_sign", maxLength: 8 },
     tags: ["store", "shop", "commercial", "building"],
   },
   apartment: {
@@ -207,6 +220,8 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     randomSpawnRotation: false,
     // The corridor lamps
     glow: { position: [0, 4.4, 3.0], color: "#ffe6bf", intensity: 8, distance: 8 },
+    paint: { label: "Wall color", swatches: PAINT_SWATCHES.siding },
+    sign: { label: "Building name", cell: "apartment_board", maxLength: 8 },
     tags: ["apartment", "apato", "heights", "corridor", "stairs", "residential", "home", "building"],
   },
   traditionalHouse: {
@@ -232,6 +247,7 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     footprintRadius: 6.2,
     randomSpawnRotation: false,
     glow: { position: [0, 2.1, 4.6], color: "#ffe9c4", intensity: 12, distance: 8 },
+    sign: { label: "Store name", cell: "konbini_sign", maxLength: 8 },
     tags: ["konbini", "convenience store", "store", "shop", "commercial", "building"],
   },
   utilityPole: {
@@ -289,6 +305,7 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     footprintRadius: 0.8,
     randomSpawnRotation: false,
     glow: { position: [0, 1.15, 0.6], color: "#f1f5ff", intensity: 2.4, distance: 5 },
+    paint: { label: "Body color", swatches: PAINT_SWATCHES.vendingMachine },
     tags: ["drink", "jihanki", "machine"],
   },
   airConditioner: {
@@ -368,6 +385,7 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     defaultScale: [1, 1, 1],
     footprintRadius: 0.4,
     randomSpawnRotation: false,
+    sign: { label: "Family name", cell: "name_plate", maxLength: 4 },
     tags: ["gate", "post", "monchu", "name plate", "hyosatsu", "intercom", "mail", "wall", "boundary"],
   },
   gutterGrate: {
@@ -702,6 +720,7 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     defaultScale: [1, 1, 1],
     footprintRadius: 1.9,
     randomSpawnRotation: false,
+    paint: { label: "Body color", swatches: PAINT_SWATCHES.keiCar },
     tags: ["car", "kei", "vehicle", "parked"],
   },
   keiTruck: {
@@ -713,6 +732,7 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     defaultScale: [1, 1, 1],
     footprintRadius: 1.9,
     randomSpawnRotation: false,
+    paint: { label: "Body color", swatches: PAINT_SWATCHES.keiTruck },
     tags: ["truck", "kei", "keitora", "pickup", "vehicle", "parked"],
   },
   scooter: {
@@ -724,6 +744,7 @@ export const ASSET_REGISTRY: Record<DioramaObjectType, AssetDefinition> = {
     defaultScale: [1, 1, 1],
     footprintRadius: 1.0,
     randomSpawnRotation: false,
+    paint: { label: "Body color", swatches: PAINT_SWATCHES.scooter },
     tags: ["scooter", "moped", "gentsuki", "delivery", "vehicle", "parked"],
   },
   pedestrian: {

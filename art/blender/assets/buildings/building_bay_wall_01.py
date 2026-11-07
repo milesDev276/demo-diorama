@@ -4,7 +4,7 @@ Plaster wall with a belt course at the floor line above. See lib/facade.py
 for the module conventions. No baked AO or grime.
 """
 
-from lib.facade import HALF, UPPER_FLOOR, WEATHER, belt_course, wall_piece  # noqa: F401
+from lib.facade import HALF, PAINT, UPPER_FLOOR, WEATHER, belt_course, wall_piece  # noqa: F401
 
 NAME = "building_bay_wall_01"
 CATEGORY = "buildings"

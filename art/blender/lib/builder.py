@@ -16,8 +16,8 @@ import bpy
 from mathutils import Euler, Matrix, Quaternion, Vector, noise
 
 from .atlas import cell_uv_rect, face_axes
-from .materials import COLOR_ATTRIBUTE, MATERIAL_SLOTS, slot_material
-from .palette import Rgb
+from .materials import COLOR_ATTRIBUTE, MATERIAL_SLOTS, PAINT_BASE, slot_material
+from .palette import Rgb, srgb_to_linear
 
 Vec3 = tuple[float, float, float]
 Vec2 = tuple[float, float]
@@ -96,6 +96,8 @@ class MeshBuilder:
         self._paint_layer = self.bm.faces.layers.int.new("paint")
         self._uv_layer = None
         self._paints: list[Rgb] = []
+        # Palette key of the asset's default paint color (its PAINT), for previews of the "paint" slot.
+        self.paint_preview: str | None = None
 
     def color(self, key: str, shade: float = 1.0) -> Rgb:
         r, g, b = self.palette[key]
@@ -378,13 +380,21 @@ class MeshBuilder:
         set_active_color(mesh, COLOR_ATTRIBUTE)
 
         for slot in MATERIAL_SLOTS:
-            mesh.materials.append(slot_material(slot))
+            mesh.materials.append(slot_material(slot, self._paint_factor()))
 
         obj = bpy.data.objects.new(self.name, mesh)
         bpy.context.scene.collection.objects.link(obj)
         return obj
 
     # ── Internals ───────────────────────────────────────────────────────
+
+    def _paint_factor(self) -> tuple[float, float, float] | None:
+        """Linear factor taking PAINT_BASE to the default paint color."""
+        if self.paint_preview is None:
+            return None
+        base = self.palette[PAINT_BASE]
+        color = self.palette[self.paint_preview]
+        return tuple(srgb_to_linear(c) / srgb_to_linear(b) for c, b in zip(color, base))
 
     def _new_faces(self, before: set) -> list:
         return [f for f in self.bm.faces if f not in before]

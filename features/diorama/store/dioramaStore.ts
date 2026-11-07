@@ -50,6 +50,7 @@ import {
 } from "../utils/objectDefaults";
 import { getBaseTemplate, type BaseTemplate } from "../utils/baseTemplates";
 import { instantiateKit } from "../utils/kits";
+import { normalizeObjectColor, normalizeObjectText } from "../utils/objectLook";
 import { buildingParamsOf, runPiecesOf, scatterParamsOf } from "../utils/objectParams";
 import { isRunType, MAX_RUN_PIECES, resizedRunPosition } from "../utils/runParams";
 import { newScatterSeed, roundPoint } from "../utils/scatterParams";
@@ -157,6 +158,12 @@ interface DioramaState {
   setBuildingParams: (id: string, update: (current: BuildingParams) => BuildingParams) => void;
   /** Makes a run `pieces` long, its left end kept in place. One undo step. */
   setRunPieces: (id: string, pieces: number) => void;
+  /** Paints an object's paint region "#rrggbb"; null (or its own color) goes back to the
+   *  color it was modeled in. Allowed on locked objects. One undo step. */
+  setObjectColor: (id: string, color: string | null) => void;
+  /** Writes an object's sign; null or empty goes back to the sign's own text. Allowed on
+   *  locked objects. One undo step. */
+  setObjectText: (id: string, text: string | null) => void;
 
   // --- Scatter brush ---
   /** Starts the brush for `kind`, painting into `layerId` if given. Ends any placement. */
@@ -636,6 +643,30 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
       if (after === before) return state;
       const resized: DioramaObject = { ...run, position: resizedRunPosition(run, before, after, tile), params: { pieces: after } };
       const objects = state.objects.map((o) => (o.id === id ? resized : o));
+      return { objects, ...commit(state, objects) };
+    }),
+
+  setObjectColor: (id, color) =>
+    set((state) => {
+      const object = state.objects.find((o) => o.id === id);
+      if (!object) return state;
+      const next = normalizeObjectColor(object.type, color);
+      if (next === object.color) return state;
+      const changed: DioramaObject = { ...object, color: next };
+      if (!next) delete changed.color;
+      const objects = state.objects.map((o) => (o.id === id ? changed : o));
+      return { objects, ...commit(state, objects) };
+    }),
+
+  setObjectText: (id, text) =>
+    set((state) => {
+      const object = state.objects.find((o) => o.id === id);
+      if (!object) return state;
+      const next = normalizeObjectText(object.type, text);
+      if (next === object.text) return state;
+      const changed: DioramaObject = { ...object, text: next };
+      if (!next) delete changed.text;
+      const objects = state.objects.map((o) => (o.id === id ? changed : o));
       return { objects, ...commit(state, objects) };
     }),
 

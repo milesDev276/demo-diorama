@@ -7,20 +7,22 @@ import {
   Plane,
   RedFormat,
   RepeatWrapping,
+  SRGBColorSpace,
   Vector3,
   type Material,
   type WebGLProgramParametersWithUniforms,
 } from "three";
 import { DIORAMA_COLORS } from "../utils/palette";
 import { TIME_OF_DAY_LOOKS } from "../utils/timeOfDay";
-import { getGraphicsAtlas, getLitAtlas } from "./textures/graphicsAtlas";
+import { createSignTexture, getGraphicsAtlas, getLitAtlas, signGlowOf, type SignCell } from "./textures/graphicsAtlas";
 
 /**
  * The shared materials of everything authored in meters. Blender GLBs
  * carry their colors as vertex colors and name their material slots
  * `base`, `emissive` and `printed`; GltfAsset swaps each slot for the
  * shared material below; deciduous crowns use a fourth slot, `foliage`,
- * and panes you can see through a fifth, `glass`.
+ * panes you can see through a fifth, `glass`, and the part a placed object
+ * can be recolored a sixth, `paint` (getPaintMaterial).
  * App-built bases use `ground` and `decal`, overhead wires `wire`. All
  * instances share these few shader programs, and the look is tuned in one
  * place. The weather wets or snows on `base`, `foliage` and `ground`
@@ -162,6 +164,86 @@ function createGlassMaterial() {
   });
 }
 
+/** Linear value of the gray paint regions are modeled in (palette `paintBase`). */
+const PAINT_BASE_LINEAR = new Color(DIORAMA_COLORS.paintBase).r;
+
+const paintMaterials = new Map<string, Material>();
+
+/**
+ * `base` for a paint region in `color` ("#rrggbb"): the faces of the `paint`
+ * slot are modeled in `paintBase` times their shading, so the material's
+ * color is `color` over `paintBase`, in linear terms. One material per color,
+ * all on base's shader program; a region in its default color looks as it
+ * did when the color was baked into the vertices.
+ */
+export function getPaintMaterial(color: string): Material {
+  let material = paintMaterials.get(color);
+  if (!material) {
+    const paint = createBaseMaterial();
+    paint.color.set(color).multiplyScalar(1 / PAINT_BASE_LINEAR);
+    material = paint;
+    paintMaterials.set(color, material);
+  }
+  return material;
+}
+
+/** A sign with a text of its own, and how many meshes show it. */
+interface SignMaterial {
+  material: MeshStandardMaterial;
+  users: number;
+}
+
+const signMaterials = new Map<string, SignMaterial>();
+
+const signKey = (cell: SignCell, text: string) => `${cell}
+${text}`;
+
+/**
+ * `printed` for one sign with a text of its own: the same surface, with a
+ * texture of that cell alone. A backlit cell glows after dark as it does in
+ * the lit atlas. Shared by every object showing the same text; a mesh that
+ * shows it retains it (retainSignMaterial) and releases it when it is gone.
+ */
+export function getSignMaterial(cell: SignCell, text: string): MeshStandardMaterial {
+  const key = signKey(cell, text);
+  let sign = signMaterials.get(key);
+  if (!sign) {
+    const texture = createSignTexture(cell, text);
+    // The lit atlas scales the cell's sRGB values by its strength.
+    const glow = signGlowOf(cell);
+    const material = new MeshStandardMaterial({
+      vertexColors: true,
+      map: texture,
+      roughness: 0.6,
+      metalness: 0,
+      emissive: new Color().setRGB(glow, glow, glow, SRGBColorSpace),
+      emissiveMap: glow ? texture : null,
+      emissiveIntensity: signGlow,
+    });
+    sign = { material, users: 0 };
+    signMaterials.set(key, sign);
+  }
+  return sign.material;
+}
+
+export function retainSignMaterial(cell: SignCell, text: string, material: MeshStandardMaterial): void {
+  const key = signKey(cell, text);
+  const sign = signMaterials.get(key);
+  if (sign) sign.users++;
+  // Released by another object in the same commit: in use again (three uploads it anew).
+  else signMaterials.set(key, { material, users: 1 });
+}
+
+/** Lets go of a sign; the last user disposes its material and texture. */
+export function releaseSignMaterial(cell: SignCell, text: string): void {
+  const key = signKey(cell, text);
+  const sign = signMaterials.get(key);
+  if (!sign || --sign.users > 0) return;
+  signMaterials.delete(key);
+  sign.material.map?.dispose();
+  sign.material.dispose();
+}
+
 /** Glass is drawn after the other transparent things (road lettering), so they are tinted when seen through it. */
 export const GLASS_RENDER_ORDER = 1;
 
@@ -281,6 +363,8 @@ const FACTORIES: Record<string, () => Material> = {
   printed: createPrintedMaterial,
   foliage: createFoliageMaterial,
   glass: createGlassMaterial,
+  // Without a color (getPaintMaterial), a paint region shows the gray it is modeled in.
+  paint: createBaseMaterial,
   ground: createGroundMaterial,
   decal: createDecalMaterial,
   wire: createWireMaterial,
@@ -319,6 +403,7 @@ export function setSignGlow(level: number): void {
   signGlow = level;
   const material = materials.get("printed") as MeshStandardMaterial | undefined;
   if (material) material.emissiveIntensity = level;
+  for (const sign of signMaterials.values()) sign.material.emissiveIntensity = level;
 }
 
 /** Sets how wet and how snowed on surfaces are (a weather's `wet` and `snow`, 0–1). Road lettering fades under snow. */

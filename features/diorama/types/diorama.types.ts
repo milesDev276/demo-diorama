@@ -131,6 +131,12 @@ export interface DioramaObject {
   parentId?: string;
   /** Only on parametric objects: `building`, `scatter` and runs. */
   params?: ObjectParams;
+  /** "#rrggbb": the color of the asset's paint region, on assets that have one
+   *  (registry `paint`). Absent = the color it was modeled in (utils/objectLook.ts). */
+  color?: string;
+  /** What the asset's sign says, on assets that have one (registry `sign`).
+   *  Absent = the sign's own text. */
+  text?: string;
 }
 
 /** Props of an asset component written in app code. */
@@ -138,6 +144,8 @@ export interface AssetComponentProps {
   object: Pick<DioramaObject, "type" | "params">;
   /** Scene object id, if other objects may be placed on this one. Ghosts have none. */
   surfaceId?: string;
+  /** "#rrggbb" for the paint region, on assets that have one (already resolved to the default). */
+  paint?: string;
 }
 
 export type TransformMode = "translate" | "rotate" | "scale";

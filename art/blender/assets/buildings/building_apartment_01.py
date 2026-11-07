@@ -13,9 +13,12 @@ No baked AO or grime.
 
 import math
 
+from lib.materials import PAINT_BASE
+
 NAME = "building_apartment_01"
 CATEGORY = "buildings"
 TRI_BUDGET = 7000
+PAINT = "wallSiding"  # the body color the user can change (Stage 19); registry's first swatch
 
 WEATHER = {"ao_strength": 0.0, "grime_strength": 0.0}
 
@@ -79,12 +82,12 @@ def _on_wall(face: str, u: float, out: float, z: float, width: float, depth: flo
 
 def _body(b) -> None:
     b.box((W + 0.06, D + 0.06, FOUNDATION), (BX, BY, FOUNDATION / 2), "foundation")
-    b.box((W, D, EAVE - FOUNDATION), (BX, BY, (FOUNDATION + EAVE) / 2), "wallSiding")
-    b.box((W + 0.05, D + 0.05, 0.1), (BX, BY, FLOOR2 - 0.05), "wallSiding", shade=0.86)  # floor band
+    b.box((W, D, EAVE - FOUNDATION), (BX, BY, (FOUNDATION + EAVE) / 2), PAINT_BASE, material="paint")
+    b.box((W + 0.05, D + 0.05, 0.1), (BX, BY, FLOOR2 - 0.05), PAINT_BASE, material="paint", shade=0.86)  # floor band
     # Gable walls from the eave up to the ridge, over the body and the corridor
     half = CORR + D
     ridge = EAVE + half / 2 * SLOPE
-    b.extrude([(EDGE, EAVE), (BACK, EAVE), (0, ridge)], W, (BX, 0, 0), "wallSiding", axis="x")
+    b.extrude([(EDGE, EAVE), (BACK, EAVE), (0, ridge)], W, (BX, 0, 0), PAINT_BASE, material="paint", axis="x")
     # Concrete apron under the corridor
     b.box((W + LANDING, CORR, 0.06), (BX + LANDING / 2, FRONT - CORR / 2, 0.03), "sidewalkConcrete")
 
@@ -94,7 +97,7 @@ def _corridor(b) -> None:
     cx = BX + LANDING / 2
     cy = FRONT - CORR / 2
     b.box((length, CORR, 0.2), (cx, cy, FLOOR2 - 0.1), "concreteSlab")
-    b.box((length + 0.02, 0.04, 0.2), (cx, EDGE - 0.01, FLOOR2 - 0.1), "wallSiding", shade=0.92)  # fascia
+    b.box((length + 0.02, 0.04, 0.2), (cx, EDGE - 0.01, FLOOR2 - 0.1), PAINT_BASE, material="paint", shade=0.92)  # fascia
 
     # Solid steel railing along the front and both ends, with a top rail
     rail_h = 1.05

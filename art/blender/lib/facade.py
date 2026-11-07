@@ -5,7 +5,13 @@ the OUTER wall plane: the wall occupies y 0 … THICKNESS (inward), and
 anything that projects from the facade (sills, awnings, balconies) has
 y < 0. The app tiles modules edge to edge, so nothing on a module's left
 and right ends may be bevelled or shaded differently from its neighbor.
+
+
+The wall plaster (WALL) is the building's paint: it is modeled in the
+"paint" slot, and the app colors it with the color the user picked (Stage 19).
 """
+
+from .materials import PAINT_BASE
 
 BAY = 1.82  # 1 ken
 HALF = BAY / 2
@@ -24,6 +30,7 @@ SHOP_FRONT = 0.1
 SHOP_BACK = 0.67
 
 WALL = "wallPlaster"
+PAINT = WALL  # default color of the paint slot, for previews (build.py)
 FRAME = "signPost"  # aluminium sash
 GLASS = "windowGlow"
 
@@ -32,9 +39,14 @@ GLASS = "windowGlow"
 WEATHER = {"ao_strength": 0.0, "grime_strength": 0.0, "face_jitter": 0.0}
 
 
+def wall_color(color: str) -> dict:
+    """Builder arguments for a part in `color`: WALL becomes the paint slot."""
+    return {"color": PAINT_BASE, "material": "paint"} if color == WALL else {"color": color}
+
+
 def wall_piece(b, x0: float, x1: float, z0: float, z1: float, color: str = WALL, shade: float = 1.0) -> None:
     """A full-thickness piece of wall between the given extents."""
-    b.box((x1 - x0, THICKNESS, z1 - z0), ((x0 + x1) / 2, THICKNESS / 2, (z0 + z1) / 2), color, shade=shade)
+    b.box((x1 - x0, THICKNESS, z1 - z0), ((x0 + x1) / 2, THICKNESS / 2, (z0 + z1) / 2), shade=shade, **wall_color(color))
 
 
 def wall_with_opening(b, height: float, x0: float, x1: float, z0: float, z1: float, base: float = 0.0) -> None:
@@ -48,7 +60,7 @@ def wall_with_opening(b, height: float, x0: float, x1: float, z0: float, z1: flo
 
 def belt_course(b, z: float) -> None:
     """Thin band marking a floor line, just proud of the wall. Runs the full bay width."""
-    b.box((BAY, 0.02, 0.07), (0, -0.01, z - 0.035), WALL, shade=0.9)
+    b.box((BAY, 0.02, 0.07), (0, -0.01, z - 0.035), shade=0.9, **wall_color(WALL))
 
 
 def sash(b, x0: float, x1: float, z0: float, z1: float, *, y: float = 0.06, panes: int = 2, glass_shade: float = 0.86) -> None:

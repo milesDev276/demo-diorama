@@ -8,9 +8,12 @@ ad panel on the left and the pickup flap near the ground. Front faces −Y.
 
 import random
 
+from lib.materials import PAINT_BASE
+
 NAME = "prop_vending_machine_01"
 CATEGORY = "props"
 TRI_BUDGET = 5000
+PAINT = "vendingBody"  # the body color the user can change (Stage 19); registry's first swatch
 
 WIDTH = 1.0
 HEIGHT = 1.83
@@ -36,9 +39,9 @@ def build(b) -> None:
 
 def _cabinet(b) -> None:
     b.box((0.94, 0.60, 0.06), (0, 0.04, 0.03), "vendingDark")  # recessed kick plinth
-    b.box((WIDTH, 0.66, 1.74), (0, 0.03, 0.93), "vendingBody", bevel=0.015, cuts=3)
-    b.box((1.02, 0.69, 0.03), (0, 0.03, 1.815), "vendingBody", shade=0.88, bevel=0.008)  # top cap
-    b.box((0.97, 0.03, 1.66), (0, -0.315, 0.92), "vendingBody", shade=1.05, bevel=0.01)  # front door
+    b.box((WIDTH, 0.66, 1.74), (0, 0.03, 0.93), PAINT_BASE, material="paint", bevel=0.015, cuts=3)
+    b.box((1.02, 0.69, 0.03), (0, 0.03, 1.815), PAINT_BASE, material="paint", shade=0.88, bevel=0.008)  # top cap
+    b.box((0.97, 0.03, 1.66), (0, -0.315, 0.92), PAINT_BASE, material="paint", shade=1.05, bevel=0.01)  # front door
     b.box((0.88, 0.012, 0.09), (0, -0.336, 1.68), "vendingPanel", material="emissive")  # lit header band
 
 
@@ -109,4 +112,4 @@ def _pickup(b) -> None:
     x = -0.13
     b.box((0.64, 0.04, 0.26), (x, -0.34, 0.29), "vendingDark", shade=0.7)  # dark opening
     b.box((0.58, 0.012, 0.19), (x, -0.362, 0.28), "vendingDark", shade=1.5, bevel=0.004)  # flap
-    b.box((0.68, 0.07, 0.02), (x, -0.36, 0.43), "vendingBody", shade=0.9, bevel=0.004)  # hood
+    b.box((0.68, 0.07, 0.02), (x, -0.36, 0.43), PAINT_BASE, material="paint", shade=0.9, bevel=0.004)  # hood
