@@ -9,8 +9,8 @@ import {
   EyeOff,
   FilePlus,
   Upload,
+  ChevronRight,
   Download,
-  RotateCcw,
   Loader2,
   Circle,
   AlertTriangle,
@@ -86,7 +86,6 @@ export function EditorToolbar({
   const setSceneName = useDioramaStore((s) => s.setSceneName);
   const objectCount = useDioramaStore((s) => s.objects.length);
   const saveStatus = useDioramaStore((s) => s.saveStatus);
-  const resetScene = useDioramaStore((s) => s.resetScene);
   const exportScene = useDioramaStore((s) => s.exportScene);
 
   const [isEditingName, setIsEditingName] = useState(false);
@@ -111,41 +110,53 @@ export function EditorToolbar({
       className="relative z-20 mx-3 mt-3 flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-[#8b6f52]/15 bg-white/70 px-4 py-3 shadow-[0_8px_32px_rgba(139,111,82,0.12)] backdrop-blur-xl sm:mx-6 sm:mt-6 sm:px-6"
     >
       <div className="flex min-w-0 items-center gap-3">
+        {/* The text link beside the name is the one in the tab order; this one is a larger target for the pointer. */}
         <Link
           href="/dioramas"
           title="My Dioramas"
-          aria-label="My Dioramas"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#A7C4A0]/40 text-[#4A3421] transition-colors hover:bg-[#A7C4A0]/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8B6F52]"
+          aria-hidden
+          tabIndex={-1}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#A7C4A0]/40 text-[#4A3421] transition-colors hover:bg-[#A7C4A0]/70"
         >
           <Trees size={17} />
         </Link>
         <div className="min-w-0 leading-tight">
-          {isEditingName ? (
-            <input
-              autoFocus
-              value={draftName}
-              onChange={(event) => setDraftName(event.target.value)}
-              onBlur={commitName}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") event.currentTarget.blur();
-                if (event.key === "Escape") {
-                  setDraftName(sceneName);
-                  setIsEditingName(false);
-                }
-              }}
-              maxLength={80}
-              className="w-44 rounded-md border border-[#F0B27A]/50 bg-white px-1.5 py-0.5 text-sm font-semibold text-[#4A3421] outline-none"
-            />
-          ) : (
-            <button
-              type="button"
-              onClick={startEditing}
-              title="Rename scene"
-              className="max-w-56 truncate text-left font-semibold text-[#4A3421] transition-colors hover:text-[#8B6F52] cursor-text"
+          {/* A breadcrumb on the name's own line, so the bar keeps its height and the canvas its size. */}
+          <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1">
+            <Link
+              href="/dioramas"
+              className="shrink-0 rounded text-sm font-medium text-[#4A3421]/55 transition-colors hover:text-[#8B6F52] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#8B6F52]"
             >
-              {sceneName}
-            </button>
-          )}
+              My Dioramas
+            </Link>
+            <ChevronRight size={14} aria-hidden className="shrink-0 text-[#4A3421]/35" />
+            {isEditingName ? (
+              <input
+                autoFocus
+                value={draftName}
+                onChange={(event) => setDraftName(event.target.value)}
+                onBlur={commitName}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") event.currentTarget.blur();
+                  if (event.key === "Escape") {
+                    setDraftName(sceneName);
+                    setIsEditingName(false);
+                  }
+                }}
+                maxLength={80}
+                className="w-44 rounded-md border border-[#F0B27A]/50 bg-white px-1.5 py-0.5 text-sm font-semibold text-[#4A3421] outline-none"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={startEditing}
+                title="Rename scene"
+                className="max-w-56 truncate text-left font-semibold text-[#4A3421] transition-colors hover:text-[#8B6F52] cursor-text"
+              >
+                {sceneName}
+              </button>
+            )}
+          </nav>
           <div className={cn("flex items-center gap-1.5 text-xs text-[#4A3421]/50")}>
             <span>
               {objectCount} {objectCount === 1 ? "object" : "objects"}
@@ -162,7 +173,6 @@ export function EditorToolbar({
             <ToolbarAction onClick={onRequestNewScene} icon={FilePlus} label="New" />
             <ToolbarAction onClick={onImportClick} icon={Upload} label="Import" />
             <ToolbarAction onClick={exportScene} icon={Download} label="Export" />
-            <ToolbarAction onClick={resetScene} icon={RotateCcw} label="Reset" />
           </>
         )}
         <button

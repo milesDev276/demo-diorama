@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { useDioramaStore } from "../store/dioramaStore";
 import { useKitStore } from "../store/kitStore";
 import { cn } from "@/lib/cn";
-import { getLibraryItems, type LibraryItem } from "../assets/assetRegistry";
+import { getLibraryItems, LIBRARY_CATEGORIES, type LibraryCategory, type LibraryItem } from "../assets/assetRegistry";
 import { BUILT_IN_KITS } from "../assets/builtInKits";
 import { SURFACE_KIND_SPECS, surfaceSwatch } from "../assets/surfaceKinds";
 import { SURFACE_KINDS, type SurfaceKind } from "../types/diorama.types";
@@ -105,16 +105,16 @@ function GroundCard({ kind }: { kind: SurfaceKind }) {
         else store.startGroundBrush(kind);
       }}
       className={cn(
-        "flex w-full flex-col items-center gap-1 rounded-2xl border p-1.5 pb-2 text-center transition-colors cursor-pointer",
+        "flex w-full flex-col items-center gap-1 rounded-xl border p-1 pb-1.5 text-center transition-colors cursor-pointer",
         isActive ? "border-[#F0B27A] bg-[#F0B27A]/25" : "border-[#8b6f52]/10 bg-white/50 hover:border-[#8b6f52]/25 hover:bg-white"
       )}
     >
-      <span className="relative block h-9 w-full overflow-hidden rounded-xl" style={{ background: surfaceSwatch(kind) }}>
-        <span className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white/85 text-[#4A3421]">
-          <Paintbrush size={11} aria-hidden />
+      <span className="relative block h-7 w-full overflow-hidden rounded-lg" style={{ background: surfaceSwatch(kind) }}>
+        <span className="absolute bottom-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white/85 text-[#4A3421]">
+          <Paintbrush size={9} aria-hidden />
         </span>
       </span>
-      <span className="text-[11px] font-medium leading-tight text-[#4A3421]">{spec.label}</span>
+      <span className="text-[10px] font-medium leading-tight text-[#4A3421]">{spec.label}</span>
     </motion.button>
   );
 }
@@ -154,19 +154,55 @@ function KitImport({ onMessage }: { onMessage: (message: string | null) => void 
   );
 }
 
+/** The category chips under the search box: one section of the library, or all of them. */
+function CategoryChips({ category, showGround }: { category: LibraryCategory; showGround: boolean }) {
+  const setCategory = useDioramaStore((s) => s.setLibraryCategory);
+  const chips = showGround ? LIBRARY_CATEGORIES : LIBRARY_CATEGORIES.filter((c) => c !== "Ground");
+
+  return (
+    <div role="group" aria-label="Library categories" className="flex flex-wrap gap-1">
+      {chips.map((chip) => (
+        <button
+          key={chip}
+          type="button"
+          aria-pressed={chip === category}
+          onClick={() => setCategory(chip)}
+          className={cn(
+            "rounded-full border px-1.5 py-px text-[11px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-[#F0B27A] cursor-pointer",
+            chip === category
+              ? "border-[#F0B27A] bg-[#F0B27A]/30 text-[#4A3421]"
+              : "border-[#8b6f52]/15 bg-white/50 text-[#4A3421]/65 hover:bg-white hover:text-[#4A3421]"
+          )}
+        >
+          {chip === "all" ? "All" : chip}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /**
- * Left panel: click an item, then click a surface in the scene to put it
- * there; a scatter item starts the brush instead, and a kit places a whole
- * group. On a plot scene the ground materials come first: they paint. Activating an item from the keyboard adds it near the middle of
- * the base, so no pointer is needed. Never touches Three.js directly — it
- * only dispatches to the store.
+ * The Library tab: click an item, then click a surface in the scene to put
+ * it there (the canvas says so while a surface is being picked); a scatter
+ * item starts the brush instead, and a kit places a whole group. On a plot
+ * scene the ground materials come first: they paint. Activating an item
+ * from the keyboard adds it near the middle of the base, so no pointer is
+ * needed. A category chip narrows it to one section, and the search runs
+ * inside that section. Never touches Three.js directly — it only
+ * dispatches to the store.
  */
 export function ObjectLibrary() {
   const userKits = useKitStore((s) => s.kits);
   const [query, setQuery] = useState("");
   const [kitMessage, setKitMessage] = useState<string | null>(null);
-  const groups = useMemo(() => getLibraryItems(query, [...userKits, ...BUILT_IN_KITS]), [query, userKits]);
   const isPlot = useDioramaStore((s) => s.environment.base === "plot");
+  const chosen = useDioramaStore((s) => s.libraryCategory);
+  // Ground materials exist only on a plot; elsewhere their chip is gone and the whole library shows.
+  const category: LibraryCategory = chosen === "Ground" && !isPlot ? "all" : chosen;
+  const groups = useMemo(
+    () => getLibraryItems(query, [...userKits, ...BUILT_IN_KITS]).filter(({ title }) => category === "all" || title === category),
+    [query, userKits, category]
+  );
   const groundKinds = useMemo(() => {
     const q = query.trim().toLowerCase();
     return SURFACE_KINDS.filter((kind) => {
@@ -174,20 +210,11 @@ export function ObjectLibrary() {
       return !q || label.toLowerCase().includes(q) || tags.some((tag) => tag.includes(q));
     });
   }, [query]);
-  const showGround = isPlot && groundKinds.length > 0;
+  const showGround = isPlot && (category === "all" || category === "Ground") && groundKinds.length > 0;
+  const where = category === "all" ? "" : ` in ${category}`;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -16 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4, ease: "easeOut", delay: 0.1 }}
-      className="flex h-full w-full flex-col gap-5 overflow-y-auto rounded-3xl border border-[#8b6f52]/15 bg-white/70 p-4 shadow-[0_8px_32px_rgba(139,111,82,0.12)] backdrop-blur-xl"
-    >
-      <div>
-        <h2 className="text-sm font-semibold text-[#4A3421]">Object Library</h2>
-        <p className="text-xs text-[#4A3421]/50">Pick an item, then click where it goes</p>
-      </div>
-
+    <div className="flex flex-col gap-4">
       <label className="flex items-center gap-2 rounded-xl border border-[#8b6f52]/15 bg-white/60 px-3 py-2 text-[#4A3421]/50 focus-within:border-[#8b6f52]/40 focus-within:bg-white">
         <Search size={14} aria-hidden />
         <input
@@ -200,14 +227,18 @@ export function ObjectLibrary() {
         />
       </label>
 
+      <CategoryChips category={category} showGround={isPlot} />
+
       {groups.length === 0 && !showGround && (
-        <p className="text-xs text-[#4A3421]/50">No assets match “{query.trim()}”.</p>
+        <p className="text-xs text-[#4A3421]/50">
+          {query.trim() ? `Nothing${where} matches “${query.trim()}”.` : `Nothing${where} yet.`}
+        </p>
       )}
 
       {showGround && (
         <div className="flex flex-col gap-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-[#4A3421]/40">Ground</p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-1.5">
             {groundKinds.map((kind) => (
               <GroundCard key={kind} kind={kind} />
             ))}
@@ -233,6 +264,6 @@ export function ObjectLibrary() {
           </div>
         </div>
       ))}
-    </motion.div>
+    </div>
   );
 }

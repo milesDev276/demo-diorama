@@ -20,10 +20,14 @@ interface SegmentedControlProps<T extends string> {
   className?: string;
 }
 
-/** A row of mutually exclusive choices, one of them on. */
+/**
+ * A row of mutually exclusive choices, one of them on. The segments share
+ * the width; a label that does not fit wraps instead of pushing the row
+ * wider than its container.
+ */
 export function SegmentedControl<T extends string>({ label, options, value, onChange, compact = false, className }: SegmentedControlProps<T>) {
   return (
-    <div role="radiogroup" aria-label={label} className={cn("flex gap-1 rounded-xl bg-[#4A3421]/5 p-1", className)}>
+    <div role="radiogroup" aria-label={label} className={cn("flex rounded-xl bg-[#4A3421]/5 p-1", compact ? "gap-1" : "gap-px", className)}>
       {options.map(({ value: option, label: text, icon: Icon }) => (
         <button
           key={option}
@@ -34,13 +38,14 @@ export function SegmentedControl<T extends string>({ label, options, value, onCh
           title={compact ? text : undefined}
           onClick={() => onChange(option)}
           className={cn(
-            "flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-[#F0B27A] cursor-pointer",
-            !compact && Icon && "flex-col px-1 text-[10px] leading-tight",
+            "flex min-w-0 flex-1 items-center justify-center gap-1 rounded-lg py-1.5 font-medium transition-colors focus-visible:outline-2 focus-visible:outline-[#F0B27A] cursor-pointer",
+            // An icon over its label: no side padding, so five fit across the inspector.
+            !compact && Icon ? "flex-col text-[10px] leading-tight" : "px-2 text-xs",
             value === option ? "bg-white text-[#4A3421] shadow-sm" : "text-[#4A3421]/55 hover:text-[#4A3421]"
           )}
         >
           {Icon && <Icon size={compact ? 15 : 14} aria-hidden />}
-          {!compact && text}
+          {!compact && <span className="max-w-full text-center [overflow-wrap:anywhere]">{text}</span>}
         </button>
       ))}
     </div>
