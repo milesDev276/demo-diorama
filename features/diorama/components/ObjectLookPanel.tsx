@@ -22,7 +22,8 @@ function ColorSection({ object }: { object: DioramaObject }) {
   const paint = ASSET_REGISTRY[object.type].paint;
   if (!paint) return null;
   const current = paintOf(object);
-  const selected = Math.max(0, paint.swatches.findIndex((swatch) => swatchHex(swatch) === current));
+  // -1 for a color that is no swatch (a file may hold any hex): then none is checked.
+  const selected = paint.swatches.findIndex((swatch) => swatchHex(swatch) === current);
 
   const pick = (index: number) => setObjectColor(object.id, index === 0 ? null : swatchHex(paint.swatches[index]));
 
@@ -40,7 +41,7 @@ function ColorSection({ object }: { object: DioramaObject }) {
       <div className="flex items-baseline justify-between">
         <p className={SECTION_TITLE}>{paint.label}</p>
         <p className="text-[11px] text-[#4A3421]/45">
-          {paint.swatches[selected].name}
+          {selected < 0 ? "Custom" : paint.swatches[selected].name}
           {selected === 0 && " · Default"}
         </p>
       </div>
@@ -59,7 +60,7 @@ function ColorSection({ object }: { object: DioramaObject }) {
               aria-checked={checked}
               aria-label={i === 0 ? `${swatch.name} (default)` : swatch.name}
               title={i === 0 ? `${swatch.name} (default)` : swatch.name}
-              tabIndex={checked ? 0 : -1}
+              tabIndex={checked || (selected < 0 && i === 0) ? 0 : -1}
               onClick={() => pick(i)}
               onKeyDown={(event) => onKeyDown(event, i)}
               className={cn(
@@ -104,6 +105,9 @@ function SignSection({ object }: { object: DioramaObject }) {
   const apply = () => {
     if (draft.trim() !== (object.text ?? "")) setObjectText(object.id, draft);
   };
+  // The limit counts characters (code points), like the counter and the stored text,
+  // not UTF-16 units as the input's maxLength would. Not cut mid-composition.
+  const clip = (value: string) => Array.from(value).slice(0, sign.maxLength).join("");
 
   return (
     <div className="flex flex-col gap-2 border-t border-[#8b6f52]/10 pt-4">
@@ -120,11 +124,14 @@ function SignSection({ object }: { object: DioramaObject }) {
         id={id}
         type="text"
         value={draft}
-        maxLength={sign.maxLength}
         placeholder={fallback}
         autoComplete="off"
         spellCheck={false}
-        onChange={(event) => setDraft(event.target.value)}
+        onChange={(event) => {
+          const value = event.target.value;
+          setDraft((event.nativeEvent as InputEvent).isComposing ? value : clip(value));
+        }}
+        onCompositionEnd={(event) => setDraft(clip(event.currentTarget.value))}
         onBlur={apply}
         onKeyDown={(event) => {
           // Enter also ends an IME composition; that one only confirms the characters.

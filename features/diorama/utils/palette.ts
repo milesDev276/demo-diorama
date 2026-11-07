@@ -121,7 +121,7 @@ export const DIORAMA_COLORS = {
   // Paint (Stage 19). A painted region is modeled in paintBase, a neutral gray
   // with room above it for shading; the app multiplies it by the chosen color
   // (objects/materials.ts getPaintMaterial). The swatches the inspector offers
-  // besides the defaults (utils/paintSwatches.ts): restrained, slightly dusty.
+  // besides the defaults (assets/paintSwatches.ts): restrained, slightly dusty.
   paintBase: "#cccccc",
   paintCarWhite: "#ecebe6",
   paintCarSilver: "#b8bbbc",

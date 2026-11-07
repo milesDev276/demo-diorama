@@ -52,6 +52,9 @@ function runPieces(start: Transform, end: Vector3Tuple, tile: number): Transform
 }
 
 function PlacementGhost({ placement }: { placement: Placement }) {
+  // An object being moved to a surface keeps its own color and sign text in the ghost.
+  const movingId = "kit" in placement ? undefined : placement.movingId;
+  const moving = useDioramaStore((s) => (movingId ? s.objects.find((o) => o.id === movingId) : undefined));
   if ("kit" in placement) {
     return (
       <>
@@ -60,7 +63,7 @@ function PlacementGhost({ placement }: { placement: Placement }) {
       </>
     );
   }
-  const object = { type: placement.type, params: placement.params };
+  const object = { type: placement.type, params: placement.params, color: moving?.color, text: moving?.text };
   return (
     <>
       <AssetVisual object={object} />

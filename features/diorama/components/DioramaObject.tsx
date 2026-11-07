@@ -33,7 +33,7 @@ export function AssetVisual({ object, surfaceId }: AssetVisualProps) {
   // A run: the same model laid end to end along X, centered on the origin.
   return runPieceOffsets(pieces, asset.tile).map((x) => (
     <group key={x} position={[x, 0, 0]}>
-      <GltfAsset url={asset.modelUrl} footprintRadius={asset.footprintRadius} />
+      <GltfAsset url={asset.modelUrl} footprintRadius={asset.footprintRadius} paint={paint} />
     </group>
   ));
 }

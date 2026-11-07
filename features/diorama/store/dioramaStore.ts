@@ -282,6 +282,28 @@ function commit(
   return { history: next.history, historyIndex: next.historyIndex };
 }
 
+/**
+ * Sets an object's `color` or `text` to `raw` as `normalize` reads it for the
+ * object's asset; undefined (invalid, empty or the default) removes the field.
+ * One history step, none if nothing changes.
+ */
+function withLookField(
+  state: DioramaState,
+  id: string,
+  field: "color" | "text",
+  normalize: (type: DioramaObject["type"], raw: unknown) => string | undefined,
+  raw: string | null
+): Partial<DioramaState> {
+  const object = state.objects.find((o) => o.id === id);
+  if (!object) return state;
+  const next = normalize(object.type, raw);
+  if (next === object[field]) return state;
+  const changed: DioramaObject = { ...object, [field]: next };
+  if (!next) delete changed[field];
+  const objects = state.objects.map((o) => (o.id === id ? changed : o));
+  return { objects, ...commit(state, objects) };
+}
+
 /** A changed ground: the objects standing on it follow, and both go onto the history stack as one step. */
 function commitSurface(state: DioramaState, surface: SurfaceMap) {
   const before = state.history[state.historyIndex].surface ?? state.environment.surface;
@@ -646,29 +668,9 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
       return { objects, ...commit(state, objects) };
     }),
 
-  setObjectColor: (id, color) =>
-    set((state) => {
-      const object = state.objects.find((o) => o.id === id);
-      if (!object) return state;
-      const next = normalizeObjectColor(object.type, color);
-      if (next === object.color) return state;
-      const changed: DioramaObject = { ...object, color: next };
-      if (!next) delete changed.color;
-      const objects = state.objects.map((o) => (o.id === id ? changed : o));
-      return { objects, ...commit(state, objects) };
-    }),
+  setObjectColor: (id, color) => set((state) => withLookField(state, id, "color", normalizeObjectColor, color)),
 
-  setObjectText: (id, text) =>
-    set((state) => {
-      const object = state.objects.find((o) => o.id === id);
-      if (!object) return state;
-      const next = normalizeObjectText(object.type, text);
-      if (next === object.text) return state;
-      const changed: DioramaObject = { ...object, text: next };
-      if (!next) delete changed.text;
-      const objects = state.objects.map((o) => (o.id === id ? changed : o));
-      return { objects, ...commit(state, objects) };
-    }),
+  setObjectText: (id, text) => set((state) => withLookField(state, id, "text", normalizeObjectText, text)),
 
   startBrush: (kind, layerId) => set({ brush: { kind, layerId }, placement: null, groundBrush: null }),
 

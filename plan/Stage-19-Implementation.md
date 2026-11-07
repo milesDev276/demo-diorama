@@ -439,7 +439,7 @@ keep their default colors and texts); thumbnails per color.
   konbini (ヨツバマート, HAPPY MA), apartment (メゾン桜, Sunny Co) and gate
   post (佐藤, 小田切, SATO) by day and night: the longest texts fit, the
   shop and konbini signs glow after dark like the defaults.
-* **Behavior, headless Chrome, real input, 40 checks pass:** swatch click
+* **Behavior, headless Chrome, real input, 43 checks pass (twice):** swatch click
   (color stored, one undo step, undo removes the field, redo); arrow keys
   apply and move focus, the focus ring shows; back to the default removes
   the field; a locked car recolors; a tree shows neither section; sign text
@@ -452,7 +452,10 @@ keep their default colors and texts); thumbnails per color.
   it: kept; save and reload: kept; custom signs use their own small
   textures; a hand-edited import drops `"color": "red"`, a color on a tree
   and the default text, lowercases `#3E485A`, and cuts a 40-character shop
-  name (with a control character) to `ABCDEFGH`; no page errors.
+  name (with a control character) to `ABCDEFGH`; an off-swatch color
+  shows "Custom" with no swatch checked and one tab stop; the ghost of
+  "Move to a surface" keeps the object's color; six emoji on the name plate
+  stop at four characters ("4/4"); no page errors.
 * **Performance** (`measure-scene.mjs`, 100 kei cars, 1920 × 1080, three
   runs each): one color and seven colors both 404 draw calls, 10 programs,
   9 textures, editor 180 fps (the headless cap); Preview 81–127 fps with
@@ -472,3 +475,18 @@ keep their default colors and texts); thumbnails per color.
 * Each distinct custom sign text adds one small texture and material;
   each distinct color one material (same program).
 * Blender builds are not byte-reproducible (above).
+
+### Review (2026-11-07)
+
+A code review of the branch (`/code-review`, medium) found eight points,
+all fixed: a color that is no swatch (possible from a file) showed the
+default swatch as checked, now none is and the label says "Custom"; the
+ghost of "Move to a surface" showed the default color and sign; sign
+materials made by a render that never committed stayed cached, and are
+now swept when a sign is released; the field's `maxLength` counted UTF-16
+units while the counter and the store count characters, so the limit is
+now applied in code (not during an IME composition); a multi-piece run
+did not pass its color (no run type is paintable yet); the store's two
+setters shared one helper; an empty wall geometry was merged into every
+non-shed building; a comment pointed at the wrong swatch file. The pull
+request itself was not opened: the GitHub CLI is not installed.

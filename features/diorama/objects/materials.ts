@@ -234,14 +234,20 @@ export function retainSignMaterial(cell: SignCell, text: string, material: MeshS
   else signMaterials.set(key, { material, users: 1 });
 }
 
-/** Lets go of a sign; the last user disposes its material and texture. */
+/**
+ * Lets go of a sign; the last user disposes its material and texture. Signs
+ * created by a render that never committed (no user yet) go too; should that
+ * render commit after all, retainSignMaterial takes its material back.
+ */
 export function releaseSignMaterial(cell: SignCell, text: string): void {
-  const key = signKey(cell, text);
-  const sign = signMaterials.get(key);
-  if (!sign || --sign.users > 0) return;
-  signMaterials.delete(key);
-  sign.material.map?.dispose();
-  sign.material.dispose();
+  const sign = signMaterials.get(signKey(cell, text));
+  if (sign) sign.users--;
+  for (const [key, unused] of signMaterials) {
+    if (unused.users > 0) continue;
+    signMaterials.delete(key);
+    unused.material.map?.dispose();
+    unused.material.dispose();
+  }
 }
 
 /** Glass is drawn after the other transparent things (road lettering), so they are tinted when seen through it. */

@@ -83,6 +83,10 @@ class FaceBuilder {
     this.quad([x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], [-1, 0, 0], color, shade);
   }
 
+  get isEmpty(): boolean {
+    return this.positions.length === 0;
+  }
+
   build(): BufferGeometry {
     const geometry = new BufferGeometry();
     geometry.setAttribute("position", new BufferAttribute(new Float32Array(this.positions), 3));
@@ -213,7 +217,8 @@ export function buildBuildingGeometry(params: BuildingParams, modules: ModuleGeo
   const wall = new FaceBuilder();
   ROOFS[params.roof](roof, wall, width, depth, wallHeight);
   parts.base.push(roof.build());
-  parts.paint.push(wall.build());
+  // Only a shed roof carries the walls up under it.
+  if (!wall.isEmpty) parts.paint.push(wall.build());
 
   const result: SlotGeometries = {};
   for (const slot of BUILDING_SLOTS) {
