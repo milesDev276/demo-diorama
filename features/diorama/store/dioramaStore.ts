@@ -50,6 +50,7 @@ import {
 } from "../utils/objectDefaults";
 import { getBaseTemplate, type BaseTemplate } from "../utils/baseTemplates";
 import { instantiateKit } from "../utils/kits";
+import { normalizeObjectColor, normalizeObjectText } from "../utils/objectLook";
 import { buildingParamsOf, runPiecesOf, scatterParamsOf } from "../utils/objectParams";
 import { isRunType, MAX_RUN_PIECES, resizedRunPosition } from "../utils/runParams";
 import { newScatterSeed, roundPoint } from "../utils/scatterParams";
@@ -157,6 +158,12 @@ interface DioramaState {
   setBuildingParams: (id: string, update: (current: BuildingParams) => BuildingParams) => void;
   /** Makes a run `pieces` long, its left end kept in place. One undo step. */
   setRunPieces: (id: string, pieces: number) => void;
+  /** Paints an object's paint region "#rrggbb"; null (or its own color) goes back to the
+   *  color it was modeled in. Allowed on locked objects. One undo step. */
+  setObjectColor: (id: string, color: string | null) => void;
+  /** Writes an object's sign; null or empty goes back to the sign's own text. Allowed on
+   *  locked objects. One undo step. */
+  setObjectText: (id: string, text: string | null) => void;
 
   // --- Scatter brush ---
   /** Starts the brush for `kind`, painting into `layerId` if given. Ends any placement. */
@@ -273,6 +280,28 @@ function commit(
 ) {
   const next = pushHistory({ history: state.history, historyIndex: state.historyIndex }, { objects, surface });
   return { history: next.history, historyIndex: next.historyIndex };
+}
+
+/**
+ * Sets an object's `color` or `text` to `raw` as `normalize` reads it for the
+ * object's asset; undefined (invalid, empty or the default) removes the field.
+ * One history step, none if nothing changes.
+ */
+function withLookField(
+  state: DioramaState,
+  id: string,
+  field: "color" | "text",
+  normalize: (type: DioramaObject["type"], raw: unknown) => string | undefined,
+  raw: string | null
+): Partial<DioramaState> {
+  const object = state.objects.find((o) => o.id === id);
+  if (!object) return state;
+  const next = normalize(object.type, raw);
+  if (next === object[field]) return state;
+  const changed: DioramaObject = { ...object, [field]: next };
+  if (!next) delete changed[field];
+  const objects = state.objects.map((o) => (o.id === id ? changed : o));
+  return { objects, ...commit(state, objects) };
 }
 
 /** A changed ground: the objects standing on it follow, and both go onto the history stack as one step. */
@@ -638,6 +667,10 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
       const objects = state.objects.map((o) => (o.id === id ? resized : o));
       return { objects, ...commit(state, objects) };
     }),
+
+  setObjectColor: (id, color) => set((state) => withLookField(state, id, "color", normalizeObjectColor, color)),
+
+  setObjectText: (id, text) => set((state) => withLookField(state, id, "text", normalizeObjectText, text)),
 
   startBrush: (kind, layerId) => set({ brush: { kind, layerId }, placement: null, groundBrush: null }),
 

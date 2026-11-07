@@ -7,29 +7,33 @@ import { useDioramaStore } from "../store/dioramaStore";
 import { ASSET_REGISTRY, getFootprintRadius, getRunSpan } from "../assets/assetRegistry";
 import { GltfAsset } from "../objects/GltfAsset";
 import { ScatterSelection } from "../objects/scatter/ScatterSelection";
+import { customSignOf, paintOf } from "../utils/objectLook";
 import { runPiecesOf, scatterParamsOf } from "../utils/objectParams";
 import { runPieceOffsets } from "../utils/runParams";
 import { SelectionRing } from "./SelectionRing";
 
 interface AssetVisualProps {
-  object: Pick<DioramaObjectData, "type" | "params">;
+  object: Pick<DioramaObjectData, "type" | "params" | "color" | "text">;
   /** Scene object id, if other objects may be placed on this one. */
   surfaceId?: string;
 }
 
-/** The asset's geometry at its natural size in meters. */
+/** The asset's geometry at its natural size in meters, in the object's colors and with its sign's text. */
 export function AssetVisual({ object, surfaceId }: AssetVisualProps) {
   const asset = ASSET_REGISTRY[object.type];
+  const paint = paintOf(object);
   if (!("modelUrl" in asset)) {
     const Visual = asset.component;
-    return <Visual object={object} surfaceId={surfaceId} />;
+    return <Visual object={object} surfaceId={surfaceId} paint={paint} />;
   }
   const pieces = runPiecesOf(object);
-  if (pieces === 1 || !asset.tile) return <GltfAsset url={asset.modelUrl} footprintRadius={asset.footprintRadius} />;
+  if (pieces === 1 || !asset.tile) {
+    return <GltfAsset url={asset.modelUrl} footprintRadius={asset.footprintRadius} paint={paint} sign={customSignOf(object)} />;
+  }
   // A run: the same model laid end to end along X, centered on the origin.
   return runPieceOffsets(pieces, asset.tile).map((x) => (
     <group key={x} position={[x, 0, 0]}>
-      <GltfAsset url={asset.modelUrl} footprintRadius={asset.footprintRadius} />
+      <GltfAsset url={asset.modelUrl} footprintRadius={asset.footprintRadius} paint={paint} />
     </group>
   ));
 }

@@ -5,7 +5,7 @@ recessed in the wall, with a projecting sill and a small hood. No baked AO
 or grime.
 """
 
-from lib.facade import FRAME, UPPER_FLOOR, WEATHER, belt_course, sash, wall_with_opening  # noqa: F401
+from lib.facade import FRAME, PAINT, UPPER_FLOOR, WEATHER, belt_course, sash, wall_with_opening  # noqa: F401
 
 NAME = "building_bay_window_01"
 CATEGORY = "buildings"

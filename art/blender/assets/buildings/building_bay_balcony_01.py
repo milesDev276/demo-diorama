@@ -6,7 +6,7 @@ at 1.1 m. The ends are open; the app closes each run of balcony bays with
 building_balcony_side_01. No baked AO or grime.
 """
 
-from lib.facade import BAY, HALF, UPPER_FLOOR, WEATHER, belt_course, sash, wall_with_opening  # noqa: F401
+from lib.facade import BAY, HALF, PAINT, UPPER_FLOOR, WEATHER, belt_course, sash, wall_with_opening  # noqa: F401
 
 NAME = "building_bay_balcony_01"
 CATEGORY = "buildings"

@@ -1,4 +1,4 @@
-# Handoff — Hero Diorama Work (as of 2026-11-07, after Stage 18)
+# Handoff — Hero Diorama Work (as of 2026-11-07, after Stage 19)
 
 Read this first when picking up the work. It summarizes where things
 stand, what was decided and why, how to run and verify things, and what
@@ -30,19 +30,21 @@ comes next. Details live in the linked plan files.
 | Stage 15: residential street | Done | `main` (PR #18) |
 | Stage 16: everyday people | Done | `main` (PR #19) |
 | Stage 17: app shell and My Dioramas | Done | `main` (PR #20) |
-| Stage 18: editor layout | Implemented and verified; committed and pushed, PR not opened yet | branch `stage18-editor-layout` |
+| Stage 18: editor layout | Done | `main` (PR #21) |
+| Stage 19: object colors and sign text | Implemented and verified; committed and pushed, PR not opened yet (no GitHub CLI) | branch `stage19-object-colors` |
 
 Stage 7 was the last stage of the original roadmap; Stages 8 to 16 were added
 at the user's request. Stage 17 followed
 [Product-Roadmap.md](Product-Roadmap.md). The roadmap's backend stages are
 paused (2026-11-02, §7), so Stage 18 is a UI stage: the editor layout.
 
-**`main` holds Stages 0–17** (last merge: PR #20, `1f35d57`). Stage 18 is
-on `stage18-editor-layout`.
+**`main` holds Stages 0–18** (last merge: PR #21, `812eca6`). Stage 19 is
+on `stage19-object-colors`.
 
-**Immediate next action:** open, review and merge Stage 18's PR (§8: Claude
-does this now; it needs the GitHub CLI, which was not installed yet on
-2026-11-07). Then ask the user for the next UI stage (§7).
+**Immediate next action:** open, review and merge Stage 19's PR (§8: Claude
+does this now; it needs the GitHub CLI, which was still not installed on
+2026-11-07: `winget install GitHub.cli`, then `gh auth login` by the user).
+Then ask the user for the next UI stage (§7).
 One branch per stage; cut the next branch from an up-to-date `main`
 (`git fetch`, then fast-forward).
 (For Stages 6 to 14 the user handed every decision
@@ -76,6 +78,7 @@ The old Stage 5 stash was dropped on 2026-10-06; `git stash list` is empty.
 | [Stage-15-Implementation.md](Stage-15-Implementation.md) | The apartment, the traditional house, the gate post and the propane cylinders; walls, fences, rails and hedges as one object by length; the Residential Lane starter and the Front Gate kit: decisions D1–D5 and results (§6) |
 | [Stage-17-Implementation.md](Stage-17-Implementation.md) | The home page, My Dioramas in IndexedDB, the editor at `/diorama/[id]`, thumbnails from the canvas, the migration of the old single autosave, the template leftovers removed: decisions D1–D11 and results (§6) |
 | [Stage-18-Implementation.md](Stage-18-Implementation.md) | The editor layout: Library / Objects and Object / Scene tabs (`EditorSidePanel`), library category chips, segmented controls that fit, Reset in the Scene tab, the breadcrumb, the dev badge off: decisions D1–D7 and results (§6) |
+| [Stage-19-Implementation.md](Stage-19-Implementation.md) | Per-object colors (the `paint` slot, curated swatches) and editable sign text on four signs (per-text sign textures), the Color and Sign sections of the inspector: decisions D1–D8 and results (§6) |
 | [Product-Roadmap.md](Product-Roadmap.md) | From editor to public app: architecture A1–A7 and Stages 17–27 (platform, print export, launch) |
 | [Phase-7-Community.md](Phase-7-Community.md) | Detailed plan of Stages 21–23 (publish, explore, likes, remix, profiles, comments, moderation); not started |
 | `Phase-*.md` | Earlier phases, kept for history |
@@ -107,7 +110,7 @@ The old Stage 5 stash was dropped on 2026-10-06; `git stash list` is empty.
   look, not fine detail. Do not over-iterate.
 * **GLB assets render with shared materials** (`objects/materials.ts`),
   remapped from the Blender slot names `base`, `emissive`, `printed`,
-  `foliage` and `glass`. An asset uses at most four of them
+  `foliage`, `glass` and (Stage 19) `paint`. An asset uses at most four of them
   (`MAX_DRAW_CALLS` in `build.py`; three before Stage 12).
 * **A scene's base is scene data:** `environment.base`, `"corner"` or
   `"plot"`. A file whose base is `"street"`, missing or unknown is an old
@@ -459,8 +462,9 @@ Stage 16:
   rebuild them on it (they are approved and in saved scenes).
 * **The bicycle's geometry is `art/blender/lib/bicycle.py`,** shared by
   `prop_bicycle_01` (stand down) and `people_cyclist_01` (stand folded).
-  The parked bicycle's GLB must stay byte-identical; the build is
-  deterministic, so `cmp` against `main` checks it.
+  The parked bicycle's GLB must stay byte-identical; its build is
+  deterministic, so `cmp` against `main` checks it (most other assets'
+  builds are not, see §5).
 * **A sitting figure's origin is the floor under its seat** at 0.425 m (the
   bench's seat top): it sits on a bench placed at the same position and
   heading.
@@ -478,6 +482,27 @@ Stage 18:
 * **The top bar must keep its height:** opening a scene frames it to the
   canvas, so a taller bar makes every scene open smaller and changes what
   `capture-template.mjs` renders.
+
+Stage 19:
+
+* **A recolorable part is the `paint` material slot** (appended to
+  `MATERIAL_SLOTS`, so older face indices stay). It is modeled in
+  `paintBase` (`#cccccc`, headroom for shades above 1) times its shade;
+  the app's `getPaintMaterial(hex)` divides the color by `paintBase`, so
+  the default looks exactly as when the color was baked. An asset script
+  sets `PAINT = "<palette key>"` for the Blender previews, and the
+  registry's first swatch must be that key (`assets/paintSwatches.ts`).
+  Building walls are painted through `facade.wall_color()`.
+* **`color` and `text` on a scene object are additive** (files stay v2),
+  written only when not the default; `utils/objectLook.ts` normalizes them
+  for the validator and the store. The validator keeps any well-formed hex
+  on a paintable asset, not only the current swatches. Colors stay curated
+  in the UI: no free color picker (CLAUDE.md §5).
+* **A custom sign replaces the asset's `printed` material:** this only
+  works because each sign asset prints one atlas cell. An asset with a
+  sign must not gain a second print; if one ever needs it, give the sign
+  its own slot. Default texts are `SIGN_TEXTS` in `graphicsAtlas.ts`; the
+  painters take the text. Sign materials are refcounted per (cell, text).
 
 ## 4. How to Run and Verify
 
@@ -710,6 +735,11 @@ node scripts/capture-template.mjs [--hero]
 * **Do not open the `diorama` IndexedDB from a script before the app has:**
   `indexedDB.open("diorama", 1)` on a missing database creates it empty,
   without the stores, and the app's upgrade never runs.
+* **Blender builds are not byte-reproducible** for most assets: two builds
+  of the same script (on `main` too) give a different vertex order, and
+  per-face jitter lands on different faces. Only the bicycle came out
+  identical. Compare GLBs by triangles and colors, not `cmp`, and restore
+  untouched assets with `git checkout` after a build.
 
 ## 6. Known Limitations and Existing Behaviors (not bugs of these stages)
 
@@ -734,7 +764,7 @@ node scripts/capture-template.mjs [--hero]
 * **Glow lights cast no shadows and shine through walls** within their
   reach. The full list is in Stage-7-Implementation.md §7.
 * **Glass has one opacity, reflects nothing and casts no shadow;** panes
-  inside an object are not sorted; sign texts are fixed. The full list is
+  inside an object are not sorted; only four sign texts can be changed (Stage 19). The full list is
   in Stage-12-Implementation.md §6.
 * **Rain and snow fall through roofs and only over the base; snow lies
   on every face that looks up, also under a roof; rain streaks are one
@@ -762,7 +792,7 @@ node scripts/capture-template.mjs [--hero]
 
 ## 7. Next
 
-The roadmap's seven stages and Stages 8 to 18 are implemented; Stage 18 is
+The roadmap's seven stages and Stages 8 to 19 are implemented; Stage 19 is
 pushed but not merged yet.
 
 **Backend paused, UI first (user decision, 2026-11-02):** after asking on
@@ -772,10 +802,13 @@ first, they picked the editor layout (Stage 18). Don't restart backend
 work unless asked. Product-Roadmap.md §3 keeps the backend stages; they
 are renumbered when they resume.
 
-* **Next UI candidate named in Stage 18's plan:** per-object colors and
-  editable sign text (also the roadmap's "before launch" item). The home
-  page, the Preview / photo bar, resizable or collapsible panels were out
-  of Stage 18's scope and remain open.
+* **UI candidates still open:** the home page, the Preview / photo bar,
+  resizable or collapsible panels (out of Stage 18's scope); outfit colors
+  for figures and more editable signs (out of Stage 19's scope). Per-object
+  colors and sign text, the roadmap's "before launch" item, are Stage 19.
+* **Open from Stage 19:** not tried in the user's own browser; PR not
+  opened (no GitHub CLI). The umbrella figure is not paintable (clear
+  vinyl canopy).
 * **Open from Stage 18:** not tried in the user's own browser; three rows
   of library items at 1366 × 768 instead of the planned five.
 
@@ -819,14 +852,15 @@ foundation**: its plan settles the framework.
   the roadmap's "done when" — is the user's to make.
 * **Candidates that came up, none decided:**
   * glass on houses and upper floors (needs rooms), a driver in vehicles,
-    sign text the user can edit
+    more editable signs (the kanban, the vending ad)
   * editor limits left after Stage 14: stored groups, group scale,
     per-bay facade editing, the gizmo snapping to surfaces, thumbnails
     for user kits, fitting the view to the window
   * ground: more levels or slopes, curved roads, arrow markings
   * runs with corners or a gate inside them; runs following a change of
     ground level; instanced runs
-  * figures: outfit colors per placed figure, more poses (children
+  * figures: outfit colors per placed figure (the `paint` slot of Stage 19
+    takes one region per asset), more poses (children
     playing, someone on a phone, a delivery rider), drivers in vehicles,
     a "sit on" snapping rule
   * more buildings as fixed models (a mid-rise apartment block, a small

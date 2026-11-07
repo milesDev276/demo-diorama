@@ -118,6 +118,28 @@ export const DIORAMA_COLORS = {
   clothMauve: "#8e7a82",
   catGinger: "#c98d55",
 
+  // Paint (Stage 19). A painted region is modeled in paintBase, a neutral gray
+  // with room above it for shading; the app multiplies it by the chosen color
+  // (objects/materials.ts getPaintMaterial). The swatches the inspector offers
+  // besides the defaults (assets/paintSwatches.ts): restrained, slightly dusty.
+  paintBase: "#cccccc",
+  paintCarWhite: "#ecebe6",
+  paintCarSilver: "#b8bbbc",
+  paintCarNavy: "#3e485a",
+  paintCarRed: "#8e4b43",
+  paintCarCream: "#e6d9bd",
+  paintCarCharcoal: "#36373a",
+  paintVendingBlue: "#4a6b8c",
+  paintVendingWhite: "#ebe9e2",
+  paintVendingGreen: "#5b7a4c",
+  paintVendingMustard: "#bd9f58",
+  paintVendingBlack: "#2d2e30",
+  paintWallWhite: "#f1eee6",
+  paintWallSand: "#ddcfb2",
+  paintWallSage: "#c7d1bb",
+  paintWallBlueGrey: "#c2cad1",
+  paintWallBrown: "#93806c",
+
   // Weather
   snow: "#eef2f6",
   puddle: "#b4c2cf",

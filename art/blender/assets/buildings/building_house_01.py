@@ -9,9 +9,12 @@ glass is emissive, so rooms read as lit. Front faces −Y. No baked AO or grime.
 
 import math
 
+from lib.materials import PAINT_BASE
+
 NAME = "building_house_01"
 CATEGORY = "buildings"
 TRI_BUDGET = 3000
+PAINT = "wallPlaster"  # the body color the user can change (Stage 19); registry's first swatch
 
 WEATHER = {"ao_strength": 0.0, "grime_strength": 0.0}
 
@@ -64,10 +67,10 @@ def _on_wall(face: str, u: float, out: float, z: float, width: float, depth: flo
 def _walls(b) -> None:
     b.box((W + 0.06, D + 0.06, FOUNDATION), (0, 0, FOUNDATION / 2), "foundation")
     b.box((W, D, FLOOR_LINE - FOUNDATION), (0, 0, (FOUNDATION + FLOOR_LINE) / 2), "wallSiding")
-    b.box((W, D, EAVE - FLOOR_LINE), (0, 0, (FLOOR_LINE + EAVE) / 2), "wallPlaster")
-    b.box((W + 0.05, D + 0.05, 0.09), (0, 0, FLOOR_LINE), "wallPlaster", shade=0.88)  # belt course
+    b.box((W, D, EAVE - FLOOR_LINE), (0, 0, (FLOOR_LINE + EAVE) / 2), PAINT_BASE, material="paint")
+    b.box((W + 0.05, D + 0.05, 0.09), (0, 0, FLOOR_LINE), PAINT_BASE, material="paint", shade=0.88)  # belt course
     # Gable walls up to the ridge
-    b.extrude([(-D / 2, EAVE), (D / 2, EAVE), (0, EAVE + D / 2 * SLOPE)], W, (0, 0, 0), "wallPlaster", axis="x")
+    b.extrude([(-D / 2, EAVE), (D / 2, EAVE), (0, EAVE + D / 2 * SLOPE)], W, (0, 0, 0), PAINT_BASE, material="paint", axis="x")
 
 
 def _roof(b) -> None:

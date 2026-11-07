@@ -9,6 +9,7 @@ import type {
 } from "../types/diorama.types";
 import { DEFAULT_BUILDING_PARAMS } from "../assets/buildingPresets";
 import { normalizeBuildingParams } from "./buildingParams";
+import { normalizeObjectColor, normalizeObjectText } from "./objectLook";
 import { isRunType, normalizeRunParams } from "./runParams";
 import { normalizeScatterParams } from "./scatterParams";
 import { createId } from "./id";
@@ -76,6 +77,11 @@ function normalizeObject(raw: unknown, seenIds: Set<string>): DioramaObject | nu
     const params = normalizeRunParams(r.params);
     if (params) object.params = params;
   }
+  // A color or a text the asset cannot show, or its own, is dropped (utils/objectLook.ts).
+  const color = normalizeObjectColor(object.type, r.color);
+  if (color) object.color = color;
+  const text = normalizeObjectText(object.type, r.text);
+  if (text) object.text = text;
   return object;
 }
 

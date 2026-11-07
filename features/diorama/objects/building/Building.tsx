@@ -10,7 +10,7 @@ import { buildingSize } from "../../utils/buildingParams";
 import { DIORAMA_COLORS } from "../../utils/palette";
 import { BASE_SURFACE } from "../../utils/surfaceSnap";
 import { ModelErrorBoundary } from "../GltfAsset";
-import { castsShadow, getSlotMaterial, GLASS_RENDER_ORDER } from "../materials";
+import { castsShadow, getPaintMaterial, getSlotMaterial, GLASS_RENDER_ORDER } from "../materials";
 import {
   BUILDING_SLOTS,
   buildBuildingGeometry,
@@ -36,9 +36,11 @@ interface BuildingProps {
   params?: BuildingParams;
   /** Id of the scene object, if props can be placed on this building. Ghosts have none. */
   surfaceId?: string;
+  /** "#rrggbb" of the wall plaster (the `paint` slot). */
+  paint?: string;
 }
 
-function BuildingMesh({ params, surfaceId }: Required<Pick<BuildingProps, "params">> & Pick<BuildingProps, "surfaceId">) {
+function BuildingMesh({ params, surfaceId, paint }: Required<Pick<BuildingProps, "params">> & Omit<BuildingProps, "params">) {
   const gltfs = useGLTF(MODULE_URLS);
   const modules = useMemo(
     () => Object.fromEntries(BUILDING_MODULE_NAMES.map((name, i) => [name, slotGeometries(gltfs[i].scene)])) as ModuleGeometries,
@@ -65,7 +67,7 @@ function BuildingMesh({ params, surfaceId }: Required<Pick<BuildingProps, "param
           <mesh
             key={slot}
             geometry={geometries[slot]}
-            material={getSlotMaterial(slot)}
+            material={slot === "paint" && paint ? getPaintMaterial(paint) : getSlotMaterial(slot)}
             userData={userData}
             castShadow={castsShadow(slot)}
             receiveShadow
@@ -97,19 +99,19 @@ function BuildingGhost({ params, failed = false }: { params: BuildingParams; fai
  * A modular building (meters, origin at the center of its footprint on the
  * ground, front toward +Z), assembled from Blender facade modules on the
  * 1.82 m bay grid according to `params` and rendered as one mesh per
- * material slot — at most four draw calls however large it is.
+ * material slot — at most five draw calls however large it is.
  */
-export function Building({ params = DEFAULT_BUILDING_PARAMS, surfaceId }: BuildingProps) {
+export function Building({ params = DEFAULT_BUILDING_PARAMS, surfaceId, paint }: BuildingProps) {
   return (
     <ModelErrorBoundary url="building modules" fallback={<BuildingGhost params={params} failed />}>
       <Suspense fallback={<BuildingGhost params={params} />}>
-        <BuildingMesh params={params} surfaceId={surfaceId} />
+        <BuildingMesh params={params} surfaceId={surfaceId} paint={paint} />
       </Suspense>
     </ModelErrorBoundary>
   );
 }
 
 /** The registry's component for `building` objects: reads the object's params. */
-export function BuildingAsset({ object, surfaceId }: AssetComponentProps) {
-  return <Building params={buildingParamsOf(object)} surfaceId={surfaceId} />;
+export function BuildingAsset({ object, surfaceId, paint }: AssetComponentProps) {
+  return <Building params={buildingParamsOf(object)} surfaceId={surfaceId} paint={paint} />;
 }

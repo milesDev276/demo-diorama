@@ -370,6 +370,11 @@ side panels, the scene settings available with a selection, library
 category chips, segmented controls that fit, a breadcrumb back to My
 Dioramas.
 
+**Stage 19 — Object colors and sign text** (2026-11-07) is the
+"per-object customization before launch" item: a curated color per placed
+vehicle, vending machine and building, and the text of the shop, konbini,
+apartment and gate-post signs.
+
 ---
 
 ## 4. Rules That Carry Over

@@ -6,7 +6,8 @@ For each asset script in art/blender/assets/<category>/<name>.py this builds the
 mesh, bakes weathering, exports public/models/<category>/<name>.glb and renders
 review images into art/previews/. Asset scripts define NAME, CATEGORY,
 TRI_BUDGET and build(builder), and may define WEATHER (keyword overrides for
-lib.finish.weather). An asset over its triangle budget or over MAX_DRAW_CALLS
+lib.finish.weather) and PAINT (the palette key of the default color of their
+"paint" faces, for previews; the app registry's first swatch must match). An asset over its triangle budget or over MAX_DRAW_CALLS
 is still exported for review, but the build exits non-zero.
 """
 
@@ -29,6 +30,7 @@ from lib.preview import render_previews  # noqa: E402
 REQUIRED_VERSION = (5, 2)
 
 # Stage 12 D2: base + emissive + printed + glass at most (roadmap L4/L8 said three).
+# Stage 19 adds "paint", still within four for every asset that has it.
 MAX_DRAW_CALLS = 4
 
 # Assets finished by hand in the Blender GUI: their .blend is the source, never rebuild.
@@ -61,6 +63,7 @@ def build_asset(path: Path) -> bool:
     palette = load_palette()
 
     builder = MeshBuilder(module.NAME, palette)
+    builder.paint_preview = getattr(module, "PAINT", None)
     module.build(builder)
     obj = builder.to_object()
     weather(obj, seed=module.NAME, **getattr(module, "WEATHER", {}))

@@ -6,7 +6,7 @@ both faces. The app rotates it for the other corners and scales its height.
 No baked AO or grime.
 """
 
-from lib.facade import WEATHER  # noqa: F401
+from lib.facade import PAINT, WEATHER, wall_color  # noqa: F401
 
 NAME = "building_corner_01"
 CATEGORY = "buildings"
@@ -18,4 +18,4 @@ PROUD = 0.015
 
 def build(b) -> None:
     offset = SIZE / 2 - PROUD
-    b.box((SIZE, SIZE, 1.0), (-offset, offset, 0.5), "wallPlaster", shade=0.93)
+    b.box((SIZE, SIZE, 1.0), (-offset, offset, 0.5), shade=0.93, **wall_color(PAINT))

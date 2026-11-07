@@ -6,7 +6,7 @@ to either side so it lines up with the neighboring bays. No baked AO or
 grime.
 """
 
-from lib.facade import FOUNDATION, FRAME, GLASS, GROUND_FLOOR, HALF, WEATHER, belt_course, wall_piece  # noqa: F401
+from lib.facade import FOUNDATION, FRAME, GLASS, GROUND_FLOOR, HALF, PAINT, WEATHER, belt_course, wall_piece  # noqa: F401
 
 NAME = "building_bay_entrance_01"
 CATEGORY = "buildings"

@@ -12,10 +12,12 @@ and rear (atlas cell `plate_kei`). Front faces −Y. No baked AO or grime
 import math
 
 from lib.builder import arc_points
+from lib.materials import PAINT_BASE
 
 NAME = "vehicle_kei_car_01"
 CATEGORY = "vehicles"
 TRI_BUDGET = 10000
+PAINT = "carBody"  # the body color the user can change (Stage 19); registry's first swatch
 
 WEATHER = {"ao_strength": 0.0, "grime_strength": 0.0}
 
@@ -69,7 +71,7 @@ def _body(b) -> None:
         *_arch(AXLES[1]),
         *_arch(AXLES[0]),
     ]
-    b.extrude(lower, 2 * HALF_W, (0, 0, 0), "carBody", axis="x", bevel=0.04)
+    b.extrude(lower, 2 * HALF_W, (0, 0, 0), PAINT_BASE, material="paint", axis="x", bevel=0.04)
     # Wheel wells: dark fill between the tyres so the arches don't show a tunnel
     for y in AXLES:
         b.box((2 * (HALF_W - WHEEL_W) - 0.02, 0.62, 0.36), (0, y, 0.44), "tireRubber", shade=0.7)
@@ -78,9 +80,9 @@ def _body(b) -> None:
 def _cabin(b) -> None:
     """The cabin's shell around the glass: the belt under it, the roof over
     it and four pillars a side. Profiles are (y, z), like the body's."""
-    b.extrude([(-1.20, 0.88), (-1.10, BELT), (1.685, BELT), (REAR_Y - 0.01, 0.88)], CABIN_W, (0, 0, 0), "carBody", axis="x")
+    b.extrude([(-1.20, 0.88), (-1.10, BELT), (1.685, BELT), (REAR_Y - 0.01, 0.88)], CABIN_W, (0, 0, 0), PAINT_BASE, material="paint", axis="x")
     roof = [(-0.645, ROOF), (-0.62, 1.58), (-0.50, 1.66), (1.52, 1.68), (1.66, 1.60), (1.662, ROOF)]
-    b.extrude(roof, CABIN_W, (0, 0, 0), "carBody", axis="x", bevel=0.03)
+    b.extrude(roof, CABIN_W, (0, 0, 0), PAINT_BASE, material="paint", axis="x", bevel=0.03)
     pillars = [
         [(-1.10, BELT), (-1.03, BELT), (-0.60, ROOF), (-0.645, ROOF)],
         [(-0.05, BELT), (0.05, BELT), (0.05, ROOF), (-0.05, ROOF)],
@@ -89,7 +91,7 @@ def _cabin(b) -> None:
     ]
     for side in (-1, 1):
         for outline in pillars:
-            b.extrude(outline, PILLAR, (side * (CABIN_W - PILLAR) / 2, 0, 0), "carBody", axis="x")
+            b.extrude(outline, PILLAR, (side * (CABIN_W - PILLAR) / 2, 0, 0), PAINT_BASE, material="paint", axis="x")
 
 
 def _interior(b) -> None:
@@ -139,7 +141,7 @@ def _front(b) -> None:
     for x in (-0.47, 0.47):
         b.box((0.30, 0.05, 0.10), (x, FRONT_Y + 0.015, 0.66), "insulator", bevel=0.012)
     b.box((0.5, 0.03, 0.08), (0, FRONT_Y - 0.01, 0.55), "vendingDark", shade=1.3, bevel=0.008)
-    b.box((1.44, 0.06, 0.16), (0, FRONT_Y, 0.31), "carBody", shade=0.92, bevel=0.03)
+    b.box((1.44, 0.06, 0.16), (0, FRONT_Y, 0.31), PAINT_BASE, material="paint", shade=0.92, bevel=0.03)
     b.box((0.33, 0.012, 0.165), (0, FRONT_Y - 0.036, 0.42), "metalLight", print="plate_kei", print_dir="-y")
     for x in (-0.25, 0.25):
         b.box((0.42, 0.015, 0.012), (x, -1.12, 0.95), "vendingDark", rotation=(0, 0, 4 * (1 if x > 0 else -1)))
@@ -148,14 +150,14 @@ def _front(b) -> None:
 def _rear(b) -> None:
     for x in (-0.66, 0.66):
         b.box((0.08, 0.03, 0.30), (x, REAR_Y, 0.98), "signRed", bevel=0.01)
-    b.box((1.44, 0.06, 0.16), (0, REAR_Y, 0.31), "carBody", shade=0.92, bevel=0.03)
+    b.box((1.44, 0.06, 0.16), (0, REAR_Y, 0.31), PAINT_BASE, material="paint", shade=0.92, bevel=0.03)
     b.box((0.33, 0.012, 0.165), (0, REAR_Y + 0.008, 0.62), "metalLight", print="plate_kei", print_dir="+y")
 
 
 def _sides(b) -> None:
     for side in (-1, 1):
         x = side * HALF_W
-        b.box((0.08, 0.1, 0.07), (side * (HALF_W + 0.05), -0.98, 1.02), "carBody", shade=0.95, bevel=0.015)  # mirror
+        b.box((0.08, 0.1, 0.07), (side * (HALF_W + 0.05), -0.98, 1.02), PAINT_BASE, material="paint", shade=0.95, bevel=0.015)  # mirror
         for y in (-0.02, 0.9):
             b.box((0.006, 0.006, 0.6), (x + side * 0.001, y, 0.62), "vendingDark")  # door seams
         for y in (-0.25, 0.68):

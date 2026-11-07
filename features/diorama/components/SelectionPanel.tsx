@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 import { useDioramaStore } from "../store/dioramaStore";
 import type { Vector3Tuple } from "../types/diorama.types";
 import { BuildingPanel } from "./BuildingPanel";
+import { ObjectLookPanel } from "./ObjectLookPanel";
 import { RunPanel } from "./RunPanel";
 import { SaveKitAction } from "./SaveKitAction";
 import { ScatterPanel } from "./ScatterPanel";
@@ -152,6 +153,7 @@ export function SelectionPanel() {
             />
           </div>
 
+          <ObjectLookPanel object={object} />
           {object.type === "building" && <BuildingPanel object={object} />}
           {object.type === "scatter" && <ScatterPanel object={object} />}
           <RunPanel object={object} />

@@ -16,6 +16,7 @@ from lib.facade import (  # noqa: F401
     GLASS,
     GROUND_FLOOR,
     HALF,
+    PAINT,
     SHOP_BACK,
     SHOP_FRONT,
     SHOP_OPENING_TOP,

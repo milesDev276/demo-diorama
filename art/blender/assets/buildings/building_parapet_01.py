@@ -5,7 +5,7 @@ rails, posts 0.91 m apart so they stay evenly spaced across bays). No baked
 AO or grime.
 """
 
-from lib.facade import BAY, HALF, PARAPET, RAILING, THICKNESS, WEATHER, wall_piece  # noqa: F401
+from lib.facade import BAY, HALF, PAINT, PARAPET, RAILING, THICKNESS, WEATHER, wall_piece  # noqa: F401
 
 NAME = "building_parapet_01"
 CATEGORY = "buildings"

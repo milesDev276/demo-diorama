@@ -11,10 +11,12 @@ baked AO or grime.
 import math
 
 from lib.builder import arc_points
+from lib.materials import PAINT_BASE
 
 NAME = "vehicle_kei_truck_01"
 CATEGORY = "vehicles"
 TRI_BUDGET = 8000
+PAINT = "vendingPanel"  # the body color the user can change (Stage 19); registry's first swatch
 
 WEATHER = {"ao_strength": 0.0, "grime_strength": 0.0}
 
@@ -35,7 +37,6 @@ BED_FRONT = -0.50
 BED_FLOOR = 0.66
 BED_SIDE = 0.30
 
-BODY = "vendingPanel"
 
 
 def _arch(center_y: float) -> list[tuple[float, float]]:
@@ -69,16 +70,16 @@ def _cab(b) -> None:
         (CAB_BACK, BODY_BOTTOM),
         *_arch(AXLES[0]),
     ]
-    b.extrude(lower, 2 * HALF_W, (0, 0, 0), BODY, axis="x", bevel=0.04)
+    b.extrude(lower, 2 * HALF_W, (0, 0, 0), PAINT_BASE, material="paint", axis="x", bevel=0.04)
     roof = [(-1.436, ROOF), (-1.42, 1.70), (-1.34, 1.78), (-0.60, 1.78), (CAB_BACK, 1.72), (CAB_BACK, ROOF)]
-    b.extrude(roof, 2 * HALF_W, (0, 0, 0), BODY, axis="x", bevel=0.03)
+    b.extrude(roof, 2 * HALF_W, (0, 0, 0), PAINT_BASE, material="paint", axis="x", bevel=0.03)
     pillars = [
         [(-1.599, BELT), (-1.50, BELT), (-1.36, ROOF), (-1.436, ROOF)],
         [(-0.68, BELT), (CAB_BACK, BELT), (CAB_BACK, ROOF), (-0.68, ROOF)],
     ]
     for side in (-1, 1):
         for outline in pillars:
-            b.extrude(outline, PILLAR, (side * (HALF_W - PILLAR / 2), 0, 0), BODY, axis="x")
+            b.extrude(outline, PILLAR, (side * (HALF_W - PILLAR / 2), 0, 0), PAINT_BASE, material="paint", axis="x")
 
     # Inside: a dark floor, the dashboard, a steering wheel on the right (−X) and two seats
     b.box((2 * HALF_W - 0.08, 0.98, 0.012), (0, -1.07, BELT + 0.006), "vendingDark", shade=1.1)
@@ -112,21 +113,21 @@ def _bed(b) -> None:
     mid_y = (REAR_Y + BED_FRONT) / 2
     side_z = BED_FLOOR + BED_SIDE / 2
     b.box((0.9, 2.9, 0.16), (0, 0.2, 0.44), "vendingDark", shade=1.2)  # chassis
-    b.box((2 * HALF_W, length, 0.06), (0, mid_y, BED_FLOOR), BODY, shade=0.9)
+    b.box((2 * HALF_W, length, 0.06), (0, mid_y, BED_FLOOR), PAINT_BASE, material="paint", shade=0.9)
 
     for side in (-1, 1):
         x = side * (HALF_W - 0.02)
-        b.box((0.04, length, BED_SIDE), (x, mid_y, side_z + 0.03), BODY, bevel=0.008, segments=1)
+        b.box((0.04, length, BED_SIDE), (x, mid_y, side_z + 0.03), PAINT_BASE, material="paint", bevel=0.008, segments=1)
         for y in (0.0, 0.6, 1.2):  # ribs and latches of the drop side
-            b.box((0.012, 0.05, BED_SIDE - 0.04), (side * (HALF_W + 0.004), y, side_z + 0.03), BODY, shade=0.9)
+            b.box((0.012, 0.05, BED_SIDE - 0.04), (side * (HALF_W + 0.004), y, side_z + 0.03), PAINT_BASE, material="paint", shade=0.9)
     for y in (BED_FRONT + 0.02, REAR_Y - 0.02):
-        b.box((2 * HALF_W, 0.04, BED_SIDE), (0, y, side_z + 0.03), BODY, bevel=0.008, segments=1)
+        b.box((2 * HALF_W, 0.04, BED_SIDE), (0, y, side_z + 0.03), PAINT_BASE, material="paint", bevel=0.008, segments=1)
 
     # Guard frame (鳥居) behind the cab
     top = 1.74
     for x in (-0.62, 0.62):
-        b.box((0.04, 0.04, top - BED_FLOOR - BED_SIDE), (x, BED_FRONT + 0.02, (top + BED_FLOOR + BED_SIDE) / 2), BODY, shade=0.92)
-    b.box((1.28, 0.04, 0.04), (0, BED_FRONT + 0.02, top), BODY, shade=0.92)
+        b.box((0.04, 0.04, top - BED_FLOOR - BED_SIDE), (x, BED_FRONT + 0.02, (top + BED_FLOOR + BED_SIDE) / 2), PAINT_BASE, material="paint", shade=0.92)
+    b.box((1.28, 0.04, 0.04), (0, BED_FRONT + 0.02, top), PAINT_BASE, material="paint", shade=0.92)
 
 
 def _wheels(b) -> None:

@@ -12,10 +12,25 @@ import { DIORAMA_COLORS } from "../../utils/palette";
  * emissive map.
  *
  * Text is drawn with the OS Japanese fonts; nothing is downloaded.
+ *
+ * Signs whose text a placed object can change (SIGN_TEXTS) are painted
+ * from a text: the default one into the atlas, a custom one into a canvas
+ * of its own (createSignTexture).
  */
 
 type CellName = keyof typeof layout.cells;
 type CellPainter = (ctx: CanvasRenderingContext2D, width: number, height: number) => void;
+type SignPainter = (ctx: CanvasRenderingContext2D, width: number, height: number, text: string) => void;
+
+/** The cells whose text a placed object can change (registry `sign`), and the text each shows by default. */
+export const SIGN_TEXTS = {
+  shop_sign: "まるや商店",
+  konbini_sign: "コトリマート",
+  apartment_board: "ハイツ若葉",
+  name_plate: "中村",
+} as const satisfies Partial<Record<CellName, string>>;
+
+export type SignCell = keyof typeof SIGN_TEXTS;
 
 const FONT_STACK = '"Yu Gothic", YuGothic, "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, "Noto Sans JP", sans-serif';
 
@@ -24,6 +39,17 @@ const font = (weight: number, px: number) => `${weight} ${px}px ${FONT_STACK}`;
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, r);
+}
+
+/** How much fillText may squeeze a line before the font is made smaller instead. */
+const MIN_SQUEEZE = 0.8;
+
+/** One line of text in at most `maxWidth`: squeezed a little if it is too wide, then set smaller. */
+function fitText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, weight: number, px: number) {
+  ctx.font = font(weight, px);
+  const width = ctx.measureText(text).width;
+  if (width * MIN_SQUEEZE > maxWidth) ctx.font = font(weight, (px * maxWidth) / (width * MIN_SQUEEZE));
+  ctx.fillText(text, x, y, maxWidth);
 }
 
 /** A fictional bottled green-tea ad for the vending machine's lower panel. */
@@ -270,8 +296,8 @@ function paintBusStopBoard(ctx: CanvasRenderingContext2D, w: number, h: number) 
   ctx.fillRect(w * 0.255, top, w * 0.008, h * 0.76);
 }
 
-/** Signboard of a fictional neighborhood shop: まるや商店, tobacco on the left, daily goods on the right. */
-function paintShopSign(ctx: CanvasRenderingContext2D, w: number, h: number) {
+/** Signboard of a neighborhood shop (by default a fictional まるや商店): tobacco on the left, daily goods on the right. */
+function paintShopSign(ctx: CanvasRenderingContext2D, w: number, h: number, name: string) {
   ctx.fillStyle = DIORAMA_COLORS.signBoard;
   ctx.fillRect(0, 0, w, h);
   ctx.textAlign = "center";
@@ -285,8 +311,7 @@ function paintShopSign(ctx: CanvasRenderingContext2D, w: number, h: number) {
   ctx.fillText("たばこ", w * 0.12, h * 0.52, w * 0.15);
 
   ctx.fillStyle = "#3b322c";
-  ctx.font = font(900, h * 0.64);
-  ctx.fillText("まるや商店", w * 0.52, h * 0.53, w * 0.52);
+  fitText(ctx, name, w * 0.52, h * 0.53, w * 0.52, 900, h * 0.64);
 
   ctx.fillStyle = DIORAMA_COLORS.canBlue;
   ctx.font = font(800, h * 0.27);
@@ -294,8 +319,8 @@ function paintShopSign(ctx: CanvasRenderingContext2D, w: number, h: number) {
   ctx.fillText("食料品", w * 0.89, h * 0.7, w * 0.16);
 }
 
-/** Name plate of a fictional convenience store: a mark, コトリマート and a 24-hour badge. */
-function paintKonbiniSign(ctx: CanvasRenderingContext2D, w: number, h: number) {
+/** Name plate of a convenience store (by default a fictional コトリマート): a mark, the name and a 24-hour badge. */
+function paintKonbiniSign(ctx: CanvasRenderingContext2D, w: number, h: number, name: string) {
   ctx.fillStyle = "#4f7a3e";
   ctx.fillRect(0, 0, w, h);
   ctx.textAlign = "center";
@@ -313,8 +338,7 @@ function paintKonbiniSign(ctx: CanvasRenderingContext2D, w: number, h: number) {
   ctx.stroke();
 
   ctx.fillStyle = "#fff8ec";
-  ctx.font = font(900, h * 0.62);
-  ctx.fillText("コトリマート", w * 0.5, h * 0.54, w * 0.6);
+  fitText(ctx, name, w * 0.5, h * 0.54, w * 0.6, 900, h * 0.62);
 
   ctx.fillStyle = DIORAMA_COLORS.canBlue;
   roundRect(ctx, w * 0.84, h * 0.2, w * 0.13, h * 0.6, h * 0.1);
@@ -324,8 +348,8 @@ function paintKonbiniSign(ctx: CanvasRenderingContext2D, w: number, h: number) {
   ctx.fillText("24h", w * 0.905, h * 0.53, w * 0.11);
 }
 
-/** 表札: a wooden name plate with a fictional family name written top to bottom. */
-function paintNamePlate(ctx: CanvasRenderingContext2D, w: number, h: number) {
+/** 表札: a wooden name plate with a family name (by default a fictional one) written top to bottom. */
+function paintNamePlate(ctx: CanvasRenderingContext2D, w: number, h: number, name: string) {
   const grain = ctx.createLinearGradient(0, 0, w, 0);
   grain.addColorStop(0, "#c9a77c");
   grain.addColorStop(0.5, "#d8b98f");
@@ -344,13 +368,15 @@ function paintNamePlate(ctx: CanvasRenderingContext2D, w: number, h: number) {
   ctx.fillStyle = "#2e2620";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.font = font(700, w * 0.62);
-  ctx.fillText("中", w / 2, h * 0.3);
-  ctx.fillText("村", w / 2, h * 0.7);
+  // Two characters sit at 30 % and 70 % of the height; more are spaced closer and set smaller.
+  const glyphs = Array.from(name);
+  const step = Math.min(0.4, 0.8 / glyphs.length);
+  ctx.font = font(700, Math.min(w * 0.62, h * step * 0.9));
+  glyphs.forEach((glyph, i) => ctx.fillText(glyph, w / 2, h * (0.5 + (i - (glyphs.length - 1) / 2) * step), w * 0.9));
 }
 
-/** Name board of a fictional two-storey apartment: ハイツ若葉 over a small romanized line. */
-function paintApartmentBoard(ctx: CanvasRenderingContext2D, w: number, h: number) {
+/** Name board of a two-storey apartment: by default a fictional ハイツ若葉 over a small romanized line. */
+function paintApartmentBoard(ctx: CanvasRenderingContext2D, w: number, h: number, name: string) {
   ctx.fillStyle = DIORAMA_COLORS.signBoard;
   ctx.fillRect(0, 0, w, h);
   ctx.strokeStyle = "#5f7f6a";
@@ -360,26 +386,42 @@ function paintApartmentBoard(ctx: CanvasRenderingContext2D, w: number, h: number
   ctx.fillStyle = "#3f5f4a";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
+  if (name !== SIGN_TEXTS.apartment_board) {
+    // A name of the user's own has no romanized line under it.
+    fitText(ctx, name, w / 2, h * 0.52, w * 0.86, 800, h * 0.5);
+    return;
+  }
   ctx.font = font(800, h * 0.46);
-  ctx.fillText("ハイツ若葉", w / 2, h * 0.43, w * 0.86);
+  ctx.fillText(name, w / 2, h * 0.43, w * 0.86);
   ctx.font = font(600, h * 0.16);
   ctx.fillText("HEIGHTS WAKABA", w / 2, h * 0.78, w * 0.7);
 }
+
+/** The painters of the signs a placed object can change, given the text. */
+const SIGN_PAINTERS: Record<SignCell, SignPainter> = {
+  shop_sign: paintShopSign,
+  konbini_sign: paintKonbiniSign,
+  apartment_board: paintApartmentBoard,
+  name_plate: paintNamePlate,
+};
+
+/** A sign's painter with its default text, for the atlas. */
+const withDefaultText = (cell: SignCell): CellPainter => (ctx, w, h) => SIGN_PAINTERS[cell](ctx, w, h, SIGN_TEXTS[cell]);
 
 /** One painter per cell; the Record type fails the build if the layout gains a cell with no painter. */
 const PAINTERS: Record<CellName, CellPainter> = {
   vending_ad: paintVendingAd,
   plate_kei: paintKeiPlate,
-  name_plate: paintNamePlate,
-  apartment_board: paintApartmentBoard,
+  name_plate: withDefaultText("name_plate"),
+  apartment_board: withDefaultText("apartment_board"),
   road_tomare: paintTomare,
   kanban_sakaya: paintKanbanSakaya,
   post_front: paintPostFront,
   sign_stop: paintSignStop,
   bus_stop_head: paintBusStopHead,
   bus_stop_board: paintBusStopBoard,
-  shop_sign: paintShopSign,
-  konbini_sign: paintKonbiniSign,
+  shop_sign: withDefaultText("shop_sign"),
+  konbini_sign: withDefaultText("konbini_sign"),
 };
 
 /** Cells that keep their alpha, for the `decal` material. Everything else is opaque print. */
@@ -465,4 +507,27 @@ export function getLitAtlas(): CanvasTexture {
   ctx.globalAlpha = 1;
   litTexture = atlasTexture(canvas);
   return litTexture;
+}
+
+/**
+ * One sign with a text of its own: a texture of just that cell, painted with
+ * `text`. The sign's faces carry UVs into the cell's place in the atlas, so
+ * the texture maps that rectangle onto itself (offset / repeat; no flipY,
+ * like the atlas). The caller owns it.
+ */
+export function createSignTexture(cell: SignCell, text: string): CanvasTexture {
+  const [x, y, w, h] = layout.cells[cell];
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  SIGN_PAINTERS[cell](canvas.getContext("2d")!, w, h, text);
+  const sign = atlasTexture(canvas);
+  sign.repeat.set(layout.size / w, layout.size / h);
+  sign.offset.set(-x / w, -y / h);
+  return sign;
+}
+
+/** How strongly a sign glows after dark (LIT_CELLS); 0 for one that does not. */
+export function signGlowOf(cell: SignCell): number {
+  return LIT_CELLS[cell] ?? 0;
 }

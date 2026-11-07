@@ -6,7 +6,7 @@ import { DIORAMA_COLORS } from "../../utils/palette";
 import { layoutBuilding, type BuildingModule } from "./buildingLayout";
 
 /** The material slots a building renders with (objects/materials.ts). */
-export const BUILDING_SLOTS = ["base", "emissive", "printed", "glass"] as const;
+export const BUILDING_SLOTS = ["base", "emissive", "printed", "glass", "paint"] as const;
 export type BuildingSlot = (typeof BUILDING_SLOTS)[number];
 
 export type SlotGeometries = Partial<Record<BuildingSlot, BufferGeometry>>;
@@ -83,6 +83,10 @@ class FaceBuilder {
     this.quad([x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], [-1, 0, 0], color, shade);
   }
 
+  get isEmpty(): boolean {
+    return this.positions.length === 0;
+  }
+
   build(): BufferGeometry {
     const geometry = new BufferGeometry();
     geometry.setAttribute("position", new BufferAttribute(new Float32Array(this.positions), 3));
@@ -93,7 +97,7 @@ class FaceBuilder {
 }
 
 /** Roof slab inside the parapet; the parapet modules stand on its edge. */
-function flatRoof(faces: FaceBuilder, width: number, depth: number, y: number): void {
+function flatRoof(faces: FaceBuilder, _wall: FaceBuilder, width: number, depth: number, y: number): void {
   const inset = 0.01;
   faces.box([-width / 2 + inset, y - 0.12, -depth / 2 + inset], [width / 2 - inset, y, depth / 2 - inset], "roofSlab");
 }
@@ -103,7 +107,7 @@ function flatRoof(faces: FaceBuilder, width: number, depth: number, y: number): 
  * on all four sides. Each row is a ring of the footprint, inset further and
  * raised higher than the one below, with a small lip where the rows overlap.
  */
-function hippedRoof(faces: FaceBuilder, width: number, depth: number, y: number): void {
+function hippedRoof(faces: FaceBuilder, _wall: FaceBuilder, width: number, depth: number, y: number): void {
   const a = width / 2 + EAVE;
   const b = depth / 2 + EAVE;
   const reach = Math.min(a, b);
@@ -145,8 +149,9 @@ function hippedRoof(faces: FaceBuilder, width: number, depth: number, y: number)
   faces.box([-rx, top - 0.06, -rz], [rx, top + 0.07, rz], "roofTile", 0.85);
 }
 
-/** Single-pitch roof falling to the back, with the wall carried up under it at the front and sides. */
-function shedRoof(faces: FaceBuilder, width: number, depth: number, y: number): void {
+/** Single-pitch roof falling to the back, with the wall carried up under it at the front and sides
+ *  (in `wall`: the plaster is the building's paint, modeled in `paintBase`). */
+function shedRoof(faces: FaceBuilder, wall: FaceBuilder, width: number, depth: number, y: number): void {
   const rise = depth * SHED_PITCH;
   const slope = rise / depth;
   const x = width / 2;
@@ -154,9 +159,9 @@ function shedRoof(faces: FaceBuilder, width: number, depth: number, y: number): 
   const top = (pz: number) => y + SHED_THICKNESS + (pz + z) * slope;
 
   // Walls up to the underside of the roof
-  faces.quad([-x, y, z], [x, y, z], [x, y + rise, z], [-x, y + rise, z], [0, 0, 1], "wallPlaster");
+  wall.quad([-x, y, z], [x, y, z], [x, y + rise, z], [-x, y + rise, z], [0, 0, 1], "paintBase");
   for (const side of [-1, 1]) {
-    faces.triangle([side * x, y, -z], [side * x, y, z], [side * x, y + rise, z], [side, 0, 0], "wallPlaster");
+    wall.triangle([side * x, y, -z], [side * x, y, z], [side * x, y + rise, z], [side, 0, 0], "paintBase");
   }
 
   const ox = x + EAVE * 0.6;
@@ -180,7 +185,7 @@ function shedRoof(faces: FaceBuilder, width: number, depth: number, y: number): 
   }
 }
 
-const ROOFS: Record<BuildingParams["roof"], (faces: FaceBuilder, width: number, depth: number, y: number) => void> = {
+const ROOFS: Record<BuildingParams["roof"], (faces: FaceBuilder, wall: FaceBuilder, width: number, depth: number, y: number) => void> = {
   "flat-rooftop": flatRoof,
   "hipped-tile": hippedRoof,
   shed: shedRoof,
@@ -193,7 +198,7 @@ const ROOFS: Record<BuildingParams["roof"], (faces: FaceBuilder, width: number, 
  * (and disposes) the result.
  */
 export function buildBuildingGeometry(params: BuildingParams, modules: ModuleGeometries): SlotGeometries {
-  const parts: Record<BuildingSlot, BufferGeometry[]> = { base: [], emissive: [], printed: [], glass: [] };
+  const parts: Record<BuildingSlot, BufferGeometry[]> = { base: [], emissive: [], printed: [], glass: [], paint: [] };
   const matrix = new Matrix4();
   const rotation = new Quaternion();
   const euler = new Euler();
@@ -209,8 +214,11 @@ export function buildBuildingGeometry(params: BuildingParams, modules: ModuleGeo
 
   const { width, depth, wallHeight } = buildingSize(params);
   const roof = new FaceBuilder();
-  ROOFS[params.roof](roof, width, depth, wallHeight);
+  const wall = new FaceBuilder();
+  ROOFS[params.roof](roof, wall, width, depth, wallHeight);
   parts.base.push(roof.build());
+  // Only a shed roof carries the walls up under it.
+  if (!wall.isEmpty) parts.paint.push(wall.build());
 
   const result: SlotGeometries = {};
   for (const slot of BUILDING_SLOTS) {
