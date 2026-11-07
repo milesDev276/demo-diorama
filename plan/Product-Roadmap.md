@@ -176,6 +176,14 @@ User kits stay local until a stage asks for them in the cloud.
 
 ## 3. Stages
 
+> **Backend stages paused (user decision, 2026-11-02).** After asking for
+> the backend to live in its own repository (2026-10-20), the user chose to
+> keep improving the UI first. The number 18 went to a UI stage, **Stage 18
+> — Editor layout** ([Stage-18-Implementation.md](Stage-18-Implementation.md),
+> done 2026-11-07). The backend stages below (18–23 in this table) keep
+> their content and order, and are renumbered when they resume; the
+> backend will be a separate repository the user creates.
+
 | Stage | Name | Phase | Backend? |
 |---|---|---|---|
 | 17 | App shell and My Dioramas | 6 (local part) | No |
@@ -197,7 +205,7 @@ what sets it apart.
 
 ### Stage 17 — App shell and My Dioramas (local)
 
-**Status (2026-10-17):** implemented and verified, not committed; see
+**Status:** done, merged in PR #20; see
 [Stage-17-Implementation.md](Stage-17-Implementation.md). IndexedDB was
 chosen (open question 1 of that plan).
 
@@ -214,6 +222,9 @@ chosen (open question 1 of that plan).
   scenes do not fit localStorage's ~5 MB (decided in the stage doc).
 
 ### Stage 18 — Backend foundation
+
+**Status:** paused (2026-11-02); renumbered when it resumes. Planned for a
+separate backend repository rather than npm workspaces in this one.
 
 * npm workspaces; `shared/` with the scene types, validator and upgrades
   (A1); the web app imports them from there with no change in behavior.
@@ -353,6 +364,11 @@ and editable sign text, more figures and poses, editor limits, ground and
 roads. They can be scheduled between platform stages when the user asks;
 they do not depend on the backend, and **per-object customization should
 come before launch**, since every published diorama benefits from it.
+
+**Stage 18 — Editor layout** (2026-11-07) was the first of these: tabbed
+side panels, the scene settings available with a selection, library
+category chips, segmented controls that fit, a breadcrumb back to My
+Dioramas.
 
 ---
 

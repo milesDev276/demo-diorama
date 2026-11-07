@@ -142,6 +142,12 @@ export interface AssetComponentProps {
 
 export type TransformMode = "translate" | "rotate" | "scale";
 
+/** The tabs of the editor's left column (editor state, never saved). */
+export type LeftPanelTab = "library" | "objects";
+
+/** The tabs of the editor's right column (editor state, never saved). */
+export type RightPanelTab = "object" | "scene";
+
 /** A saved group of objects that is placed in one go (utils/kits.ts). */
 export interface Kit {
   id: string;

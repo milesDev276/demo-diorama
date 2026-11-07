@@ -1,4 +1,4 @@
-# Handoff — Hero Diorama Work (as of 2026-10-17, after Stage 17)
+# Handoff — Hero Diorama Work (as of 2026-11-07, after Stage 18)
 
 Read this first when picking up the work. It summarizes where things
 stand, what was decided and why, how to run and verify things, and what
@@ -29,20 +29,22 @@ comes next. Details live in the linked plan files.
 | Stage 14: editor polish | Done | `main` (PR #17) |
 | Stage 15: residential street | Done | `main` (PR #18) |
 | Stage 16: everyday people | Done | `main` (PR #19) |
-| Stage 17: app shell and My Dioramas | Implemented and verified; **not committed** | branch `stage17-shell` (working tree) |
+| Stage 17: app shell and My Dioramas | Done | `main` (PR #20) |
+| Stage 18: editor layout | Implemented and verified; committed and pushed, PR not opened yet | branch `stage18-editor-layout` |
 
 Stage 7 was the last stage of the original roadmap; Stages 8 to 16 were added
-at the user's request. From Stage 17 on, the stages follow
-[Product-Roadmap.md](Product-Roadmap.md) (Stages 17–27).
+at the user's request. Stage 17 followed
+[Product-Roadmap.md](Product-Roadmap.md). The roadmap's backend stages are
+paused (2026-11-02, §7), so Stage 18 is a UI stage: the editor layout.
 
-**`main` holds Stages 0–16** (last merge: PR #19, `848cd58`). Stage 17 is
-in the working tree of `stage17-shell`, uncommitted, together with the new
-plan documents (Product-Roadmap, Phase-7-Community, Stage-17).
+**`main` holds Stages 0–17** (last merge: PR #20, `1f35d57`). Stage 18 is
+on `stage18-editor-layout`.
 
-**Immediate next action:** the user commits Stage 17 and opens its PR; then
-plan the next roadmap stage (Stage 18, backend foundation; §7).
-The user merges PRs themselves, one branch per stage; cut the
-next branch from an up-to-date `main` (`git fetch`, then fast-forward).
+**Immediate next action:** open, review and merge Stage 18's PR (§8: Claude
+does this now; it needs the GitHub CLI, which was not installed yet on
+2026-11-07). Then ask the user for the next UI stage (§7).
+One branch per stage; cut the next branch from an up-to-date `main`
+(`git fetch`, then fast-forward).
 (For Stages 6 to 14 the user handed every decision
 to Claude, so the plan was settled with its defaults and implemented without
 a separate approval round. Stage 15's plan was approved with "theo mặc định",
@@ -73,6 +75,7 @@ The old Stage 5 stash was dropped on 2026-10-06; `git stash list` is empty.
 | [Stage-16-Implementation.md](Stage-16-Implementation.md) | The posable figure (`lib/figure.py`), the shared bicycle (`lib/bicycle.py`), six figures (walker, sitting, cyclist, umbrella, elder, cat), people in the Residential Lane starter, the Bench Rest kit: decisions D1–D5 and results (§6) |
 | [Stage-15-Implementation.md](Stage-15-Implementation.md) | The apartment, the traditional house, the gate post and the propane cylinders; walls, fences, rails and hedges as one object by length; the Residential Lane starter and the Front Gate kit: decisions D1–D5 and results (§6) |
 | [Stage-17-Implementation.md](Stage-17-Implementation.md) | The home page, My Dioramas in IndexedDB, the editor at `/diorama/[id]`, thumbnails from the canvas, the migration of the old single autosave, the template leftovers removed: decisions D1–D11 and results (§6) |
+| [Stage-18-Implementation.md](Stage-18-Implementation.md) | The editor layout: Library / Objects and Object / Scene tabs (`EditorSidePanel`), library category chips, segmented controls that fit, Reset in the Scene tab, the breadcrumb, the dev badge off: decisions D1–D7 and results (§6) |
 | [Product-Roadmap.md](Product-Roadmap.md) | From editor to public app: architecture A1–A7 and Stages 17–27 (platform, print export, launch) |
 | [Phase-7-Community.md](Phase-7-Community.md) | Detailed plan of Stages 21–23 (publish, explore, likes, remix, profiles, comments, moderation); not started |
 | `Phase-*.md` | Earlier phases, kept for history |
@@ -466,6 +469,16 @@ Stage 16:
 * **The umbrella's canopy is `solid(…, orient=False)` in the `glass` slot,**
   wound to face up and out.
 
+Stage 18:
+
+* **Panel tabs and the library chip are editor state in `dioramaStore`**
+  (`leftTab`, `rightTab`, `libraryCategory`), never saved. `rightTab`
+  follows the selection through a store subscription; don't set it from
+  each selection action.
+* **The top bar must keep its height:** opening a scene frames it to the
+  canvas, so a taller bar makes every scene open smaller and changes what
+  `capture-template.mjs` renders.
+
 ## 4. How to Run and Verify
 
 The platform is Windows. Node 22.14, Chrome, and Blender 5.2.2 LTS at
@@ -687,6 +700,13 @@ node scripts/capture-template.mjs [--hero]
 * **drei's `TransformControls` is three-stdlib's** (an `Object3D` with
   `isTransformControls`), not three's (`getHelper()` /
   `isTransformControlsRoot`).
+* **`cn()` (`lib/cn.ts`) only joins classes; it does not merge Tailwind
+  conflicts.** `cn("px-2", cond && "px-0")` keeps `px-2`. Give each case
+  its own class instead (Stage 18's segmented control).
+* **`capture-template.mjs` multiplies the zoom the editor opened with,**
+  so anything that changes the editor canvas's size before Preview (the
+  top bar's height) changes the starter images. Compare against `main`'s
+  renders before committing new ones.
 * **Do not open the `diorama` IndexedDB from a script before the app has:**
   `indexedDB.open("diorama", 1)` on a missing database creates it empty,
   without the stores, and the app's upgrade never runs.
@@ -729,6 +749,8 @@ node scripts/capture-template.mjs [--hero]
 * **Figures are still, one pose and one outfit each; nothing snaps them
   onto seats or bicycles.** The full list is in Stage-16-Implementation.md §6.
 * **The editing camera does not fit the scene to a small window.**
+* **At 1366 × 768 the library shows three rows of items without
+  scrolling** (two-across asset cards). Stage-18-Implementation.md §6.
 * **Old scenes changed with Stage 7:** emissive surfaces no longer glow by
   day; the utility pole is 10 m (was 12 m) and carries six wires.
 * **Legacy vending machines in old scenes got smaller** (1.32 → 1.0 m
@@ -740,8 +762,22 @@ node scripts/capture-template.mjs [--hero]
 
 ## 7. Next
 
-The roadmap's seven stages and Stages 8 to 17 are implemented; Stage 17 is
-not committed yet.
+The roadmap's seven stages and Stages 8 to 18 are implemented; Stage 18 is
+pushed but not merged yet.
+
+**Backend paused, UI first (user decision, 2026-11-02):** after asking on
+2026-10-20 for the backend to be its own repository (which the user
+creates), the user chose to keep improving the UI. Asked which part
+first, they picked the editor layout (Stage 18). Don't restart backend
+work unless asked. Product-Roadmap.md §3 keeps the backend stages; they
+are renumbered when they resume.
+
+* **Next UI candidate named in Stage 18's plan:** per-object colors and
+  editable sign text (also the roadmap's "before launch" item). The home
+  page, the Preview / photo bar, resizable or collapsible panels were out
+  of Stage 18's scope and remain open.
+* **Open from Stage 18:** not tried in the user's own browser; three rows
+  of library items at 1366 × 768 instead of the planned five.
 
 **Direction after Stage 16 (user decision, 2026-10-17):** develop the
 project into a complete public application with a Node.js backend of our
@@ -812,7 +848,11 @@ foundation**: its plan settles the framework.
 * **Plan first:** at the start of each stage, write the plan doc and get it
   approved, then implement — unless the user hands over the decisions, as
   for Stages 6 to 14.
-* **Git:** the user commits, pushes and merges through GitHub PRs
-  themselves. When asked, provide a commit message and a PR description.
+* **Git (changed 2026-11-07):** through Stage 17 the user committed,
+  pushed and merged themselves. Since 2026-11-07 ("Bạn review và merge
+  luôn") Claude commits, pushes, opens the PR, reviews it and merges it,
+  one branch per stage, after verification passes. Opening and merging
+  PRs needs the GitHub CLI logged in (`gh auth login`, run by the user);
+  `git push` works through Git Credential Manager.
 * **Reporting:** follow CLAUDE.md §46 — implemented, files, verification
   with real numbers, limitations.

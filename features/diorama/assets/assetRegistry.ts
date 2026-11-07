@@ -94,6 +94,12 @@ export const ASSET_CATEGORY_ORDER: AssetCategory[] = [
   "People",
 ];
 
+/** What the library shows: every section, the ground materials, one asset category, or the kits. */
+export type LibraryCategory = "all" | "Ground" | AssetCategory | "Kits";
+
+/** The library's category chips, in order. */
+export const LIBRARY_CATEGORIES: LibraryCategory[] = ["all", "Ground", ...ASSET_CATEGORY_ORDER, "Kits"];
+
 /** A shadowless point light in the asset's own frame (meters). */
 export interface GlowLight {
   position: Vector3Tuple;

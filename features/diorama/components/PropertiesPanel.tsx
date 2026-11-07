@@ -1,295 +1,69 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, MousePointerClick, Copy, Eye, EyeOff, Lock, Unlock, RotateCcw, RotateCw, X } from "lucide-react";
-import { cn } from "@/lib/cn";
+import { Lock, MousePointerClick } from "lucide-react";
 import { useDioramaStore } from "../store/dioramaStore";
-import type { Vector3Tuple } from "../types/diorama.types";
+import type { RightPanelTab } from "../types/diorama.types";
 import { objectLabel } from "../assets/assetRegistry";
-import { BuildingPanel } from "./BuildingPanel";
-import { RunPanel } from "./RunPanel";
-import { SaveKitAction } from "./SaveKitAction";
-import { ScatterPanel } from "./ScatterPanel";
+import { EditorSidePanel, type SidePanelTab } from "./EditorSidePanel";
 import { ScenePanel } from "./ScenePanel";
-import { SurfaceActions } from "./SurfaceActions";
+import { SelectionPanel } from "./SelectionPanel";
 
-const AXES: { key: 0 | 1 | 2; label: string }[] = [
-  { key: 0, label: "X" },
-  { key: 1, label: "Y" },
-  { key: 2, label: "Z" },
+const TABS: SidePanelTab<RightPanelTab>[] = [
+  { id: "object", label: "Object" },
+  { id: "scene", label: "Scene" },
 ];
 
-const radToDeg = (rad: number) => Math.round((rad * 180) / Math.PI);
-const degToRad = (deg: number) => (deg * Math.PI) / 180;
+/** Names what the open tab shows: the selected object, the size of a multi-selection, or the diorama. */
+function InspectorHeading({ tab }: { tab: RightPanelTab }) {
+  const sceneName = useDioramaStore((s) => s.sceneName);
+  const selected = useDioramaStore((s) =>
+    s.selectedObjectIds.length === 1 ? s.objects.find((o) => o.id === s.selectedObjectIds[0]) : undefined
+  );
+  const count = useDioramaStore((s) => s.selectedObjectIds.length);
 
-interface NumberFieldProps {
-  label: string;
-  value: number;
-  step?: number;
-  disabled?: boolean;
-  onChange: (value: number) => void;
-  onCommit: () => void;
+  let text = sceneName;
+  if (tab === "object") text = selected ? objectLabel(selected) : count > 1 ? `${count} objects` : "Nothing selected";
+
+  return (
+    <h2 className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-[#4A3421]">
+      {tab === "object" && selected?.locked && <Lock size={12} className="shrink-0" aria-label="Locked" />}
+      <span className="truncate">{text}</span>
+    </h2>
+  );
 }
 
-function NumberField({ label, value, step = 0.1, disabled, onChange, onCommit }: NumberFieldProps) {
+function NothingSelected() {
   return (
-    <label className="flex items-center gap-2 text-sm text-[#4A3421]">
-      <span className="w-4 text-xs font-semibold text-[#4A3421]/50">{label}</span>
-      <input
-        type="number"
-        step={step}
-        disabled={disabled}
-        value={Number.isFinite(value) ? Number(value.toFixed(2)) : 0}
-        onChange={(event) => {
-          const next = Number(event.target.value);
-          if (Number.isFinite(next)) onChange(next);
-        }}
-        onBlur={onCommit}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") event.currentTarget.blur();
-        }}
-        className={cn(
-          "w-full rounded-lg border border-[#8b6f52]/15 bg-white/60 px-2.5 py-1.5 text-[#4A3421] outline-none transition-colors focus:border-[#F0B27A] focus:bg-white",
-          disabled && "cursor-not-allowed opacity-50"
-        )}
-      />
-    </label>
+    <div className="flex flex-col items-center justify-center gap-2 py-10 text-center text-[#4A3421]/45">
+      <MousePointerClick size={22} />
+      <p className="text-xs">Select something in the scene, or pick an item from the library.</p>
+    </div>
   );
 }
 
 /**
- * Right panel: reflects the current selection and edits it through the
- * store only — never touches meshes directly. Handles single-object detail
- * editing and a lighter multi-object summary.
+ * Right column, the inspector: the Object tab edits the selection, the
+ * Scene tab holds the scene settings. Selecting something opens Object,
+ * clearing the selection opens Scene (dioramaStore), and either tab can be
+ * chosen by hand at any time.
  */
 export function PropertiesPanel() {
-  const selectedObjectIds = useDioramaStore((s) => s.selectedObjectIds);
-  const objects = useDioramaStore((s) => s.objects);
-  const updateObject = useDioramaStore((s) => s.updateObject);
-  const commitTransform = useDioramaStore((s) => s.commitTransform);
-  const removeObject = useDioramaStore((s) => s.removeObject);
-  const removeObjects = useDioramaStore((s) => s.removeObjects);
-  const duplicateObject = useDioramaStore((s) => s.duplicateObject);
-  const duplicateObjects = useDioramaStore((s) => s.duplicateObjects);
-  const setObjectVisibility = useDioramaStore((s) => s.setObjectVisibility);
-  const setObjectLocked = useDioramaStore((s) => s.setObjectLocked);
-  const clearSelection = useDioramaStore((s) => s.clearSelection);
-  const turnSelection = useDioramaStore((s) => s.turnSelection);
-  const rotationSnapDegrees = useDioramaStore((s) => s.rotationSnapDegrees);
-
-  const selectedObjects = objects.filter((o) => selectedObjectIds.includes(o.id));
-  const object = selectedObjects.length === 1 ? selectedObjects[0] : null;
-
-  const setAxis = (key: "position" | "rotation" | "scale", axis: 0 | 1 | 2, value: number) => {
-    if (!object) return;
-    const next = [...object[key]] as Vector3Tuple;
-    next[axis] = value;
-    updateObject(object.id, { [key]: next });
-  };
+  const tab = useDioramaStore((s) => s.rightTab);
+  const setTab = useDioramaStore((s) => s.setRightTab);
+  const hasSelection = useDioramaStore((s) => s.selectedObjectIds.length > 0);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 16 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4, ease: "easeOut", delay: 0.15 }}
-      className="flex h-full w-full flex-col gap-5 overflow-y-auto rounded-3xl border border-[#8b6f52]/15 bg-white/70 p-4 shadow-[0_8px_32px_rgba(139,111,82,0.12)] backdrop-blur-xl"
-    >
-      <div>
-        <h2 className="text-sm font-semibold text-[#4A3421]">Properties</h2>
-        <p className="text-xs text-[#4A3421]/50">Edit the selected object</p>
-      </div>
-
-      <AnimatePresence mode="wait">
-        {selectedObjects.length === 0 ? (
-          <motion.div
-            key="empty"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex flex-1 flex-col gap-5"
-          >
-            <ScenePanel />
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 py-10 text-center text-[#4A3421]/45">
-              <MousePointerClick size={22} />
-              <p className="text-sm font-medium">No object selected</p>
-              <p className="text-xs">Select an object to edit its properties.</p>
-            </div>
-          </motion.div>
-        ) : object ? (
-          <motion.div
-            key={object.id}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="flex flex-col gap-5"
-          >
-            <div className="flex items-center justify-center gap-1.5 rounded-lg bg-[#A7C4A0]/25 px-2.5 py-1.5 text-center text-xs font-semibold uppercase tracking-wide text-[#4A3421]">
-              {object.locked && <Lock size={11} />}
-              {objectLabel(object)}
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#4A3421]/40">
-                Position
-              </p>
-              <div className="flex flex-col gap-1.5">
-                {AXES.map(({ key, label }) => (
-                  <NumberField
-                    key={label}
-                    label={label}
-                    value={object.position[key]}
-                    disabled={object.locked}
-                    onChange={(value) => setAxis("position", key, value)}
-                    onCommit={commitTransform}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#4A3421]/40">
-                Rotation
-              </p>
-              <NumberField
-                label="Y°"
-                step={5}
-                value={radToDeg(object.rotation[1])}
-                disabled={object.locked}
-                onChange={(value) => setAxis("rotation", 1, degToRad(value))}
-                onCommit={commitTransform}
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#4A3421]/40">
-                Scale
-              </p>
-              <NumberField
-                label="S"
-                step={0.05}
-                value={object.scale[0]}
-                disabled={object.locked}
-                onChange={(value) => updateObject(object.id, { scale: [value, value, value] })}
-                onCommit={commitTransform}
-              />
-            </div>
-
-            {object.type === "building" && <BuildingPanel object={object} />}
-            {object.type === "scatter" && <ScatterPanel object={object} />}
-            <RunPanel object={object} />
-            <SurfaceActions object={object} />
-
-            <div className="flex flex-col gap-1.5 border-t border-[#8b6f52]/10 pt-4">
-              <button
-                type="button"
-                onClick={() => setObjectVisibility(object.id, !object.visible)}
-                className="flex items-center justify-between rounded-xl bg-white/50 px-3 py-2 text-sm font-medium text-[#4A3421] transition-colors hover:bg-white cursor-pointer"
-              >
-                <span className="flex items-center gap-2">
-                  {object.visible ? <Eye size={15} /> : <EyeOff size={15} />}
-                  {object.visible ? "Visible" : "Hidden"}
-                </span>
-                <span className="text-xs text-[#4A3421]/40">Toggle</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setObjectLocked(object.id, !object.locked)}
-                className="flex items-center justify-between rounded-xl bg-white/50 px-3 py-2 text-sm font-medium text-[#4A3421] transition-colors hover:bg-white cursor-pointer"
-              >
-                <span className="flex items-center gap-2">
-                  {object.locked ? <Lock size={15} /> : <Unlock size={15} />}
-                  {object.locked ? "Locked" : "Unlocked"}
-                </span>
-                <span className="text-xs text-[#4A3421]/40">Toggle</span>
-              </button>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <SaveKitAction ids={[object.id]} />
-              <button
-                type="button"
-                onClick={() => duplicateObject(object.id)}
-                className="flex items-center justify-center gap-2 rounded-xl border border-[#8b6f52]/15 bg-white/50 px-3 py-2.5 text-sm font-medium text-[#4A3421] transition-colors hover:bg-white cursor-pointer"
-              >
-                <Copy size={15} />
-                Duplicate
-              </button>
-              <button
-                type="button"
-                onClick={() => removeObject(object.id)}
-                className="flex items-center justify-center gap-2 rounded-xl border border-red-400/30 bg-red-400/10 px-3 py-2.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-400/20 cursor-pointer"
-              >
-                <Trash2 size={15} />
-                Delete
-              </button>
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="multi"
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="flex flex-col gap-4"
-          >
-            <p className="rounded-lg bg-[#A7C4A0]/25 px-2.5 py-1.5 text-center text-xs font-semibold uppercase tracking-wide text-[#4A3421]">
-              {selectedObjects.length} Objects Selected
-            </p>
-            <p className="text-xs text-[#4A3421]/50">
-              Move or rotate the group with the handle at its center. Scale applies to a single
-              object at a time.
-            </p>
-
-            <div className="grid grid-cols-2 gap-1.5">
-              {(
-                [
-                  { label: "Turn left", icon: RotateCcw, sign: 1 },
-                  { label: "Turn right", icon: RotateCw, sign: -1 },
-                ] as const
-              ).map(({ label, icon: Icon, sign }) => (
-                <button
-                  key={label}
-                  type="button"
-                  title={`${label} by ${rotationSnapDegrees}°`}
-                  onClick={() => turnSelection(sign * degToRad(rotationSnapDegrees))}
-                  className="flex items-center justify-center gap-2 rounded-xl border border-[#8b6f52]/15 bg-white/50 px-3 py-2.5 text-sm font-medium text-[#4A3421] transition-colors hover:bg-white cursor-pointer"
-                >
-                  <Icon size={15} />
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <SaveKitAction ids={selectedObjectIds} />
-              <button
-                type="button"
-                onClick={() => duplicateObjects(selectedObjectIds)}
-                className="flex items-center justify-center gap-2 rounded-xl border border-[#8b6f52]/15 bg-white/50 px-3 py-2.5 text-sm font-medium text-[#4A3421] transition-colors hover:bg-white cursor-pointer"
-              >
-                <Copy size={15} />
-                Duplicate All
-              </button>
-              <button
-                type="button"
-                onClick={() => removeObjects(selectedObjectIds)}
-                className="flex items-center justify-center gap-2 rounded-xl border border-red-400/30 bg-red-400/10 px-3 py-2.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-400/20 cursor-pointer"
-              >
-                <Trash2 size={15} />
-                Delete All
-              </button>
-              <button
-                type="button"
-                onClick={clearSelection}
-                className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-[#4A3421]/60 transition-colors hover:bg-white/50 cursor-pointer"
-              >
-                <X size={15} />
-                Clear Selection
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+    <EditorSidePanel
+      label="Inspector"
+      side="right"
+      tabs={TABS}
+      value={tab}
+      onChange={setTab}
+      heading={<InspectorHeading tab={tab} />}
+      panels={{
+        object: hasSelection ? <SelectionPanel /> : <NothingSelected />,
+        scene: <ScenePanel />,
+      }}
+    />
   );
 }

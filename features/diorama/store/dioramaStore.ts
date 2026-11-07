@@ -11,11 +11,13 @@ import type {
   DioramaScene,
   GroundBrushState,
   Kit,
+  LeftPanelTab,
   ObjectParams,
   PhotoApi,
   PhotoSettings,
   Placement,
   PlinthStyle,
+  RightPanelTab,
   SaveStatus,
   ScatterKind,
   Season,
@@ -26,7 +28,7 @@ import type {
   Vector3Tuple,
   Weather,
 } from "../types/diorama.types";
-import { ASSET_REGISTRY } from "../assets/assetRegistry";
+import { ASSET_REGISTRY, type LibraryCategory } from "../assets/assetRegistry";
 import {
   deltaToParentFrame,
   getSelectionCenter,
@@ -126,6 +128,10 @@ interface DioramaState {
   /** Goes up whenever another scene is opened, so the camera rig goes to the view of that scene. */
   cameraRevision: number;
   photoApi: PhotoApi | null;
+  leftTab: LeftPanelTab;
+  /** Follows the selection (see the subscription below the store), and can be chosen by hand. */
+  rightTab: RightPanelTab;
+  libraryCategory: LibraryCategory;
 
   // --- Object CRUD ---
   /** Adds an object on the spawn spiral. Removing a building removes what is attached to it. */
@@ -254,6 +260,9 @@ interface DioramaState {
   setPhoto: (changes: Partial<PhotoSettings>) => void;
   registerPhotoApi: (api: PhotoApi | null) => void;
   setSaveStatus: (status: SaveStatus) => void;
+  setLeftTab: (tab: LeftPanelTab) => void;
+  setRightTab: (tab: RightPanelTab) => void;
+  setLibraryCategory: (category: LibraryCategory) => void;
 }
 
 /** Snapshots `objects` and the ground onto the history stack. Shared by every atomic action. */
@@ -476,6 +485,9 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   groundBrushSize: 2,
   cameraRevision: 0,
   photoApi: null,
+  leftTab: "library",
+  rightTab: "scene",
+  libraryCategory: "all",
 
   addObject: (type, params) =>
     set((state) => {
@@ -775,7 +787,8 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   commitTransform: () => set((state) => commit(state, state.objects)),
 
   selectObject: (id) =>
-    set((state) => ({ selectedObjectIds: [id], transformMode: clampTransformMode(1, state.transformMode) })),
+    // Clicking the object that is already selected shows it again, too.
+    set((state) => ({ selectedObjectIds: [id], transformMode: clampTransformMode(1, state.transformMode), rightTab: "object" })),
 
   selectObjects: (ids) =>
     set((state) => {
@@ -939,4 +952,16 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   setPhoto: (changes) => set((state) => ({ photo: { ...state.photo, ...changes } })),
   registerPhotoApi: (api) => set({ photoApi: api }),
   setSaveStatus: (status) => set({ saveStatus: status }),
+  setLeftTab: (tab) => set({ leftTab: tab }),
+  setRightTab: (tab) => set({ rightTab: tab }),
+  setLibraryCategory: (category) => set({ libraryCategory: category }),
 }));
+
+const sameIds = (a: string[], b: string[]) => a.length === b.length && a.every((id, i) => id === b[i]);
+
+// Whatever changed the selection (a click, undo, a placement, a load), the
+// inspector shows what is now selected, or the scene settings once nothing is.
+useDioramaStore.subscribe((state, previous) => {
+  if (sameIds(state.selectedObjectIds, previous.selectedObjectIds)) return;
+  useDioramaStore.setState({ rightTab: state.selectedObjectIds.length ? "object" : "scene" });
+});

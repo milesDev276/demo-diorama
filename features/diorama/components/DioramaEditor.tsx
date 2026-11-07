@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AlertTriangle, X } from "lucide-react";
 import { EditorToolbar } from "./EditorToolbar";
 import { EditorSubToolbar } from "./EditorSubToolbar";
+import { EditorSidePanel, type SidePanelTab } from "./EditorSidePanel";
 import { ObjectLibrary } from "./ObjectLibrary";
 import { ObjectList } from "./ObjectList";
 import { PropertiesPanel } from "./PropertiesPanel";
@@ -13,6 +14,7 @@ import { NewSceneDialog } from "./NewSceneDialog";
 import { PhotoBar } from "./PhotoBar";
 import { EditorLoadingScreen, EditorMessageScreen } from "./EditorScreens";
 import { useDioramaStore } from "../store/dioramaStore";
+import type { LeftPanelTab } from "../types/diorama.types";
 import { useEditorShortcuts } from "../hooks/useEditorShortcuts";
 import { useAutoSave } from "../hooks/useAutoSave";
 import { useOpenDiorama } from "@/features/dioramas/hooks/useOpenDiorama";
@@ -34,8 +36,29 @@ export function DioramaEditor({ dioramaId }: { dioramaId: string }) {
   return <EditorWorkspace />;
 }
 
+/** Left column: the library, and the list of what is in the scene. */
+function LibraryPanel() {
+  const tab = useDioramaStore((s) => s.leftTab);
+  const setTab = useDioramaStore((s) => s.setLeftTab);
+  const objectCount = useDioramaStore((s) => s.objects.length);
+  const tabs: SidePanelTab<LeftPanelTab>[] = [
+    { id: "library", label: "Library" },
+    { id: "objects", label: "Objects", count: objectCount },
+  ];
+  return (
+    <EditorSidePanel
+      label="Library and objects"
+      side="left"
+      tabs={tabs}
+      value={tab}
+      onChange={setTab}
+      panels={{ library: <ObjectLibrary />, objects: <ObjectList /> }}
+    />
+  );
+}
+
 /**
- * Composes the toolbar, object library + scene list, 3D canvas, and
+ * Composes the toolbar, library + object list, 3D canvas, and
  * properties panel. Preview mode hides everything but the Diorama and the
  * photo bar.
  */
@@ -121,14 +144,9 @@ function EditorWorkspace() {
               animate={{ opacity: 1, width: 256 }}
               exit={{ opacity: 0, width: 0 }}
               transition={{ duration: 0.25, ease: "easeOut" }}
-              className="hidden shrink-0 flex-col gap-3 overflow-hidden md:flex"
+              className="hidden shrink-0 overflow-hidden md:block"
             >
-              <div className="flex min-h-0 flex-3 flex-col">
-                <ObjectLibrary />
-              </div>
-              <div className="flex min-h-0 flex-2 flex-col">
-                <ObjectList />
-              </div>
+              <LibraryPanel />
             </motion.div>
           )}
         </AnimatePresence>
