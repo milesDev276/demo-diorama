@@ -231,8 +231,10 @@ the 3D view, the assets or the scene format.
 * **`EditorSidePanel`:** the card both columns share: a `tablist` (arrow
   keys, Home and End; roving `tabIndex`), an optional heading, and one
   `tabpanel` per tab that scrolls by itself. Every panel stays mounted
-  (`hidden` when not shown), so the search text and the scroll position
-  survive a tab switch.
+  (`hidden` when not shown). The left column passes both bodies all the
+  time, so the search text and the scroll position survive a tab switch;
+  the inspector passes only the open tab's body, so the Object form does
+  not re-render on every frame of a drag while Scene is open.
 * **Left column (`LibraryPanel` in `DioramaEditor.tsx`):** Library /
   Objects *n*, full height.
 * **Library:** category chips (`aria-pressed`) under the search box; the
@@ -243,18 +245,20 @@ the 3D view, the assets or the scene format.
   place it" while a surface is being picked.
 * **Objects list:** the old Scene list without its card and count (the
   count is on the tab). While the list is open, the first selected row is
-  scrolled into view, wherever the selection was made.
-* **Right column:** `PropertiesPanel` is now the tab logic, the heading
+  scrolled into view, wherever the selection was made (the list's own
+  panel scrolls; the columns around it do not).
+* **Right column:** `PropertiesPanel` is now the tab logic and the heading
   (the object's label with a lock when locked, "2 objects", "Nothing
-  selected", or the diorama's name) and the "Select something in the
-  scene, or pick an item from the library" hint. The editing moved
-  unchanged into the new `SelectionPanel.tsx` (259 lines), minus the green
-  label pill, which the heading replaces.
+  selected", or the diorama's name). The editing moved unchanged into the
+  new `SelectionPanel.tsx`, minus the green label pill, which the heading
+  replaces; it also shows the "Select something in the scene, or pick an
+  item from the library" hint when no selected object exists.
 * **Scene tab:** today's `ScenePanel`, plus "Reset objects to the base's
   defaults" at the bottom, with "Replaces every object in the scene.
   Ctrl+Z brings them back."
 * **Segmented controls:** the segments may shrink (`min-w-0`), the gap is
-  1 px, and an icon-over-label segment has no side padding. A label that
+  1 px (4 px in the photo bar's icon-only controls, as before), and an
+  icon-over-label segment has no side padding. A label that
   still does not fit wraps instead of widening the row.
 * **Top bar:** "My Dioramas › *name*" as a breadcrumb on the name's line;
   the tree icon is still a link (out of the tab order, so the text link is
@@ -332,3 +336,18 @@ the 3D view, the assets or the scene format.
   All and Scene. Opening another diorama in the same tab keeps the left
   tab and the chip; the right tab follows the (empty) selection.
 * No keyboard shortcut for the tabs (D7).
+* Between 768 and 1023 px wide the inspector column is hidden (as before),
+  and with it Reset, which the top bar used to offer at that width. The
+  app targets desktop windows.
+
+### Review (2026-11-07)
+
+A code review of the branch found nine points. Fixed: the chips showed no
+pressed chip when a stored Ground fell back to All on a non-plot scene;
+the selection subscription wrote the tab even when it was already right;
+a selection of ids with no object left the Object tab blank (the empty
+state now comes from the existing selected objects); the hidden Object
+form re-rendered during drags; the photo bar's compact controls lost
+their 4 px gap; `scrollIntoView` could scroll the columns around the list.
+Kept: Reset hidden below 1024 px (above); a shared chip component
+(CLAUDE.md rule 4, one use so far).

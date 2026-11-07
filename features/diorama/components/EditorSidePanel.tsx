@@ -18,7 +18,11 @@ interface EditorSidePanelProps<T extends string> {
   tabs: SidePanelTab<T>[];
   value: T;
   onChange: (tab: T) => void;
-  /** One body per tab. Every body stays mounted, so a search or a scroll position survives a tab switch. */
+  /**
+   * One body per tab. Every tab panel stays mounted (hidden when not open), so a body that is
+   * always passed keeps its search or scroll position across a tab switch; pass `false` for a
+   * body that should not render while hidden.
+   */
   panels: Record<T, React.ReactNode>;
   /** A line under the tab bar naming what the open tab shows. */
   heading?: React.ReactNode;

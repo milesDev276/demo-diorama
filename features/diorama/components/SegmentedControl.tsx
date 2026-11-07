@@ -27,7 +27,7 @@ interface SegmentedControlProps<T extends string> {
  */
 export function SegmentedControl<T extends string>({ label, options, value, onChange, compact = false, className }: SegmentedControlProps<T>) {
   return (
-    <div role="radiogroup" aria-label={label} className={cn("flex gap-px rounded-xl bg-[#4A3421]/5 p-1", className)}>
+    <div role="radiogroup" aria-label={label} className={cn("flex rounded-xl bg-[#4A3421]/5 p-1", compact ? "gap-1" : "gap-px", className)}>
       {options.map(({ value: option, label: text, icon: Icon }) => (
         <button
           key={option}

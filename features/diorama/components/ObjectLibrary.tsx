@@ -155,8 +155,7 @@ function KitImport({ onMessage }: { onMessage: (message: string | null) => void 
 }
 
 /** The category chips under the search box: one section of the library, or all of them. */
-function CategoryChips({ showGround }: { showGround: boolean }) {
-  const category = useDioramaStore((s) => s.libraryCategory);
+function CategoryChips({ category, showGround }: { category: LibraryCategory; showGround: boolean }) {
   const setCategory = useDioramaStore((s) => s.setLibraryCategory);
   const chips = showGround ? LIBRARY_CATEGORIES : LIBRARY_CATEGORIES.filter((c) => c !== "Ground");
 
@@ -228,7 +227,7 @@ export function ObjectLibrary() {
         />
       </label>
 
-      <CategoryChips showGround={isPlot} />
+      <CategoryChips category={category} showGround={isPlot} />
 
       {groups.length === 0 && !showGround && (
         <p className="text-xs text-[#4A3421]/50">

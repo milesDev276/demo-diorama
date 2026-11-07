@@ -963,5 +963,6 @@ const sameIds = (a: string[], b: string[]) => a.length === b.length && a.every((
 // inspector shows what is now selected, or the scene settings once nothing is.
 useDioramaStore.subscribe((state, previous) => {
   if (sameIds(state.selectedObjectIds, previous.selectedObjectIds)) return;
-  useDioramaStore.setState({ rightTab: state.selectedObjectIds.length ? "object" : "scene" });
+  const rightTab = state.selectedObjectIds.length ? "object" : "scene";
+  if (state.rightTab !== rightTab) useDioramaStore.setState({ rightTab });
 });

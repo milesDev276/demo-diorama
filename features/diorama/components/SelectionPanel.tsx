@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, Copy, Eye, EyeOff, Lock, Unlock, RotateCcw, RotateCw, X } from "lucide-react";
+import { Trash2, Copy, Eye, EyeOff, Lock, Unlock, MousePointerClick, RotateCcw, RotateCw, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useDioramaStore } from "../store/dioramaStore";
 import type { Vector3Tuple } from "../types/diorama.types";
@@ -55,6 +55,15 @@ function NumberField({ label, value, step = 0.1, disabled, onChange, onCommit }:
   );
 }
 
+function NothingSelected() {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 py-10 text-center text-[#4A3421]/45">
+      <MousePointerClick size={22} />
+      <p className="text-xs">Select something in the scene, or pick an item from the library.</p>
+    </div>
+  );
+}
+
 /**
  * The Object tab of the inspector: edits the selection through the store
  * only — never touches meshes directly. Handles single-object detail
@@ -87,7 +96,9 @@ export function SelectionPanel() {
 
   return (
     <AnimatePresence mode="wait">
-      {selectedObjects.length === 0 ? null : object ? (
+      {selectedObjects.length === 0 ? (
+        <NothingSelected key="empty" />
+      ) : object ? (
         <motion.div
           key={object.id}
           initial={{ opacity: 0, y: 6 }}

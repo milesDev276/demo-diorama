@@ -36,8 +36,12 @@ export function ObjectList() {
   const firstSelected = selectedObjectIds[0];
   useEffect(() => {
     if (!isOpen || !firstSelected) return;
-    const row = listRef.current?.querySelector(`[data-object-id="${CSS.escape(firstSelected)}"]`);
-    row?.scrollIntoView({ block: "nearest" });
+    const row = listRef.current?.querySelector<HTMLElement>(`[data-object-id="${CSS.escape(firstSelected)}"]`);
+    const panel = row?.closest<HTMLElement>("[role=tabpanel]");
+    if (!row || !panel) return;
+    const top = row.getBoundingClientRect().top - panel.getBoundingClientRect().top;
+    if (top < 0) panel.scrollTop += top;
+    else if (top + row.offsetHeight > panel.clientHeight) panel.scrollTop += top + row.offsetHeight - panel.clientHeight;
   }, [isOpen, firstSelected]);
 
   return objects.length === 0 ? (
