@@ -965,6 +965,19 @@ export function getAllLibraryItems(kits: Kit[]): LibraryItem[] {
   return [...ASSET_CATEGORY_ORDER.flatMap((category) => assetsIn(category).flatMap(libraryItems)), ...kits.map(kitLibraryItem)];
 }
 
+/**
+ * The library entry with this key (plan/Stage-22-Implementation.md D3), or
+ * undefined if the library no longer has it (a deleted kit). Returns the
+ * same objects as getLibraryItems, so an active placement matches either.
+ */
+export function libraryItemByKey(key: string, kits: Kit[]): LibraryItem | undefined {
+  if (key.startsWith("kit:")) {
+    const kit = kits.find((k) => `kit:${k.id}` === key);
+    return kit ? kitLibraryItem(kit) : undefined;
+  }
+  return getAllLibraryItems([]).find((item) => item.key === key);
+}
+
 function assetsIn(category: AssetCategory): AssetDefinition[] {
   return Object.values(ASSET_REGISTRY).filter((asset) => asset.category === category);
 }
