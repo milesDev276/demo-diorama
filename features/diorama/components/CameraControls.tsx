@@ -8,12 +8,17 @@ import * as THREE from "three";
 import { useDioramaStore } from "../store/dioramaStore";
 import { CAMERA_PRESETS, CAMERA_ZOOM_RANGE, DEFAULT_CAMERA_TARGET } from "../utils/cameraPresets";
 import { getBaseTemplate } from "../utils/baseTemplates";
+import { fitView, sceneFit } from "../utils/cameraFit";
+import { useFrameDolly } from "../hooks/useFrameDolly";
 import type { CameraPreset, DioramaCameraState, Vector3Tuple } from "../types/diorama.types";
 
 /** Vertical field of view of the Preview camera — narrow, like a lens photographing a model. */
 const PREVIEW_FOV = 24;
 
 const { min: MIN_ZOOM, max: MAX_ZOOM } = CAMERA_ZOOM_RANGE;
+
+/** Orbit distance limits (meters), shared by OrbitControls and Fit. */
+const DISTANCE_RANGE = { min: 8, max: 400 } as const;
 
 /** The camera counts as at rest when it moved less than this (meters, and zoom) since the last frame. */
 const REST_EPSILON = 1e-5;
@@ -66,6 +71,8 @@ export function CameraControls() {
   const previousCameraRef = useRef<THREE.Camera | null>(null);
   const previewEntryRef = useRef<PreviewEntry | null>(null);
   const camera = useThree((s) => s.camera);
+  const getThree = useThree((s) => s.get);
+  const size = useThree((s) => s.size);
   const isPreviewMode = useDioramaStore((s) => s.isPreviewMode);
   // The same base and size always give the same template object (getBaseTemplate).
   const template = useDioramaStore((s) => getBaseTemplate(s.environment));
@@ -127,6 +134,9 @@ export function CameraControls() {
     controls.update();
   }, [camera]);
 
+  // A narrower photo frame moves the Preview camera back, so the shot keeps what it showed (Stage 20 D3).
+  const resetFrameBase = useFrameDolly(camera, size, { controlsRef, perspectiveRef, transitionRef, previewEntryRef }, DISTANCE_RANGE.max);
+
   useEffect(() => {
     function startTransition(toPos: Vector3Tuple, toTarget: Vector3Tuple, toZoom: number, duration = 550, record = true) {
       const controls = controlsRef.current;
@@ -179,6 +189,19 @@ export function CameraControls() {
           450
         );
       },
+      fitScene: () => {
+        const controls = controlsRef.current;
+        const perspective = perspectiveRef.current;
+        if (!controls || !perspective || camera !== perspective) return;
+        const direction = camera.position.clone().sub(controls.target);
+        if (direction.lengthSq() === 0) direction.set(1, 1, 1);
+        direction.normalize();
+        const view = fitView(sceneFit(getThree().scene, template), direction, camera.up, perspective.fov, perspective.aspect);
+        const distance = THREE.MathUtils.clamp(view.distance, DISTANCE_RANGE.min, DISTANCE_RANGE.max);
+        const position = view.target.clone().addScaledVector(direction, distance);
+        resetFrameBase();
+        startTransition(position.toArray(), view.target.toArray(), camera.zoom, 450);
+      },
     });
 
     if (openedRevisionRef.current !== cameraRevision) {
@@ -195,7 +218,7 @@ export function CameraControls() {
     }
 
     return () => registerCameraApi(null);
-  }, [camera, template, cameraRevision, registerCameraApi]);
+  }, [camera, template, cameraRevision, registerCameraApi, getThree, resetFrameBase]);
 
   // The view as the editing camera sees it. In Preview that is the view leaving Preview would give.
   const recordView = () => {
@@ -282,6 +305,7 @@ export function CameraControls() {
         target={initialView.target}
         onStart={() => {
           settlingRef.current = false;
+          resetFrameBase();
         }}
         onEnd={() => {
           settlingRef.current = true;
@@ -292,8 +316,8 @@ export function CameraControls() {
         maxZoom={MAX_ZOOM}
         minPolarAngle={0.05}
         maxPolarAngle={Math.PI / 2 - 0.02}
-        minDistance={8}
-        maxDistance={400}
+        minDistance={DISTANCE_RANGE.min}
+        maxDistance={DISTANCE_RANGE.max}
       />
     </>
   );

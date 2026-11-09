@@ -12,6 +12,7 @@ import { PropertiesPanel } from "./PropertiesPanel";
 import { DioramaCanvas } from "./DioramaCanvas";
 import { NewSceneDialog } from "./NewSceneDialog";
 import { PhotoBar } from "./PhotoBar";
+import { PreviewOverlay } from "./PreviewOverlay";
 import { EditorLoadingScreen, EditorMessageScreen } from "./EditorScreens";
 import { useDioramaStore } from "../store/dioramaStore";
 import type { LeftPanelTab } from "../types/diorama.types";
@@ -59,8 +60,8 @@ function LibraryPanel() {
 
 /**
  * Composes the toolbar, library + object list, 3D canvas, and
- * properties panel. Preview mode hides everything but the Diorama and the
- * photo bar.
+ * properties panel. Preview mode hides everything but the Diorama, the
+ * photo bar and the Preview overlay (the way back, help, the focus marker).
  */
 function EditorWorkspace() {
   const isPreview = useDioramaStore((s) => s.isPreviewMode);
@@ -172,6 +173,7 @@ function EditorWorkspace() {
       </main>
 
       {isPreview && <PhotoBar onExit={exitPreview} />}
+      {isPreview && <PreviewOverlay onExit={exitPreview} />}
 
       <NewSceneDialog
         open={newDialogOpen}

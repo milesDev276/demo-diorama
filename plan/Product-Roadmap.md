@@ -375,6 +375,12 @@ Dioramas.
 vehicle, vending machine and building, and the text of the shop, konbini,
 apartment and gate-post signs.
 
+**Stage 20 — Photo studio** (2026-11-09) polishes Preview, where a diorama
+becomes a photograph (Phase 5): the canvas never lies under the photo bar,
+the bar is one row on a laptop screen, a narrower frame keeps the shot,
+Fit (F) frames the diorama, and a focus click shows where it landed
+([Stage-20-Implementation.md](Stage-20-Implementation.md)).
+
 ---
 
 ## 4. Rules That Carry Over
