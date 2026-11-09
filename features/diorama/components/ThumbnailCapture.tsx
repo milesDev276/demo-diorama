@@ -6,17 +6,13 @@ import type { Object3D } from "three";
 import { saveThumbnail } from "@/features/dioramas/storage/dioramaRepository";
 import { useDioramaStore } from "../store/dioramaStore";
 import { sceneLook } from "../utils/weather";
+import { isEditorHelper } from "../utils/editorHelpers";
 
 /** Thumbnail size: the 16:10 of My Dioramas' cards. */
 const WIDTH = 480;
 const HEIGHT = 300;
 /** How long the scene has to stay saved and untouched before a thumbnail is taken. */
 const IDLE_MS = 3000;
-
-/** Grid, selection rings (userData.editorOnly) and the transform gizmo (drei's, from three-stdlib, is an Object3D). */
-function isEditorHelper(object: Object3D): boolean {
-  return object.userData.editorOnly === true || (object as { isTransformControls?: boolean }).isTransformControls === true;
-}
 
 /**
  * Renders the current view once without the editor's helpers and copies

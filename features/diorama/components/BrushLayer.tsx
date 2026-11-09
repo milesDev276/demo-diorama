@@ -11,6 +11,7 @@ import { MAX_SCATTER_POINTS, roundPoint } from "../utils/scatterParams";
 import { getWorldMatrix, indexObjects } from "../utils/sceneGraph";
 import { collectSurfaces, isSliver, surfaceOwnerId, toPointer, worldNormal } from "../utils/surfacePicking";
 import { DIORAMA_COLORS } from "../utils/palette";
+import { EDITOR_ONLY } from "../utils/editorHelpers";
 
 /** Faces whose normal points up at least this much count as ground. */
 const FLAT_NORMAL_Y = 0.7;
@@ -207,7 +208,7 @@ function ActiveBrush({ brush }: { brush: BrushState }) {
   }, [gl, camera, scene, kind]);
 
   return (
-    <group ref={ringRef} visible={false} renderOrder={10}>
+    <group ref={ringRef} visible={false} renderOrder={10} userData={EDITOR_ONLY}>
       <mesh rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.93, 1, 48]} />
         <meshBasicMaterial ref={ringMaterialRef} transparent opacity={0.9} depthWrite={false} />

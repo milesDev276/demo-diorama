@@ -1,4 +1,4 @@
-# Handoff — Hero Diorama Work (as of 2026-11-09, after Stage 20)
+# Handoff — Hero Diorama Work (as of 2026-11-09, after Stage 21)
 
 Read this first when picking up the work. It summarizes where things
 stand, what was decided and why, how to run and verify things, and what
@@ -32,26 +32,27 @@ comes next. Details live in the linked plan files.
 | Stage 17: app shell and My Dioramas | Done | `main` (PR #20) |
 | Stage 18: editor layout | Done | `main` (PR #21) |
 | Stage 19: object colors and sign text | Done | `main` (PR #22) |
-| Stage 20: photo studio | Implemented and verified | branch `stage20-photo-studio` |
+| Stage 20: photo studio | Done | `main` (PR #23) |
+| Stage 21: room to work (editor camera fit, folding and resizable panels, object list) | Implemented and verified | branch `stage21-workspace` |
 
 Stage 7 was the last stage of the original roadmap; Stages 8 to 16 were added
 at the user's request. Stage 17 followed
 [Product-Roadmap.md](Product-Roadmap.md). The roadmap's backend stages are
 paused (2026-11-02, §7), so Stage 18 is a UI stage: the editor layout.
 
-**`main` holds Stages 0–19** (last merge: PR #22, `326abb1`; the user merged
-it on GitHub). Stage 20 is on `stage20-photo-studio`.
+**`main` holds Stages 0–20** (last merge: PR #23, `c2d1661`; the user merged
+it on GitHub). Stage 21 is on `stage21-workspace`.
 
-**Immediate next action:** open, review and merge Stage 20's PR (§8: Claude
-does this now; it needs the GitHub CLI, which was still not installed on
-2026-11-09: `winget install GitHub.cli`, then `gh auth login` by the user).
-Then ask the user for the next UI stage (§7).
+**Immediate next action:** open, review and merge Stage 21's PR (§8). The
+GitHub CLI is installed at `C:\Program Files\GitHub CLI\gh.exe` but is not
+on the Bash PATH: call it by its full path. Then ask the user for the next
+UI stage (§7).
 One branch per stage; cut the next branch from an up-to-date `main`
 (`git fetch`, then fast-forward).
 (For Stages 6 to 14 the user handed every decision
 to Claude, so the plan was settled with its defaults and implemented without
 a separate approval round. Stage 15's plan was approved with "theo mặc định",
-Stage 16's and Stage 17's with "hãy thực hiện", Stage 20's with "tôi đồng ý theo ý kiến của bạn": their defaults. Ask again at the start of new work; it is not a standing rule.)
+Stage 16's and Stage 17's with "hãy thực hiện", Stage 20's with "tôi đồng ý theo ý kiến của bạn", Stage 21's with "tôi đồng ý với recommend của bạn": their defaults. Ask again at the start of new work; it is not a standing rule.)
 
 The old Stage 5 stash was dropped on 2026-10-06; `git stash list` is empty.
 
@@ -81,6 +82,7 @@ The old Stage 5 stash was dropped on 2026-10-06; `git stash list` is empty.
 | [Stage-18-Implementation.md](Stage-18-Implementation.md) | The editor layout: Library / Objects and Object / Scene tabs (`EditorSidePanel`), library category chips, segmented controls that fit, Reset in the Scene tab, the breadcrumb, the dev badge off: decisions D1–D7 and results (§6) |
 | [Stage-19-Implementation.md](Stage-19-Implementation.md) | Per-object colors (the `paint` slot, curated swatches) and editable sign text on four signs (per-text sign textures), the Color and Sign sections of the inspector: decisions D1–D8 and results (§6) |
 | [Stage-20-Implementation.md](Stage-20-Implementation.md) | The photo studio: the canvas above the photo bar, the one-row bar with pixel sizes, Fit (F) and the frame-change dolly (`utils/cameraFit.ts`), the Preview overlay (way back, help line, focus ring): decisions D1–D6 and results (§6) |
+| [Stage-21-Implementation.md](Stage-21-Implementation.md) | Room to work: presets, Fit and the opening view fit the canvas (`orthoFitView`), the shot through canvas resizes (`useCanvasResizeZoom`), folding and resizable side panels (`editorLayout.ts`, `PanelResizeHandle`), the object list's names and keyboard, the home page's background: decisions D1–D8 and results (§6) |
 | [Product-Roadmap.md](Product-Roadmap.md) | From editor to public app: architecture A1–A7 and Stages 17–27 (platform, print export, launch) |
 | [Phase-7-Community.md](Phase-7-Community.md) | Detailed plan of Stages 21–23 (publish, explore, likes, remix, profiles, comments, moderation); not started |
 | `Phase-*.md` | Earlier phases, kept for history |
@@ -532,6 +534,37 @@ Stage 20:
   16:9 frame in the capture window is 1552 px wide instead of 1479. Re-render
   them when a starter changes anyway; `ZOOM_SCALE`'s numbers stay.
 
+Stage 21:
+
+* **The editing camera fits; it has no fixed zoom per base any more.** A
+  preset is a direction (`CAMERA_PRESETS`); it, Fit, and a diorama opened
+  without a saved view go through `orthoFitView(sceneFit(...))` for the
+  canvas's current size. `presetZoom` is gone. A saved view still opens
+  exactly as saved (pixels per meter).
+* **A fitted view stays fitted** (`fittedRef` in `CameraControls`) until a
+  gesture, Focus, or opening a saved view; while fitted, every canvas size
+  change fits again (`hooks/useCanvasResizeZoom.ts`). Any other view only
+  zooms out when the canvas shrinks, against a base taken at the last
+  gesture, so round trips do not drift. Off in Preview and for 300 ms of a
+  steady canvas after the editor opens or Preview closes. A view the canvas
+  changed is recorded once it rests, but only if the scene already has a
+  saved view.
+* **Stored column widths give way on a narrow window**
+  (`fitColumnWidths`), so the canvas keeps 480 px where the columns'
+  minimums allow; the stored widths are kept.
+* **Editor-only drawings carry `EDITOR_ONLY`** (`utils/editorHelpers.ts`):
+  the grid, selection rings, the brush ring, the ground-brush highlight,
+  the placement ghost; the gizmo is matched by `isTransformControls`.
+  Thumbnails hide them and `sceneFit` skips them. A new helper must be
+  marked, or Fit will frame it.
+* **Panel layout is editor state in the store** (`panels`), remembered per
+  browser in `localStorage` (`diorama-editor-layout`) by
+  `hooks/useEditorLayout.ts`; ranges and the 480 px canvas floor are in
+  `utils/editorLayout.ts`. `\` folds both; `[` / `]` stay the brush sizes.
+* **`capture-template.mjs` sets the starters' camera pose outright**
+  (the pre-Stage 21 Isometric framing), so the starter pictures and the
+  hero do not depend on the editor's fit.
+
 ## 4. How to Run and Verify
 
 The platform is Windows. Node 22.14, Chrome, and Blender 5.2.2 LTS at
@@ -806,7 +839,9 @@ node scripts/capture-template.mjs [--hero]
   Stage-15-Implementation.md §6.
 * **Figures are still, one pose and one outfit each; nothing snaps them
   onto seats or bicycles.** The full list is in Stage-16-Implementation.md §6.
-* **The editing camera does not fit the scene to a small window.**
+* **A saved view opens at the zoom it was saved with,** also on a smaller
+  screen; Fit (F) frames it. A fit leaves 6–7.5 % free on the limiting
+  axis (the platform-rim allowance). Stage-21-Implementation.md §6.
 * **At 1366 × 768 the library shows three rows of items without
   scrolling** (two-across asset cards). Stage-18-Implementation.md §6.
 * **Old scenes changed with Stage 7:** emissive surfaces no longer glow by
@@ -820,7 +855,7 @@ node scripts/capture-template.mjs [--hero]
 
 ## 7. Next
 
-The roadmap's seven stages and Stages 8 to 20 are implemented; Stage 20 is
+The roadmap's seven stages and Stages 8 to 21 are implemented; Stage 21 is
 on its branch, not merged yet.
 
 **Backend paused, UI first (user decision, 2026-11-02):** after asking on
@@ -830,12 +865,14 @@ first, they picked the editor layout (Stage 18). Don't restart backend
 work unless asked. Product-Roadmap.md §3 keeps the backend stages; they
 are renumbered when they resume.
 
-* **UI candidates still open:** the home page,
-  resizable or collapsible panels (out of Stage 18's scope); outfit colors
-  for figures and more editable signs (out of Stage 19's scope). Per-object
+* **UI candidates still open:** the home page (recent dioramas on it, a
+  fuller landing); outfit colors for figures and more editable signs (out
+  of Stage 19's scope). Folding and resizable panels are Stage 21. Per-object
   colors and sign text, the roadmap's "before launch" item, are Stage 19.
-* **Open from Stage 20:** not tried in the user's own browser; PR not
-  opened (no GitHub CLI). Entering Preview with a saved narrow frame
+* **Open from Stage 21:** not tried in the user's own browser. A saved
+  view could store its visible size in meters, so it opens framed on any
+  screen (Stage 21 open question 4, declined for now).
+* **Open from Stage 20:** not tried in the user's own browser. Entering Preview with a saved narrow frame
   still crops the sides (Fit frames it). Preview candidates left: camera presets or
   a lens control in Preview, season in the bar.
 * **Open from Stage 19:** not tried in the user's own browser. The

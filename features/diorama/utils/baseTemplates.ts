@@ -1,9 +1,9 @@
-import type { CameraPreset, DioramaBase, DioramaEnvironment } from "../types/diorama.types";
+import type { DioramaBase, DioramaEnvironment } from "../types/diorama.types";
 import { DEFAULT_PLOT_SIZE, SURFACE_CELL, surfaceSize } from "./surfaceMap";
 
 /**
  * Everything the editor sizes to the diorama's base. One record per base,
- * so the ground, spawn area, grid, camera framing and shadow coverage
+ * so the ground, spawn area, grid, focus framing and shadow coverage
  * always agree with each other. All values are meters.
  */
 export interface BaseTemplate {
@@ -18,8 +18,6 @@ export interface BaseTemplate {
   spawnSpread: { start: number; step: number; max: number; jitter: number };
   /** Height of the editing grid, just above the walkable surface. */
   gridY: number;
-  /** Orthographic zoom (screen pixels per meter) of each camera preset. */
-  presetZoom: Record<CameraPreset, number>;
   /** "Focus selected" frames at least this radius around the selection. */
   focusRadius: number;
   /** Half-size of the sun's shadow frustum; smaller = sharper shadows. */
@@ -36,7 +34,6 @@ const CORNER_TEMPLATE: BaseTemplate = {
   spawnBounds: { minX: -7, maxX: 3, minZ: -7, maxZ: 3 },
   spawnSpread: { start: 1.2, step: 0.7, max: 4.5, jitter: 0.6 },
   gridY: 0.01,
-  presetZoom: { isometric: 34, front: 44, side: 44, top: 44 },
   focusRadius: 3,
   shadowExtent: 14,
 };
@@ -45,13 +42,12 @@ const CORNER_TEMPLATE: BaseTemplate = {
 const PLOT_SPAWN_INSET = 1;
 
 /**
- * The template of a plot `width` × `depth` meters. Its framing and shadow
- * coverage are the corner base's, scaled to the plot's size.
+ * The template of a plot `width` × `depth` meters. Its shadow
+ * coverage is the corner base's, scaled to the plot's size.
  */
 function createPlotTemplate(width: number, depth: number): BaseTemplate {
   const largest = Math.max(width, depth);
   const scale = CORNER_TEMPLATE.width / largest;
-  const { presetZoom } = CORNER_TEMPLATE;
   return {
     id: "plot",
     label: "Free plot",
@@ -66,12 +62,6 @@ function createPlotTemplate(width: number, depth: number): BaseTemplate {
     },
     spawnSpread: CORNER_TEMPLATE.spawnSpread,
     gridY: CORNER_TEMPLATE.gridY,
-    presetZoom: {
-      isometric: presetZoom.isometric * scale,
-      front: (presetZoom.front * CORNER_TEMPLATE.width) / width,
-      side: (presetZoom.side * CORNER_TEMPLATE.depth) / depth,
-      top: presetZoom.top * scale,
-    },
     focusRadius: CORNER_TEMPLATE.focusRadius,
     shadowExtent: CORNER_TEMPLATE.shadowExtent / scale,
   };

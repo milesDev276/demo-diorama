@@ -30,9 +30,7 @@ import { getBaseTemplate } from "../utils/baseTemplates";
 import { PHOTO_ASPECT_RATIOS } from "../utils/photo";
 import { skyGradient } from "../utils/timeOfDay";
 import { sceneLook } from "../utils/weather";
-
-/** Marks editor helpers that thumbnails leave out (ThumbnailCapture). */
-const EDITOR_ONLY = { editorOnly: true };
+import { EDITOR_ONLY } from "../utils/editorHelpers";
 
 /** The mat around a photo frame. */
 const MAT_COLOR = "#26201c";

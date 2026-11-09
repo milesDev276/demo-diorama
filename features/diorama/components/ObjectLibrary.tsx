@@ -238,7 +238,8 @@ export function ObjectLibrary() {
       {showGround && (
         <div className="flex flex-col gap-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-[#4A3421]/40">Ground</p>
-          <div className="grid grid-cols-4 gap-1.5">
+          {/* As many columns as the column's width holds (Stage 21 D5): four at the default width. */}
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(48px,1fr))] gap-1.5">
             {groundKinds.map((kind) => (
               <GroundCard key={kind} kind={kind} />
             ))}
@@ -257,7 +258,7 @@ export function ObjectLibrary() {
               {kitMessage}
             </p>
           )}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
             {items.map((item) => (
               <LibraryCard key={item.key} item={item} />
             ))}

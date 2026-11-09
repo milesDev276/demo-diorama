@@ -381,6 +381,13 @@ the bar is one row on a laptop screen, a narrower frame keeps the shot,
 Fit (F) frames the diorama, and a focus click shows where it landed
 ([Stage-20-Implementation.md](Stage-20-Implementation.md)).
 
+**Stage 21 — Room to work** (2026-11-09) makes the editor's workspace fit
+any desktop window: the camera presets, a Fit button (F) and a diorama
+opened for the first time frame the whole diorama in the canvas, the shot
+survives the canvas changing size, the side panels fold into rails (`\`)
+or are dragged wider, and the object list shows whole names and works from
+the keyboard ([Stage-21-Implementation.md](Stage-21-Implementation.md)).
+
 ---
 
 ## 4. Rules That Carry Over

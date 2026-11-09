@@ -12,6 +12,8 @@ import type {
   GroundBrushState,
   Kit,
   LeftPanelTab,
+  PanelLayout,
+  PanelSide,
   ObjectParams,
   FocusPing,
   PhotoApi,
@@ -30,6 +32,7 @@ import type {
   Weather,
 } from "../types/diorama.types";
 import { ASSET_REGISTRY, type LibraryCategory } from "../assets/assetRegistry";
+import { DEFAULT_PANEL_WIDTH } from "../utils/editorLayout";
 import {
   deltaToParentFrame,
   getSelectionCenter,
@@ -138,6 +141,8 @@ interface DioramaState {
   /** Follows the selection (see the subscription below the store), and can be chosen by hand. */
   rightTab: RightPanelTab;
   libraryCategory: LibraryCategory;
+  /** The side columns' widths and folding (plan/Stage-21-Implementation.md D4, D5). */
+  panels: Record<PanelSide, PanelLayout>;
 
   // --- Object CRUD ---
   /** Adds an object on the spawn spiral. Removing a building removes what is attached to it. */
@@ -277,6 +282,9 @@ interface DioramaState {
   setLeftTab: (tab: LeftPanelTab) => void;
   setRightTab: (tab: RightPanelTab) => void;
   setLibraryCategory: (category: LibraryCategory) => void;
+  setPanelLayout: (side: PanelSide, changes: Partial<PanelLayout>) => void;
+  /** Folds both side columns, or unfolds both when both are folded. */
+  togglePanels: () => void;
 }
 
 /** Snapshots `objects` and the ground onto the history stack. Shared by every atomic action. */
@@ -526,6 +534,10 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   leftTab: "library",
   rightTab: "scene",
   libraryCategory: "all",
+  panels: {
+    left: { width: DEFAULT_PANEL_WIDTH.left, folded: false },
+    right: { width: DEFAULT_PANEL_WIDTH.right, folded: false },
+  },
 
   addObject: (type, params) =>
     set((state) => {
@@ -1000,6 +1012,18 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   setLeftTab: (tab) => set({ leftTab: tab }),
   setRightTab: (tab) => set({ rightTab: tab }),
   setLibraryCategory: (category) => set({ libraryCategory: category }),
+  setPanelLayout: (side, changes) =>
+    set((state) => {
+      const current = state.panels[side];
+      const next = { ...current, ...changes };
+      if (next.width === current.width && next.folded === current.folded) return state;
+      return { panels: { ...state.panels, [side]: next } };
+    }),
+  togglePanels: () =>
+    set((state) => {
+      const folded = !(state.panels.left.folded && state.panels.right.folded);
+      return { panels: { left: { ...state.panels.left, folded }, right: { ...state.panels.right, folded } } };
+    }),
 }));
 
 const sameIds = (a: string[], b: string[]) => a.length === b.length && a.every((id, i) => id === b[i]);

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Undo2, Redo2, Move, RotateCw, Maximize2, Magnet, Grid3x3, Camera as CameraIcon, Crosshair } from "lucide-react";
+import { Undo2, Redo2, Move, RotateCw, Maximize2, Magnet, Grid3x3, Camera as CameraIcon, Scan } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useDioramaStore } from "../store/dioramaStore";
 import type { CameraPreset, TransformMode } from "../types/diorama.types";
@@ -172,11 +172,12 @@ export function EditorSubToolbar() {
         ))}
         <button
           type="button"
-          onClick={() => cameraApi?.resetCamera()}
-          title="Reset camera"
-          className="rounded-full p-1.5 text-[#4A3421]/60 transition-colors hover:bg-white/70 cursor-pointer"
+          onClick={() => cameraApi?.fitScene()}
+          title="Fit the whole diorama in view (F with nothing selected; F with a selection focuses it)"
+          className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-[#4A3421]/60 transition-colors hover:bg-white/70 focus-visible:outline-2 focus-visible:outline-[#F0B27A] cursor-pointer"
         >
-          <Crosshair size={14} />
+          <Scan size={13} aria-hidden />
+          Fit
         </button>
       </div>
     </motion.div>

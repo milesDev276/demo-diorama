@@ -14,6 +14,7 @@ import { MAX_RUN_PIECES } from "../utils/runParams";
 import { roadFrameAt } from "../utils/surfaceMap";
 import { collectSurfaces, isSliver, surfaceOwnerId, toPointer, worldNormal } from "../utils/surfacePicking";
 import { resolvePlacement, type SurfaceHit } from "../utils/surfaceSnap";
+import { EDITOR_ONLY } from "../utils/editorHelpers";
 import { AssetVisual } from "./DioramaObject";
 import { KitVisual } from "./KitVisual";
 import { SelectionRing } from "./SelectionRing";
@@ -233,11 +234,11 @@ function ActivePlacement({ placement }: { placement: Placement }) {
 
   return (
     <>
-      <group ref={ghostRef} visible={false}>
+      <group ref={ghostRef} visible={false} userData={EDITOR_ONLY}>
         <PlacementGhost placement={placement} />
       </group>
       {run?.map((piece, index) => (
-        <group key={index} position={piece.position} rotation={piece.rotation} scale={piece.scale}>
+        <group key={index} position={piece.position} rotation={piece.rotation} scale={piece.scale} userData={EDITOR_ONLY}>
           <PlacementGhost placement={placement} />
         </group>
       ))}

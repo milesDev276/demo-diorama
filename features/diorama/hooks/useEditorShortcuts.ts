@@ -19,10 +19,11 @@ const BRUSH_STEP = 1.2;
  * Ctrl+D            Duplicate selection
  * Ctrl+S            Save scene
  * Esc               Cancel placing, else end the scatter or ground brush, else clear selection
- * F                 Focus selected object(s)
+ * F                 Focus selected object(s); with nothing selected, fit the diorama
  * W / E / R         Move / Rotate / Scale mode (several objects move and rotate together)
  * R / Shift+R       While placing: turn the ghost by 45°
  * [ / ]             While brushing or painting ground: smaller / larger brush
+ * \                 Fold / unfold both side panels
  */
 export function useEditorShortcuts(enabled: boolean) {
   const selectedObjectIds = useDioramaStore((s) => s.selectedObjectIds);
@@ -88,6 +89,10 @@ export function useEditorShortcuts(enabled: boolean) {
       if (isMeta || event.altKey) return;
 
       const state = useDioramaStore.getState();
+      if (event.key === "\\") {
+        state.togglePanels();
+        return;
+      }
       if (state.brush && (event.key === "[" || event.key === "]")) {
         state.setBrushRadius(state.brushRadius * (event.key === "]" ? BRUSH_STEP : 1 / BRUSH_STEP));
         return;
@@ -104,6 +109,11 @@ export function useEditorShortcuts(enabled: boolean) {
 
       if (key === "f") {
         const state = useDioramaStore.getState();
+        // Nothing selected: frame the whole diorama (plan/Stage-21-Implementation.md D3).
+        if (!selectedObjectIds.length) {
+          state.cameraApi?.fitScene();
+          return;
+        }
         const byId = indexObjects(state.objects);
         const positions = state.objects
           .filter((o) => selectedObjectIds.includes(o.id))
