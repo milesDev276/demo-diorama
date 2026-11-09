@@ -156,6 +156,17 @@ export type LeftPanelTab = "library" | "objects";
 /** The tabs of the editor's right column (editor state, never saved). */
 export type RightPanelTab = "object" | "scene";
 
+/** The editor's two side columns: the library on the left, the inspector on the right. */
+export type PanelSide = "left" | "right";
+
+/** How one side column is laid out (editor state, remembered per browser: hooks/useEditorLayout.ts). */
+export interface PanelLayout {
+  /** CSS pixels, when unfolded. */
+  width: number;
+  /** Folded into a rail of tab icons. */
+  folded: boolean;
+}
+
 /** A saved group of objects that is placed in one go (utils/kits.ts). */
 export interface Kit {
   id: string;
@@ -307,10 +318,10 @@ export interface PhotoApi {
 
 /** Imperative bridge from UI/keyboard actions to the live R3F camera rig. */
 export interface CameraControlsApi {
+  /** Turns to the preset's direction and fits the diorama in the canvas. */
   setPreset: (preset: CameraPreset) => void;
-  resetCamera: () => void;
   focusOn: (positions: Vector3Tuple[]) => void;
-  /** Preview only: frames the base and everything on it from the current direction. */
+  /** Frames the base and everything on it from the current direction: in the canvas, or in Preview's photo frame. */
   fitScene: () => void;
 }
 

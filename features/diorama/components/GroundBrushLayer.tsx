@@ -5,6 +5,7 @@ import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { useDioramaStore } from "../store/dioramaStore";
 import { DIORAMA_COLORS } from "../utils/palette";
+import { EDITOR_ONLY } from "../utils/editorHelpers";
 import { brushStart, cellAt, levelAt, SURFACE_CELL, surfaceSize } from "../utils/surfaceMap";
 import { toPointer, worldNormal } from "../utils/surfacePicking";
 
@@ -148,7 +149,7 @@ function ActiveGroundBrush() {
   }, [gl, camera, scene]);
 
   return (
-    <group ref={highlightRef} visible={false} renderOrder={10}>
+    <group ref={highlightRef} visible={false} renderOrder={10} userData={EDITOR_ONLY}>
       <mesh rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[1, 1]} />
         <meshBasicMaterial color={DIORAMA_COLORS.selection} transparent opacity={0.3} depthTest={false} depthWrite={false} />

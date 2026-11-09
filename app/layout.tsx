@@ -22,7 +22,7 @@ export default function RootLayout({
     // hydrates; that is not a mismatch of ours, so it is not reported.
     // The flag covers these two elements' own attributes only.
     <html lang="en" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
-      <body className="flex h-full flex-col" suppressHydrationWarning>
+      <body className="flex min-h-full flex-col" suppressHydrationWarning>
         {children}
       </body>
     </html>

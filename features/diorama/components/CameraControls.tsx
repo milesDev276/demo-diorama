@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, OrthographicCamera, PerspectiveCamera } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -8,8 +8,10 @@ import * as THREE from "three";
 import { useDioramaStore } from "../store/dioramaStore";
 import { CAMERA_PRESETS, CAMERA_ZOOM_RANGE, DEFAULT_CAMERA_TARGET } from "../utils/cameraPresets";
 import { getBaseTemplate } from "../utils/baseTemplates";
-import { fitView, sceneFit } from "../utils/cameraFit";
+import { fitView, orthoFitView, sceneFit, type OrthoPose } from "../utils/cameraFit";
 import { useFrameDolly } from "../hooks/useFrameDolly";
+import { useCanvasResizeZoom } from "../hooks/useCanvasResizeZoom";
+import { useOpeningFit } from "../hooks/useOpeningFit";
 import type { CameraPreset, DioramaCameraState, Vector3Tuple } from "../types/diorama.types";
 
 /** Vertical field of view of the Preview camera — narrow, like a lens photographing a model. */
@@ -55,13 +57,17 @@ interface PreviewEntry {
 
 /**
  * The camera rig: an orthographic editing camera, a perspective Preview
- * camera and OrbitControls, plus an imperative API (presets, reset, focus)
+ * camera and OrbitControls, plus an imperative API (presets, Fit, focus)
  * registered into the store so toolbar buttons and keyboard shortcuts can
  * drive the camera without the store ever holding a live, per-frame position.
  *
  * The scene remembers one view (plan/Stage-14-Implementation.md D6): the rig
  * opens on it, goes to it when another scene is opened, and records it
  * again each time the camera comes to rest after a gesture or a preset.
+ *
+ * The presets, Fit and a diorama opened without a view frame the whole
+ * diorama in the canvas (plan/Stage-21-Implementation.md D1); such a view
+ * stays fitted through canvas size changes until the user changes it (D2).
  */
 export function CameraControls() {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
@@ -81,14 +87,22 @@ export function CameraControls() {
   const cameraRevision = useDioramaStore((s) => s.cameraRevision);
   // What the editing camera is created with: the view the scene was saved in, else the
   // isometric preset. Later changes animate through the rig instead of jumping with a changed prop.
+  // Without a saved view the first frame fits the diorama (useOpeningFit); the zoom here is a placeholder.
   const [initialView] = useState<DioramaCameraState>(
     () =>
       useDioramaStore.getState().camera ?? {
         position: CAMERA_PRESETS.isometric.position,
         target: DEFAULT_CAMERA_TARGET,
-        zoom: template.presetZoom.isometric,
+        zoom: 20,
       }
   );
+  const [opensWithoutView] = useState(() => !useDioramaStore.getState().camera);
+  // Whether the view is a fit the user has not changed since (D2).
+  const fittedRef = useRef(false);
+  const templateRef = useRef(template);
+  useLayoutEffect(() => {
+    templateRef.current = template;
+  }, [template]);
   const targetRef = useRef(new THREE.Vector3(...initialView.target));
   const framedTemplateRef = useRef(template);
   const openedRevisionRef = useRef(cameraRevision);
@@ -137,6 +151,71 @@ export function CameraControls() {
   // A narrower photo frame moves the Preview camera back, so the shot keeps what it showed (Stage 20 D3).
   const resetFrameBase = useFrameDolly(camera, size, { controlsRef, perspectiveRef, transitionRef, previewEntryRef }, DISTANCE_RANGE.max);
 
+  /** The orthographic view along `direction` (from the target toward the camera) that fits the diorama in the canvas now. */
+  const orthoFit = useCallback(
+    (direction: THREE.Vector3, distance: number): OrthoPose | null => {
+      const ortho = orthoRef.current;
+      const { scene, size: canvas } = getThree();
+      if (!ortho || !canvas.width || !canvas.height) return null;
+      const back = direction.clone().normalize();
+      const view = orthoFitView(sceneFit(scene, templateRef.current), back, ortho.up, canvas.width, canvas.height);
+      return {
+        position: view.target.clone().addScaledVector(back, distance),
+        target: view.target,
+        zoom: THREE.MathUtils.clamp(view.zoom, MIN_ZOOM, MAX_ZOOM),
+      };
+    },
+    [getThree]
+  );
+
+  /** Fits a fitted view to the canvas again at once; a glide toward a fit is retargeted instead. Not recorded. */
+  const refit = useCallback(() => {
+    const controls = controlsRef.current;
+    const ortho = orthoRef.current;
+    if (!controls || !ortho) return;
+    const glide = transitionRef.current;
+    if (glide) {
+      const pose = orthoFit(glide.toPos.clone().sub(glide.toTarget), glide.toPos.distanceTo(glide.toTarget));
+      if (!pose) return;
+      glide.toPos.copy(pose.position);
+      glide.toTarget.copy(pose.target);
+      glide.toZoom = pose.zoom;
+      return;
+    }
+    const pose = orthoFit(ortho.position.clone().sub(controls.target), ortho.position.distanceTo(controls.target));
+    if (!pose) return;
+    ortho.position.copy(pose.position);
+    ortho.zoom = pose.zoom;
+    ortho.updateProjectionMatrix();
+    controls.target.copy(pose.target);
+    controls.update();
+  }, [orthoFit]);
+
+  const resetResizeBase = useCanvasResizeZoom(camera, size, { orthoRef, transitionRef, fittedRef }, refit);
+
+  /** Glides to a fit the user did not ask for (late models): not recorded. */
+  const glideTo = useCallback(
+    (pose: OrthoPose) => {
+      const controls = controlsRef.current;
+      if (!controls) return;
+      transitionRef.current = {
+        fromPos: camera.position.clone(),
+        toPos: pose.position,
+        fromTarget: controls.target.clone(),
+        toTarget: pose.target,
+        fromZoom: camera.zoom,
+        toZoom: pose.zoom,
+        start: performance.now(),
+        duration: 450,
+        record: false,
+      };
+    },
+    [camera]
+  );
+
+  // A diorama without a saved view opens fitted, and the fit follows its models as they load (D1).
+  const openingFit = useOpeningFit(camera, { orthoRef, controlsRef, transitionRef, fittedRef }, orthoFit, glideTo, opensWithoutView);
+
   useEffect(() => {
     function startTransition(toPos: Vector3Tuple, toTarget: Vector3Tuple, toZoom: number, duration = 550, record = true) {
       const controls = controlsRef.current;
@@ -154,16 +233,27 @@ export function CameraControls() {
       };
     }
 
+    /** Glides to the fit along `direction`; the view counts as fitted from now on. */
+    function glideToFit(direction: THREE.Vector3, distance: number, duration: number, record: boolean) {
+      const pose = orthoFit(direction, distance);
+      if (!pose) return;
+      fittedRef.current = true;
+      resetResizeBase();
+      startTransition(pose.position.toArray(), pose.target.toArray(), pose.zoom, duration, record);
+    }
+
     function applyPreset(preset: CameraPreset, record = true) {
-      startTransition(CAMERA_PRESETS[preset].position, DEFAULT_CAMERA_TARGET, template.presetZoom[preset], 550, record);
+      const position = new THREE.Vector3(...CAMERA_PRESETS[preset].position);
+      glideToFit(position, position.length(), 550, record);
     }
 
     registerCameraApi({
       setPreset: applyPreset,
-      resetCamera: () => applyPreset("isometric"),
       focusOn: (positions) => {
         const controls = controlsRef.current;
         if (!controls || !positions.length) return;
+        fittedRef.current = false;
+        resetResizeBase();
 
         const box = new THREE.Box3();
         positions.forEach((p) => box.expandByPoint(new THREE.Vector3(...p)));
@@ -192,7 +282,16 @@ export function CameraControls() {
       fitScene: () => {
         const controls = controlsRef.current;
         const perspective = perspectiveRef.current;
-        if (!controls || !perspective || camera !== perspective) return;
+        const ortho = orthoRef.current;
+        if (!controls || !perspective || !ortho) return;
+        if (camera === ortho) {
+          // The editing camera: from the current direction, at the distance it stands at.
+          glideToFit(ortho.position.clone().sub(controls.target), ortho.position.distanceTo(controls.target), 450, true);
+          return;
+        }
+        if (camera !== perspective) return;
+        // Preview's camera fits the photo's frame; the editing view is no longer a fit of the canvas.
+        fittedRef.current = false;
         const direction = camera.position.clone().sub(controls.target);
         if (direction.lengthSq() === 0) direction.set(1, 1, 1);
         direction.normalize();
@@ -209,8 +308,15 @@ export function CameraControls() {
       openedRevisionRef.current = cameraRevision;
       framedTemplateRef.current = template;
       const view = useDioramaStore.getState().camera;
-      if (view) startTransition(view.position, view.target, view.zoom, 450, false);
-      else applyPreset("isometric", false);
+      if (view) {
+        fittedRef.current = false;
+        resetResizeBase();
+        startTransition(view.position, view.target, view.zoom, 450, false);
+      } else {
+        applyPreset("isometric", false);
+        // Its models are still loading: keep the fit following them for a while.
+        openingFit.follow();
+      }
     } else if (framedTemplateRef.current !== template) {
       // A different base, or a plot of another size: reframe it with its own presets.
       framedTemplateRef.current = template;
@@ -218,7 +324,7 @@ export function CameraControls() {
     }
 
     return () => registerCameraApi(null);
-  }, [camera, template, cameraRevision, registerCameraApi, getThree, resetFrameBase]);
+  }, [camera, template, cameraRevision, registerCameraApi, getThree, resetFrameBase, orthoFit, resetResizeBase, openingFit]);
 
   // The view as the editing camera sees it. In Preview that is the view leaving Preview would give.
   const recordView = () => {
@@ -248,6 +354,7 @@ export function CameraControls() {
   useFrame(() => {
     const controls = controlsRef.current;
     if (!controls) return;
+
     const transition = transitionRef.current;
 
     if (transition) {
@@ -305,7 +412,10 @@ export function CameraControls() {
         target={initialView.target}
         onStart={() => {
           settlingRef.current = false;
+          fittedRef.current = false;
+          openingFit.stop();
           resetFrameBase();
+          resetResizeBase();
         }}
         onEnd={() => {
           settlingRef.current = true;

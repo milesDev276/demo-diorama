@@ -1,6 +1,6 @@
 "use client";
 
-import { Lock } from "lucide-react";
+import { Lock, Mountain, SlidersHorizontal } from "lucide-react";
 import { useDioramaStore } from "../store/dioramaStore";
 import type { RightPanelTab } from "../types/diorama.types";
 import { objectLabel } from "../assets/assetRegistry";
@@ -8,10 +8,6 @@ import { EditorSidePanel, type SidePanelTab } from "./EditorSidePanel";
 import { ScenePanel } from "./ScenePanel";
 import { SelectionPanel } from "./SelectionPanel";
 
-const TABS: SidePanelTab<RightPanelTab>[] = [
-  { id: "object", label: "Object" },
-  { id: "scene", label: "Scene" },
-];
 
 /** Names what the open tab shows: the selected object, the size of a multi-selection, or the diorama. */
 function InspectorHeading({ tab }: { tab: RightPanelTab }) {
@@ -42,12 +38,23 @@ function InspectorHeading({ tab }: { tab: RightPanelTab }) {
 export function PropertiesPanel() {
   const tab = useDioramaStore((s) => s.rightTab);
   const setTab = useDioramaStore((s) => s.setRightTab);
+  const folded = useDioramaStore((s) => s.panels.right.folded);
+  const setPanelLayout = useDioramaStore((s) => s.setPanelLayout);
+  const hasSelection = useDioramaStore((s) => s.selectedObjectIds.length > 0);
+  // On the folded rail, a dot on Object says there is a selection to inspect (Stage 21 D4).
+  const tabs: SidePanelTab<RightPanelTab>[] = [
+    { id: "object", label: "Object", icon: SlidersHorizontal, dot: hasSelection },
+    { id: "scene", label: "Scene", icon: Mountain },
+  ];
 
   return (
     <EditorSidePanel
       label="Inspector"
       side="right"
-      tabs={TABS}
+      name="inspector"
+      folded={folded}
+      onFoldedChange={(next) => setPanelLayout("right", { folded: next })}
+      tabs={tabs}
       value={tab}
       onChange={setTab}
       heading={<InspectorHeading tab={tab} />}

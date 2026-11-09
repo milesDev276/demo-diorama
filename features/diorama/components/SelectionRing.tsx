@@ -2,6 +2,7 @@ import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Path, Shape, type Mesh, type MeshBasicMaterial } from "three";
 import { DIORAMA_COLORS } from "../utils/palette";
+import { EDITOR_ONLY } from "../utils/editorHelpers";
 
 interface SelectionRingProps {
   /** Locked objects get a muted, cooler ring so selection state reads as "safe to click, not to drag". */
@@ -38,9 +39,6 @@ function useStadiumShape(radius: number, length: number): Shape | null {
  * A soft glowing ring drawn under the selected object. Gently pulses so
  * selection reads clearly without being distracting.
  */
-/** Tells ThumbnailCapture to leave the ring out of thumbnails. */
-const EDITOR_ONLY = { editorOnly: true };
-
 export function SelectionRing({ locked = false, radius = 0.9, length = 0 }: SelectionRingProps) {
   const meshRef = useRef<Mesh>(null);
   const color = locked ? DIORAMA_COLORS.locked : DIORAMA_COLORS.selection;

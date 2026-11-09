@@ -77,14 +77,22 @@ async function main() {
       await cdp.evaluate("delete window.__dioramaStore; delete window.__dioramaThree");
       await cdp.send("Page.navigate", { url: starterUrl.href });
       await waitForEditor(starterUrl.href);
-      // A plot that is not square is framed by its longer side; fill the frame as the 16 m corner does.
+      // The pictures keep the framing they were made with before Stage 21, when the isometric
+      // preset had a fixed zoom (34 px/m on the 16 m corner) and looked at (0, 1.8, 0): so the
+      // pose is set outright rather than taken from the editor's fit. A plot that is not square
+      // fills the frame as the 16 m corner does. The 'start' event tells the rig a gesture
+      // framed the view, so its opening fit does not take it back.
       await cdp.evaluate(`(() => {
         const surface = window.__dioramaStore.getState().environment.surface;
-        const { camera } = window.__dioramaThree();
+        const { camera, controls } = window.__dioramaThree();
         const footprint = surface ? (surface.cols + surface.rows.length) * 0.5 : 32;
-        const longest = surface ? Math.max(surface.cols, surface.rows.length) * 0.5 : 16;
-        camera.zoom *= (32 / footprint) * (longest / 16) * ${ZOOM_SCALE};
+        controls.dispatchEvent({ type: "start" });
+        camera.position.set(48, 42, 48);
+        controls.target.set(0, 1.8, 0);
+        camera.zoom = 34 * (32 / footprint) * ${ZOOM_SCALE};
         camera.updateProjectionMatrix();
+        controls.update();
+        controls.dispatchEvent({ type: "end" });
       })()`);
       await sleep(300);
       // Preview first, the frame second: the camera switch must not see the canvas change shape.
