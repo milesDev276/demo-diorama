@@ -53,9 +53,17 @@ const SAVE_LABELS: Record<SaveState, string> = {
   failed: "Could not save",
 };
 
-/** Keys typed into these are theirs, not shortcuts. */
-const isFormField = (target: EventTarget | null) =>
-  target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName));
+const fitScene = () => useDioramaStore.getState().cameraApi?.fitScene();
+
+/** Input types that are not typed into: Esc and F still mean Preview's shortcuts while one has focus. */
+const UNTYPED_INPUTS = new Set(["range", "checkbox", "radio", "button", "submit", "reset", "color", "file"]);
+
+/** Keys typed into a text field are the field's, not shortcuts. A slider or a menu keeps the shortcuts. */
+const isTextEntry = (target: EventTarget | null) =>
+  target instanceof HTMLElement &&
+  (target.isContentEditable ||
+    target.tagName === "TEXTAREA" ||
+    (target instanceof HTMLInputElement && !UNTYPED_INPUTS.has(target.type)));
 
 /**
  * The photo studio's controls, one row along the bottom of Preview: the
@@ -72,35 +80,39 @@ export function PhotoBar({ onExit }: { onExit: () => void }) {
   const photo = useDioramaStore((s) => s.photo);
   const setPhoto = useDioramaStore((s) => s.setPhoto);
   const photoApi = useDioramaStore((s) => s.photoApi);
-  const setPhotoBarHeight = useDioramaStore((s) => s.setPhotoBarHeight);
+  const setPhotoBarClearance = useDioramaStore((s) => s.setPhotoBarClearance);
   const [save, setSave] = useState<SaveState>("idle");
+  const [savedSize, setSavedSize] = useState("");
+  const wrapRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
-
-  const fit = () => useDioramaStore.getState().cameraApi?.fitScene();
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (isFormField(event.target) || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (isTextEntry(event.target) || event.ctrlKey || event.metaKey || event.altKey) return;
       if (event.key === "Escape") onExit();
-      else if (event.key.toLowerCase() === "f") useDioramaStore.getState().cameraApi?.fitScene();
+      else if (event.key.toLowerCase() === "f") fitScene();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onExit]);
 
-  // The bar's height only changes when it wraps; the canvas makes room for it.
+  // The space from the bar's top edge to the bottom of the editor, measured from layout (offsets ignore the
+  // entrance animation's transform). It changes when the bar wraps or the window resizes; the canvas makes room.
   useLayoutEffect(() => {
     const bar = barRef.current;
-    if (!bar) return;
-    const report = () => setPhotoBarHeight(Math.ceil(bar.getBoundingClientRect().height));
+    const wrap = wrapRef.current;
+    const editor = wrap?.offsetParent;
+    if (!bar || !wrap || !(editor instanceof HTMLElement)) return;
+    const report = () => setPhotoBarClearance(Math.ceil(editor.clientHeight - (wrap.offsetTop + bar.offsetTop)));
     report();
     const observer = new ResizeObserver(report);
     observer.observe(bar);
+    observer.observe(editor);
     return () => {
       observer.disconnect();
-      setPhotoBarHeight(0);
+      setPhotoBarClearance(0);
     };
-  }, [setPhotoBarHeight]);
+  }, [setPhotoBarClearance]);
 
   useEffect(() => {
     if (save !== "saved" && save !== "failed") return;
@@ -112,7 +124,8 @@ export function PhotoBar({ onExit }: { onExit: () => void }) {
     if (!photoApi) return;
     setSave("saving");
     try {
-      await photoApi.savePhoto(photo.scale);
+      const { width, height } = await photoApi.savePhoto(photo.scale);
+      setSavedSize(`${width} × ${height}`);
       setSave("saved");
     } catch {
       setSave("failed");
@@ -126,6 +139,7 @@ export function PhotoBar({ onExit }: { onExit: () => void }) {
 
   return (
     <motion.div
+      ref={wrapRef}
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: 0.15 }}
@@ -148,7 +162,7 @@ export function PhotoBar({ onExit }: { onExit: () => void }) {
         />
         <button
           type="button"
-          onClick={fit}
+          onClick={fitScene}
           title="Fit the whole diorama in the frame (F)"
           className="flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium text-[#4A3421]/75 transition-colors hover:bg-[#4A3421]/5 hover:text-[#4A3421] focus-visible:outline-2 focus-visible:outline-[#F0B27A] cursor-pointer"
         >
@@ -200,7 +214,7 @@ export function PhotoBar({ onExit }: { onExit: () => void }) {
             {SAVE_LABELS[save]}
           </button>
           <span role="status" className="sr-only">
-            {save === "saved" ? `Photo saved, ${sizeLabel(photo.scale)} pixels` : save === "failed" ? "Could not save the photo" : ""}
+            {save === "saved" ? `Photo saved, ${savedSize} pixels` : save === "failed" ? "Could not save the photo" : ""}
           </span>
         </div>
       </div>

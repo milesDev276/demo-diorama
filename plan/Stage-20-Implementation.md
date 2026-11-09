@@ -156,6 +156,7 @@ and `photoBarHeight` are editor state.
 | `features/diorama/components/DioramaCanvas.tsx` | The Free canvas stops above the bar; the framed mat's bottom padding comes from `photoBarHeight` (D1) |
 | `features/diorama/components/CameraControls.tsx` | `fitScene()` in the camera API; dolly on a narrower aspect (D3) |
 | `features/diorama/utils/cameraFit.ts` (new, added while implementing) | What Fit frames and the view that frames it (D3) |
+| `features/diorama/hooks/useFrameDolly.ts` (new, added in review) | The frame-change dolly, out of `CameraControls` (D3) |
 | `features/diorama/components/PhotoStudio.tsx` | Reports the focus click's screen point for the ring (D4) |
 | `features/diorama/components/SegmentedControl.tsx` | Labels wrap only between words (D2) |
 | `features/diorama/components/DioramaEditor.tsx` | Mounts the overlay in Preview |
@@ -228,24 +229,27 @@ sharing; any change to the side panels, the assets or the scene format.
 
 ### What was built
 
-* **Store (editor state, never saved):** `photoBarHeight` (the bar's
-  measured height, 0 outside Preview) and `focusPing` (the last focus
-  click's viewport point and time), with `setPhotoBarHeight` and
-  `pingFocus`. The camera API gained `fitScene()`. Types: `FocusPing` in
+* **Store (editor state, never saved):** `photoBarClearance` (the space
+  from the bar's top edge to the bottom of the editor, measured; 0 outside
+  Preview) and `focusPing` (the last focus click's viewport point and
+  time), with `setPhotoBarClearance` and `pingFocus`. The camera API gained `fitScene()`. Types: `FocusPing` in
   `diorama.types.ts`.
 * **`DioramaCanvas`:** in Preview the canvas keeps clear of the bar by the
-  bar's height + 20 px (its inset) + 12 px (the gap). Free: the canvas
+  measured clearance + 12 px (the gap). Free: the canvas
   spans the window above that; behind the bar the sky gradient's last
   stop carries on, so there is no seam. Framed: the mat's bottom padding is
   the same clearance instead of a fixed 144 px. Until the bar has been
-  measured the clearance assumes its old two-row height (112 px).
+  measured the clearance assumes a two-row bar (132 px).
 * **`PhotoBar`:** one row: time of day and weather (icons with tooltips),
   frame and **Fit**, Blur and Exposure, the size menu and **Save photo**.
   The size menu lists pixel sizes ("2732 × 1368"); the button reads
   "Saving…", "Saved" (two seconds) or "Could not save" (in red), and a
   visually hidden status line announces the result. Every control is
-  `shrink-0`. Esc leaves Preview and F fits, except while focus is in the
-  size menu or a slider. A `ResizeObserver` reports the bar's height.
+  `shrink-0`. Esc leaves Preview and F fits, except while focus is in a
+  text field (there are none in Preview today); a slider or the size menu
+  keeps them. The bar reports its clearance from layout offsets (which the
+  entrance animation's transform does not touch), again whenever the bar
+  or the editor resizes.
 * **`PreviewOverlay` (new):** the "Back to editor" chip at the top-left;
   the help line ("Drag to turn · Scroll to zoom · Click to choose what
   stays sharp"), which fades after 4 s or at the first press on the
@@ -254,19 +258,26 @@ sharing; any change to the side panels, the assets or the scene format.
 * **`PhotoStudio`:** a focus click also calls `pingFocus` with the click's
   viewport point.
 * **`SegmentedControl`:** labels wrap only between words (the
-  `overflow-wrap: anywhere` of Stage 18 is gone).
+  `overflow-wrap: anywhere` of Stage 18 is gone; `break-word` was tried in
+  review and broke "Free" and "16:9" again, because segments share the
+  width equally).
 * **`CameraControls`:**
   * `fitScene()`: from the current viewing direction, the tightest view
     that holds every visible mesh with 6 % of the frame free on each side,
     in the rig's 450 ms glide; the view it ends in is recorded like any
     other.
-  * A frame choice that narrows the canvas moves the camera back by the
-    ratio of the aspects (ignored under 1 %). The Preview entry's
-    reference height is scaled by the same factor, so leaving Preview and
-    the recorded view keep the editing zoom.
+  * The frame-change dolly is `hooks/useFrameDolly.ts`: the camera stands
+    at the distance the shot was framed at (the *base*: the view when
+    Preview opened, after the last orbit or zoom gesture, or after Fit),
+    moved back by the ratio of the aspects whenever the frame is narrower
+    than the one it was framed in. Going back to a wider frame brings the
+    camera back, so switching frames never drifts. Changes under 1 % are
+    ignored. The Preview entry's reference height is scaled by the same
+    factor, so leaving Preview and the recorded view keep the editing
+    zoom.
 * **`utils/cameraFit.ts` (new):** `sceneFit(scene, template)` collects the
-  corners of every visible mesh's box, clipped to the base's outline (plus
-  0.6 m for the platform's rim) on X/Z; `fitView(...)` solves the target and
+  corners of every visible mesh's local box moved into the world, clamped
+  to the base's outline (plus 0.6 m for the platform's rim) on X/Z; `fitView(...)` solves the target and
   the distance in closed form (in camera axes the visibility conditions are
   linear in the camera's position).
 * **`scripts/capture-template.mjs`:** hides `[data-preview-overlay]`
@@ -275,6 +286,13 @@ sharing; any change to the side panels, the assets or the scene format.
 
 ### Deviations from the plan
 
+* **D3, a wider frame moves the camera closer again** (down to the
+  distance the shot was framed at), where the plan left it alone: the
+  review found that leaving it alone pushed the camera further away on
+  every round trip.
+* **D5, Esc and F work with focus on a slider or the size menu;** the plan
+  kept them from firing there. After dragging Blur the slider keeps focus,
+  and Esc then did nothing (review). Only text fields keep the keys.
 * **D3, only a frame choice moves the camera,** not the window or the
   panels resizing the canvas (the plan said a change of the window's
   shape would too). Entering Preview resizes the canvas in several steps
@@ -322,25 +340,28 @@ sharing; any change to the side panels, the assets or the scene format.
   The panels were checked with nothing selected and with the building
   selected (Stage 18's check).
 * **Behavior, real mouse and keyboard input, Residential Lane at
-  1366 × 768: 32 of 32 checks passed,** no page errors:
+  1366 × 768: 32 of 32 checks passed** (after the review fixes), no page
+  errors:
   * the help line shows on entry, fades by itself after about 4 s, shows
     again on the next entry and goes at the first press on the canvas;
   * Free → 4:5 (clicked): every mesh corner that was inside the frame is
-    still inside (the camera went from 59.2 to 147.7 m); 4:5 → 16:9 does
-    not move the camera;
+    still inside (the camera went from 59.2 to 147.7 m); 4:5 → Free comes
+    back to 59.15 m exactly; Free → 16:9 stands at the first distance ×
+    the aspect ratio (66.45 m) and 16:9 → 4:5 → 16:9 comes back to it;
   * F in 4:5, 16:9 and Free, from three directions each, and the Fit
     button: every visible mesh corner inside the frame, the outermost at
     exactly 0.88 of the half-frame (the 6 % margin), centered on the
     limiting axis (offset 0.000) and within 0.048 on the other;
   * the view recorded after Fit has Fit's target;
-  * F and Esc do nothing while the size menu has focus;
+  * F fits with focus on the size menu, and Esc leaves Preview with focus
+    on a slider;
   * saved PNGs are the size the menu shows (4:5 at 2×: 1056 × 1320;
     Free at 3×: 4098 × 2052); the button says "Saved", then "Save photo"
     again;
   * a focus click sets the focus and shows the ring, which has faded
     after 2 s; a photo saved while the ring showed is pixel-identical to
     one saved after (mean difference 0.000);
-  * "Back to editor" and Esc leave Preview;
+  * "Back to editor" leaves Preview;
   * Tab reaches "Back to editor", Fit and Save photo, each with a visible
     focus ring.
 * **The editing zoom survives a frame change:** Back Street, Preview,
@@ -353,12 +374,30 @@ sharing; any change to the side panels, the assets or the scene format.
 ### Known limitations
 
 * Not tried in the user's own browser.
-* A run of narrower frame choices moves the camera back each time, and a
-  wider one never brings it closer: 16:9 → 4:5 → 16:9 ends further away.
-  Fit (F) frames the diorama again.
 * Entering Preview with a saved narrow frame crops the sides (see
   Deviations).
 * The "Back to editor" chip sits over the canvas's top-left corner (it is
   never in the photo).
 * In headless Chrome the canvas takes its Preview size late (HANDOFF §5);
   the frame-change numbers above come from that browser.
+
+
+### Review (2026-11-09)
+
+A code review of the branch found ten points. Fixed: Esc and F did
+nothing with focus on a slider or the size menu (now only text fields keep
+them); switching frames back and forth pushed the camera further away each
+time (now a base distance, reset by a gesture or Fit); Fit took the world
+box of each mesh's box, which overstates turned objects (now the local
+box's corners moved into the world); the screen-reader message after a
+save gave the current size instead of the saved file's; the canvas copied
+the bar's 20 px inset by hand (the bar now measures its clearance); Fit's
+store call was written twice; `CameraControls` grew to 353 lines (the
+dolly moved to `useFrameDolly`; the file is 324 lines, against 300 on
+`main`). Tried and reverted: `break-word` for one-word labels wider than
+their segment (it broke "Free" and "16:9"; no current label is that
+wide). Kept: the photo bar's text-field check and the editor's shortcut
+check stay separate (the editor keeps its keys from every input, Preview
+only from text fields), and the dev thumbnail studio's bounds walker stays
+its own (vertex-exact for a dev tool; Fit needs speed and the base's
+outline).

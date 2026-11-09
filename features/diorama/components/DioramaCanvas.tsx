@@ -37,12 +37,10 @@ const EDITOR_ONLY = { editorOnly: true };
 /** The mat around a photo frame. */
 const MAT_COLOR = "#26201c";
 
-/** The photo bar floats this far above the window's bottom edge (PhotoBar `bottom-5`)… */
-const PHOTO_BAR_INSET = 20;
-/** …and the Preview canvas stops this far above the bar. */
+/** The Preview canvas stops this far above the photo bar. */
 const PHOTO_BAR_GAP = 12;
-/** Until the bar has been measured: its two-row height, so the first frame errs on the safe side. */
-const PHOTO_BAR_FALLBACK = 112;
+/** Until the bar has been measured: the space a two-row bar takes, so the first frame errs on the safe side. */
+const PHOTO_BAR_FALLBACK = 132;
 
 /**
  * `/diorama?dev=<flag>` dev aids: `blockout` swaps the scene for the hero
@@ -76,8 +74,8 @@ export function DioramaCanvas() {
   const look = sceneLook(timeOfDay, weather);
   const skyStyle = { background: skyGradient(look) };
   // In Preview the canvas never lies under the photo bar, so what is on screen is what is saved (Stage 20 D1).
-  const photoBarHeight = useDioramaStore((s) => s.photoBarHeight);
-  const barClearance = (photoBarHeight || PHOTO_BAR_FALLBACK) + PHOTO_BAR_INSET + PHOTO_BAR_GAP;
+  const photoBarClearance = useDioramaStore((s) => s.photoBarClearance);
+  const barClearance = (photoBarClearance || PHOTO_BAR_FALLBACK) + PHOTO_BAR_GAP;
   const outerStyle: CSSProperties = !isPreviewMode
     ? skyStyle
     : frameRatio

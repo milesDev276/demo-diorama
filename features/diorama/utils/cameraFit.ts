@@ -17,46 +17,50 @@ export interface SceneFit {
 
 /**
  * What a Fit frames: every visible mesh in the scene — the base, the
- * platform and everything on it — as the corners of each mesh's own box,
- * so a tall, thin utility pole does not count as a tall block over the
- * whole base. The boxes are clipped to the base's outline on X/Z, so wires
- * that the material cuts off at the edge (and anything else past it) do
- * not widen the shot. Points and lines (rain, snow) are left out.
+ * platform and everything on it — as the corners of each mesh's own local
+ * box moved into the world, so a tall, thin utility pole does not count as
+ * a tall block over the whole base and a turned house keeps its footprint.
+ * The corners are clamped to the base's outline on X/Z, so wires that the
+ * material cuts off at the edge (and anything else past it) do not widen
+ * the shot. Points and lines (rain, snow) are left out.
  */
 export function sceneFit(scene: THREE.Object3D, template: Pick<BaseTemplate, "width" | "depth">): SceneFit {
   const halfWidth = template.width / 2 + RIM;
   const halfDepth = template.depth / 2 + RIM;
+  const points: THREE.Vector3[] = [];
+  const all = new THREE.Box3();
+  const addCorners = (box: THREE.Box3, matrix?: THREE.Matrix4) => {
+    for (let i = 0; i < 8; i++) {
+      const point = new THREE.Vector3(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z);
+      if (matrix) point.applyMatrix4(matrix);
+      // Clipped to the outline, as the wire material clips the wires.
+      point.set(
+        THREE.MathUtils.clamp(point.x, -halfWidth, halfWidth),
+        Math.max(point.y, CORNER.plinthBottom),
+        THREE.MathUtils.clamp(point.z, -halfDepth, halfDepth)
+      );
+      points.push(point);
+      all.expandByPoint(point);
+    }
+  };
+
   // The base itself is always in the shot, also when nothing has been measured yet.
-  const boxes = [
-    new THREE.Box3(new THREE.Vector3(-halfWidth, CORNER.plinthBottom, -halfDepth), new THREE.Vector3(halfWidth, 0, halfDepth)),
-  ];
+  addCorners(new THREE.Box3(new THREE.Vector3(-halfWidth, CORNER.plinthBottom, -halfDepth), new THREE.Vector3(halfWidth, 0, halfDepth)));
 
   scene.traverseVisible((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh || !mesh.geometry) return;
-    const box = new THREE.Box3();
     const instanced = object as THREE.InstancedMesh;
     if (instanced.isInstancedMesh) {
       if (!instanced.boundingBox) instanced.computeBoundingBox();
-      box.copy(instanced.boundingBox!);
+      addCorners(instanced.boundingBox!, mesh.matrixWorld);
     } else {
       if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
-      box.copy(mesh.geometry.boundingBox!);
+      // The local box's own corners, moved into the world: a turned object keeps its real footprint.
+      addCorners(mesh.geometry.boundingBox!, mesh.matrixWorld);
     }
-    box.applyMatrix4(mesh.matrixWorld);
-    box.min.set(Math.max(box.min.x, -halfWidth), Math.max(box.min.y, CORNER.plinthBottom), Math.max(box.min.z, -halfDepth));
-    box.max.set(Math.min(box.max.x, halfWidth), box.max.y, Math.min(box.max.z, halfDepth));
-    if (!box.isEmpty()) boxes.push(box);
   });
 
-  const all = new THREE.Box3();
-  const points: THREE.Vector3[] = [];
-  for (const box of boxes) {
-    all.union(box);
-    for (let i = 0; i < 8; i++) {
-      points.push(new THREE.Vector3(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z));
-    }
-  }
   return { center: all.getCenter(new THREE.Vector3()), points };
 }
 

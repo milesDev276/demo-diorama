@@ -23,7 +23,9 @@ interface SegmentedControlProps<T extends string> {
 /**
  * A row of mutually exclusive choices, one of them on. The segments share
  * the width; a label that does not fit wraps between words instead of
- * pushing the row wider than its container. A single word is never broken.
+ * pushing the row wider than its container. A single word is never broken
+ * (segments share the width equally, so `break-word` would break the longer
+ * labels of a row, such as "Free" and "16:9" in the photo bar).
  */
 export function SegmentedControl<T extends string>({ label, options, value, onChange, compact = false, className }: SegmentedControlProps<T>) {
   return (

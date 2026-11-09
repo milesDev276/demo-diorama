@@ -9,6 +9,7 @@ import { useDioramaStore } from "../store/dioramaStore";
 import { CAMERA_PRESETS, CAMERA_ZOOM_RANGE, DEFAULT_CAMERA_TARGET } from "../utils/cameraPresets";
 import { getBaseTemplate } from "../utils/baseTemplates";
 import { fitView, sceneFit } from "../utils/cameraFit";
+import { useFrameDolly } from "../hooks/useFrameDolly";
 import type { CameraPreset, DioramaCameraState, Vector3Tuple } from "../types/diorama.types";
 
 /** Vertical field of view of the Preview camera — narrow, like a lens photographing a model. */
@@ -18,9 +19,6 @@ const { min: MIN_ZOOM, max: MAX_ZOOM } = CAMERA_ZOOM_RANGE;
 
 /** Orbit distance limits (meters), shared by OrbitControls and Fit. */
 const DISTANCE_RANGE = { min: 8, max: 400 } as const;
-
-/** A frame change narrower than this ratio moves nothing (rounding of the canvas size). */
-const ASPECT_TOLERANCE = 1.01;
 
 /** The camera counts as at rest when it moved less than this (meters, and zoom) since the last frame. */
 const REST_EPSILON = 1e-5;
@@ -136,37 +134,8 @@ export function CameraControls() {
     controls.update();
   }, [camera]);
 
-  // Choosing a narrower photo frame moves the Preview camera back by the change in aspect, so what was
-  // visible across the frame stays visible; a wider one leaves it where it is (plan/Stage-20-Implementation.md
-  // D3). Only a frame choice does this, not the window or the panels resizing the canvas.
-  const lastFrameRef = useRef<{ camera: THREE.Camera; aspect: number; frame: string } | null>(null);
-  useLayoutEffect(() => {
-    const aspect = size.width / size.height;
-    const frame = useDioramaStore.getState().photo.aspect;
-    const last = lastFrameRef.current;
-    // The frame is chosen a render before the canvas takes its shape: wait for the shape.
-    if (last && last.camera === camera && Math.abs(aspect - last.aspect) < 1e-4) return;
-    lastFrameRef.current = { camera, aspect, frame };
-    const controls = controlsRef.current;
-    const perspective = perspectiveRef.current;
-    if (!controls || !perspective || camera !== perspective || last?.camera !== perspective || last.frame === frame) return;
-    const ratio = last.aspect / aspect;
-    if (!Number.isFinite(ratio) || ratio < ASPECT_TOLERANCE) return;
-
-    const target = controls.target;
-    const distance = perspective.position.distanceTo(target);
-    const factor = Math.min(distance * ratio, DISTANCE_RANGE.max) / distance;
-    const moveBack = (point: THREE.Vector3, about: THREE.Vector3) => point.sub(about).multiplyScalar(factor).add(about);
-    moveBack(perspective.position, target);
-    const transition = transitionRef.current;
-    if (transition) {
-      moveBack(transition.fromPos, transition.fromTarget);
-      moveBack(transition.toPos, transition.toTarget);
-    }
-    // Not the user dollying: the editing zoom that leaving Preview gives (and the recorded view) stays.
-    if (previewEntryRef.current) previewEntryRef.current.height *= factor;
-    controls.update();
-  }, [camera, size]);
+  // A narrower photo frame moves the Preview camera back, so the shot keeps what it showed (Stage 20 D3).
+  const resetFrameBase = useFrameDolly(camera, size, { controlsRef, perspectiveRef, transitionRef, previewEntryRef }, DISTANCE_RANGE.max);
 
   useEffect(() => {
     function startTransition(toPos: Vector3Tuple, toTarget: Vector3Tuple, toZoom: number, duration = 550, record = true) {
@@ -230,6 +199,7 @@ export function CameraControls() {
         const view = fitView(sceneFit(getThree().scene, template), direction, camera.up, perspective.fov, perspective.aspect);
         const distance = THREE.MathUtils.clamp(view.distance, DISTANCE_RANGE.min, DISTANCE_RANGE.max);
         const position = view.target.clone().addScaledVector(direction, distance);
+        resetFrameBase();
         startTransition(position.toArray(), view.target.toArray(), camera.zoom, 450);
       },
     });
@@ -248,7 +218,7 @@ export function CameraControls() {
     }
 
     return () => registerCameraApi(null);
-  }, [camera, template, cameraRevision, registerCameraApi, getThree]);
+  }, [camera, template, cameraRevision, registerCameraApi, getThree, resetFrameBase]);
 
   // The view as the editing camera sees it. In Preview that is the view leaving Preview would give.
   const recordView = () => {
@@ -335,6 +305,7 @@ export function CameraControls() {
         target={initialView.target}
         onStart={() => {
           settlingRef.current = false;
+          resetFrameBase();
         }}
         onEnd={() => {
           settlingRef.current = true;

@@ -509,8 +509,9 @@ Stage 19:
 Stage 20:
 
 * **In Preview the canvas never lies under the photo bar.** The bar
-  reports its height (`photoBarHeight`, editor state) and `DioramaCanvas`
-  keeps that much + 32 px clear below the canvas in every frame. A new
+  reports its clearance (`photoBarClearance`, editor state: its top edge to
+  the editor's bottom) and `DioramaCanvas` keeps that much + 12 px clear
+  below the canvas in every frame. A new
   control in the bar changes nothing else; a second row only makes the
   canvas shorter.
 * **Whatever floats over Preview carries `data-preview-overlay`**
@@ -519,10 +520,12 @@ Stage 20:
 * **Fit is `cameraApi.fitScene()`,** Preview only: `utils/cameraFit.ts`
   frames the corners of every visible mesh's box, clipped to the base's
   outline, from the current direction, in closed form (`fitView`).
-* **Only a frame choice moves the Preview camera** (back, by the ratio of
-  the aspects, when the frame narrows); window and panel resizes do not.
-  The Preview entry's reference height scales with it, so the editing
-  zoom and the recorded view do not change.
+* **Only a frame choice moves the Preview camera** (`hooks/useFrameDolly.ts`):
+  it stands at the distance the shot was framed at, moved back by the ratio
+  of the aspects when the frame is narrower than that one; a gesture or Fit
+  sets that distance again. Window and panel resizes move nothing. The
+  Preview entry's reference height scales with it, so the editing zoom and
+  the recorded view do not change.
 * **Segment labels never break inside a word** (`SegmentedControl`).
 * **The starter images were rendered before Stage 20.** Rendering them
   now differs by resampling only (mean 1.8–2.0, edges only), because the
@@ -832,9 +835,8 @@ are renumbered when they resume.
   for figures and more editable signs (out of Stage 19's scope). Per-object
   colors and sign text, the roadmap's "before launch" item, are Stage 19.
 * **Open from Stage 20:** not tried in the user's own browser; PR not
-  opened (no GitHub CLI). Narrower frames move the camera back and wider
-  ones never closer (Fit resets it); entering Preview with a saved narrow
-  frame still crops the sides. Preview candidates left: camera presets or
+  opened (no GitHub CLI). Entering Preview with a saved narrow frame
+  still crops the sides (Fit frames it). Preview candidates left: camera presets or
   a lens control in Preview, season in the bar.
 * **Open from Stage 19:** not tried in the user's own browser. The
   umbrella figure is not paintable (clear vinyl canopy).
