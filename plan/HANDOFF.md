@@ -585,7 +585,7 @@ Stage 22:
   so the active-card match (`placement.params === item.params`) holds in
   both places. A card records itself when it starts something, from the
   pointer or the keyboard; a deleted kit leaves Recent at once.
-* **A sticky header has a background only while stuck** (`useStuck`): the
+* **A sticky header has a background only while stuck** (`hooks/useStuckSection.ts`, one tracker for the list): the
   panel is translucent over the page gradient, so a constant strip shows
   as a band.
 
