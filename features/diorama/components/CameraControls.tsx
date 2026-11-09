@@ -168,7 +168,16 @@ export function CameraControls() {
     [getThree]
   );
 
-  /** Fits a fitted view to the canvas again at once; a glide toward a fit is retargeted instead. Not recorded. */
+  /**
+   * A view the canvas changed (D2) is recorded when it comes to rest, so the saved view is what was
+   * last on screen — but only for a scene that already has a saved view: one that was never framed
+   * keeps opening fitted.
+   */
+  const recordIfSaved = useCallback(() => {
+    if (useDioramaStore.getState().camera) settlingRef.current = true;
+  }, []);
+
+  /** Fits a fitted view to the canvas again at once; a glide toward a fit is retargeted instead. */
   const refit = useCallback(() => {
     const controls = controlsRef.current;
     const ortho = orthoRef.current;
@@ -189,9 +198,10 @@ export function CameraControls() {
     ortho.updateProjectionMatrix();
     controls.target.copy(pose.target);
     controls.update();
-  }, [orthoFit]);
+    recordIfSaved();
+  }, [orthoFit, recordIfSaved]);
 
-  const resetResizeBase = useCanvasResizeZoom(camera, size, { orthoRef, transitionRef, fittedRef }, refit);
+  const resetResizeBase = useCanvasResizeZoom(camera, size, { orthoRef, transitionRef, fittedRef }, refit, recordIfSaved);
 
   /** Glides to a fit the user did not ask for (late models): not recorded. */
   const glideTo = useCallback(

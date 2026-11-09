@@ -56,6 +56,8 @@ export function sceneFit(scene: THREE.Object3D, template: Pick<BaseTemplate, "wi
   // The base itself is always in the shot, also when nothing has been measured yet.
   addCorners(new THREE.Box3(new THREE.Vector3(-halfWidth, CORNER.plinthBottom, -halfDepth), new THREE.Vector3(halfWidth, 0, halfDepth)));
 
+  // World matrices as they will be drawn: a fit can run before the frame's render has updated them.
+  scene.updateMatrixWorld();
   // Visible objects only, and never the editor's helpers (the grid, the gizmo, rings, ghosts) or anything under them.
   const visit = (object: THREE.Object3D) => {
     if (!object.visible || isEditorHelper(object)) return;

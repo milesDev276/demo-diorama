@@ -546,7 +546,12 @@ Stage 21:
   change fits again (`hooks/useCanvasResizeZoom.ts`). Any other view only
   zooms out when the canvas shrinks, against a base taken at the last
   gesture, so round trips do not drift. Off in Preview and for 300 ms of a
-  steady canvas after leaving it. Size changes are never recorded.
+  steady canvas after the editor opens or Preview closes. A view the canvas
+  changed is recorded once it rests, but only if the scene already has a
+  saved view.
+* **Stored column widths give way on a narrow window**
+  (`fitColumnWidths`), so the canvas keeps 480 px where the columns'
+  minimums allow; the stored widths are kept.
 * **Editor-only drawings carry `EDITOR_ONLY`** (`utils/editorHelpers.ts`):
   the grid, selection rings, the brush ring, the ground-brush highlight,
   the placement ghost; the gizmo is matched by `isTransformControls`.

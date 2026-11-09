@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { cn } from "@/lib/cn";
 import { useDioramaStore } from "../store/dioramaStore";
 import type { PanelSide } from "../types/diorama.types";
@@ -10,6 +10,8 @@ interface PanelResizeHandleProps {
   side: PanelSide;
   /** What the column is called, for assistive technology: "Library", "Inspector". */
   label: string;
+  /** The column's width as shown, which a narrow window can make less than its stored width. */
+  width: number;
   /** The canvas column's current width, so a drag stops before the canvas gets too narrow. */
   getCanvasWidth: () => number;
   /** Told when a drag starts and ends, so the column follows the pointer without its width animation. */
@@ -23,8 +25,7 @@ interface PanelResizeHandleProps {
  * jump to the narrowest and the widest. It sits in the gap between the
  * column and the canvas.
  */
-export function PanelResizeHandle({ side, label, getCanvasWidth, onDraggingChange }: PanelResizeHandleProps) {
-  const width = useDioramaStore((s) => s.panels[side].width);
+export function PanelResizeHandle({ side, label, width, getCanvasWidth, onDraggingChange }: PanelResizeHandleProps) {
   const setPanelLayout = useDioramaStore((s) => s.setPanelLayout);
   const dragRef = useRef<{ pointerId: number; startX: number; startWidth: number; max: number } | null>(null);
   const { min, max } = PANEL_WIDTH_RANGE[side];
@@ -56,6 +57,18 @@ export function PanelResizeHandle({ side, label, getCanvasWidth, onDraggingChang
     onDraggingChange(false);
   };
 
+  // Folding the column (\) mid-drag unmounts the edge before the pointer is released.
+  const onDraggingChangeRef = useRef(onDraggingChange);
+  useEffect(() => {
+    onDraggingChangeRef.current = onDraggingChange;
+  }, [onDraggingChange]);
+  useEffect(
+    () => () => {
+      if (dragRef.current) onDraggingChangeRef.current(false);
+    },
+    []
+  );
+
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "ArrowLeft") resize(width - direction * PANEL_WIDTH_STEP);
     else if (event.key === "ArrowRight") resize(width + direction * PANEL_WIDTH_STEP);
@@ -79,6 +92,7 @@ export function PanelResizeHandle({ side, label, getCanvasWidth, onDraggingChang
       onPointerMove={handlePointerMove}
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
+      onLostPointerCapture={endDrag}
       onDoubleClick={() => resize(DEFAULT_PANEL_WIDTH[side])}
       onKeyDown={handleKeyDown}
       className={cn(

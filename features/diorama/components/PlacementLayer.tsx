@@ -238,7 +238,7 @@ function ActivePlacement({ placement }: { placement: Placement }) {
         <PlacementGhost placement={placement} />
       </group>
       {run?.map((piece, index) => (
-        <group key={index} position={piece.position} rotation={piece.rotation} scale={piece.scale}>
+        <group key={index} position={piece.position} rotation={piece.rotation} scale={piece.scale} userData={EDITOR_ONLY}>
           <PlacementGhost placement={placement} />
         </group>
       ))}

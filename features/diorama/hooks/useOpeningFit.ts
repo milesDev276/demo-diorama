@@ -1,4 +1,4 @@
-import { useCallback, useRef, type RefObject } from "react";
+import { useCallback, useMemo, useRef, type RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import type * as THREE from "three";
@@ -80,5 +80,5 @@ export function useOpeningFit(
     }
   });
 
-  return { follow, stop };
+  return useMemo(() => ({ follow, stop }), [follow, stop]);
 }

@@ -54,3 +54,34 @@ export function writeStoredLayout(panels: Record<PanelSide, PanelLayout>) {
     // storage blocked or full: the layout is simply not remembered
   }
 }
+
+/** The editor's main row: its padding on each side and the gap each side column adds (Tailwind `sm:p-6`, `sm:gap-4`). */
+const ROW_PADDING = 24;
+const COLUMN_GAP = 16;
+
+interface ColumnSpec {
+  /** The width it asks for: its stored width, or the rail when folded. */
+  width: number;
+  /** How narrow it may be made: its range's minimum, or the rail. */
+  min: number;
+  /** Whether the window is wide enough to show it at all. */
+  shown: boolean;
+}
+
+/**
+ * The widths the side columns get in a main row `rowWidth` pixels wide:
+ * what they ask for, unless that would leave the canvas narrower than
+ * MIN_CANVAS_WIDTH — then both give up width toward their minimums, in
+ * proportion to what each can spare. Stored widths are not changed, so a
+ * wider window gives the columns their width back.
+ */
+export function fitColumnWidths(rowWidth: number, left: ColumnSpec, right: ColumnSpec): Record<PanelSide, number> {
+  const columns = [left, right].filter((column) => column.shown);
+  const asked = columns.reduce((sum, column) => sum + column.width, 0);
+  const over = asked - (rowWidth - 2 * ROW_PADDING - columns.length * COLUMN_GAP - MIN_CANVAS_WIDTH);
+  const spare = columns.reduce((sum, column) => sum + Math.max(0, column.width - column.min), 0);
+  if (!rowWidth || over <= 0 || spare <= 0) return { left: left.width, right: right.width };
+  const cut = Math.min(over, spare) / spare;
+  const fit = (column: ColumnSpec) => Math.round(column.width - Math.max(0, column.width - column.min) * cut);
+  return { left: fit(left), right: fit(right) };
+}

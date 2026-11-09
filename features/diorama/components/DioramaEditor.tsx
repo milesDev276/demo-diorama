@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertTriangle, LayoutGrid, ListTree, X } from "lucide-react";
 import { EditorToolbar } from "./EditorToolbar";
@@ -20,7 +20,7 @@ import type { LeftPanelTab } from "../types/diorama.types";
 import { useEditorShortcuts } from "../hooks/useEditorShortcuts";
 import { useAutoSave } from "../hooks/useAutoSave";
 import { useEditorLayout } from "../hooks/useEditorLayout";
-import { RAIL_WIDTH } from "../utils/editorLayout";
+import { fitColumnWidths, PANEL_WIDTH_RANGE, RAIL_WIDTH } from "../utils/editorLayout";
 import { useOpenDiorama } from "@/features/dioramas/hooks/useOpenDiorama";
 import { useDioramaLauncher } from "@/features/dioramas/hooks/useDioramaLauncher";
 
@@ -80,11 +80,28 @@ function EditorWorkspace() {
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasColumnRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
   const panels = useDioramaStore((s) => s.panels);
   // While an edge is dragged, its column follows the pointer instead of animating to each width.
   const [dragging, setDragging] = useState(false);
   const getCanvasWidth = useCallback(() => canvasColumnRef.current?.clientWidth ?? 0, []);
-  const columnWidth = (side: "left" | "right") => (panels[side].folded ? RAIL_WIDTH : panels[side].width);
+  // The main row's width and the window's, so stored widths never crowd the canvas under its minimum (D5).
+  const [row, setRow] = useState({ width: 0, window: 0 });
+  useEffect(() => {
+    const main = mainRef.current;
+    if (!main) return;
+    const measure = () => setRow({ width: main.clientWidth, window: window.innerWidth });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(main);
+    return () => observer.disconnect();
+  }, []);
+  // The breakpoints at which the columns show at all (Tailwind md and lg, below).
+  const columnSpec = (side: "left" | "right", shown: boolean) =>
+    panels[side].folded
+      ? { width: RAIL_WIDTH, min: RAIL_WIDTH, shown }
+      : { width: panels[side].width, min: PANEL_WIDTH_RANGE[side].min, shown };
+  const columnWidths = fitColumnWidths(row.width, columnSpec("left", row.window >= 768), columnSpec("right", row.window >= 1024));
   const columnTransition = { duration: dragging ? 0 : 0.25, ease: "easeOut" } as const;
 
   useEditorShortcuts(!isPreview);
@@ -148,6 +165,7 @@ function EditorWorkspace() {
       </AnimatePresence>
 
       <main
+        ref={mainRef}
         className={
           isPreview
             ? "flex flex-1 overflow-hidden p-0"
@@ -159,7 +177,7 @@ function EditorWorkspace() {
             <motion.div
               key="library"
               initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: columnWidth("left") }}
+              animate={{ opacity: 1, width: columnWidths.left }}
               exit={{ opacity: 0, width: 0 }}
               transition={columnTransition}
               className="hidden shrink-0 overflow-hidden md:block"
@@ -169,7 +187,7 @@ function EditorWorkspace() {
           )}
         </AnimatePresence>
         {!isPreview && !panels.left.folded && (
-          <PanelResizeHandle side="left" label="Library" getCanvasWidth={getCanvasWidth} onDraggingChange={setDragging} />
+          <PanelResizeHandle side="left" label="Library" width={columnWidths.left} getCanvasWidth={getCanvasWidth} onDraggingChange={setDragging} />
         )}
 
         <div ref={canvasColumnRef} className="min-w-0 flex-1">
@@ -177,7 +195,7 @@ function EditorWorkspace() {
         </div>
 
         {!isPreview && !panels.right.folded && (
-          <PanelResizeHandle side="right" label="Inspector" getCanvasWidth={getCanvasWidth} onDraggingChange={setDragging} />
+          <PanelResizeHandle side="right" label="Inspector" width={columnWidths.right} getCanvasWidth={getCanvasWidth} onDraggingChange={setDragging} />
         )}
 
         <AnimatePresence>
@@ -185,7 +203,7 @@ function EditorWorkspace() {
             <motion.div
               key="properties"
               initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: columnWidth("right") }}
+              animate={{ opacity: 1, width: columnWidths.right }}
               exit={{ opacity: 0, width: 0 }}
               transition={columnTransition}
               className="hidden shrink-0 overflow-hidden lg:block"

@@ -127,7 +127,8 @@ export function ObjectList() {
 
             <div
               className={cn(
-                "absolute inset-y-0 right-0 flex items-center gap-0.5 rounded-r-xl pl-5 pr-1.5 transition-opacity",
+                // The strip lets clicks through to the row; only its buttons take them.
+                "pointer-events-none absolute inset-y-0 right-0 flex items-center gap-0.5 rounded-r-xl pl-5 pr-1.5 transition-opacity [&>button]:pointer-events-auto",
                 isSelected
                   ? "bg-[linear-gradient(to_right,transparent,#F8E6D5_1.25rem)] opacity-100"
                   : "bg-[linear-gradient(to_right,transparent,#FDFBF8_1.25rem)] opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"

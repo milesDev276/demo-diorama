@@ -406,12 +406,52 @@ assets, the scene format or the photo export.
 * **D5, state in the store, persistence in the hook:** the plan put the
   layout's state in `useEditorLayout`; the store holds it so the `\`
   shortcut, the rails and the handles share it.
+* **D2, a view the canvas changed is recorded** once it rests (review
+  fix 6), where the plan recorded nothing; a diorama with no saved view
+  still records nothing.
 * **D6, the list has four Tab stops in one row** (the row's main button
   and its eye, lock and delete), not one: the controls must be reachable
   from the keyboard, and only the row holding the Tab stop exposes them.
 * **D4, the tabs size to their labels** (`grow basis-auto`) instead of
   sharing the width equally: with the fold button in the tab bar, "Objects
   73" no longer fitted in half of it at 256 px.
+
+### Review fixes (`/code-review high`, 2026-11-09)
+
+Ten findings, all fixed and checked with real input:
+
+1. **Opening a saved view could zoom it out:** the side columns slide in
+   from width 0 when the editor opens, and that shrink counted as a
+   resize. The resize rules now also wait for the canvas to settle after
+   the editor opens (300 ms of one size), as they did after Preview. A
+   saved view on a 1600 × 1000 window reopens identical.
+2. **A resize during a glide took its base from the zoom the glide was
+   passing through;** it now takes the zoom the glide is heading for, and
+   retargets only that.
+3. **`useOpeningFit` returned a new object every render,** so the camera
+   API was unregistered and registered again on every canvas resize;
+   memoized.
+4. **The first-frame fit read world matrices before the frame's render
+   had updated them;** `sceneFit` updates them first.
+5. **Stored widths could crowd the canvas on a narrower window:**
+   `fitColumnWidths` (in `editorLayout.ts`) narrows both columns toward
+   their minimums, in proportion, so the canvas keeps 480 px (420/420
+   stored: canvas 680 px at 1600, 480 px at 1100); stored widths are kept
+   for wider windows. The edge drags from the width shown.
+6. **A refit was never recorded,** so after folding the panels the saved
+   view no longer matched the screen. A view the canvas changed is now
+   recorded when it comes to rest — only if the scene already has a saved
+   view, so a never-framed diorama keeps opening fitted (preset 28.6 →
+   fold → screen and saved view both 34.1).
+7. **Folding a column mid-drag left the column animations off;** the edge
+   ends its drag when it unmounts or loses pointer capture.
+8. **The stored layout was applied after the first paint,** so the
+   columns slid to the defaults and then to the stored layout; it is read
+   in a layout effect now.
+9. **The ghost pieces of a run being dragged out were not marked** as
+   editor helpers; they are.
+10. **The object list's action strip swallowed clicks** on the end of a
+    row; the strip lets clicks through and only its buttons take them.
 
 ### Verification
 
@@ -475,11 +515,11 @@ same points `sceneFit` uses through the live camera.
 
 * **A saved view opens at the zoom it was saved with**, also on a smaller
   screen, where it can be cropped: Fit or F frames it (open question 4).
+* **From 1024 to about 1070 px wide, with both columns open,** the canvas
+  is under 480 px even at the columns' minimum widths (it was narrower
+  still before this stage); folding a column gives it the room.
 * **A fit leaves 6–7.5 % of the canvas free** on the limiting axis because
   of the platform-rim allowance (see deviations).
-* **Window or panel size changes are not recorded** in the saved view; a
-  fitted view that was refitted reopens at the zoom of the last preset or
-  gesture.
 * **Below 1024 px the inspector, below 768 px the library is hidden**, as
   before; the rails do not replace them there.
 * Not tried in the user's own browser.

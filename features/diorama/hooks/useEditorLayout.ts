@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 import { useDioramaStore } from "../store/dioramaStore";
 import { readStoredLayout, writeStoredLayout } from "../utils/editorLayout";
 
@@ -7,11 +7,12 @@ const WRITE_DELAY_MS = 300;
 
 /**
  * Remembers the side columns' folding and widths in this browser
- * (plan/Stage-21-Implementation.md D5): reads them when the editor opens,
+ * (plan/Stage-21-Implementation.md D5): reads them before the editor first paints,
  * writes them shortly after they change. Not scene data.
  */
 export function useEditorLayout() {
-  useEffect(() => {
+  // Before the first paint, so the columns open at their stored layout instead of sliding there.
+  useLayoutEffect(() => {
     const stored = readStoredLayout();
     const { setPanelLayout } = useDioramaStore.getState();
     if (stored.left) setPanelLayout("left", stored.left);
