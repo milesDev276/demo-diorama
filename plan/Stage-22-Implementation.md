@@ -225,8 +225,7 @@ Back" draft).
   reduced motion) and is clipped only while it moves, so a hovered card's
   scale-up is not cut. The header is `sticky -top-3` (cancelling the panel
   body's top padding) and gets its frosted strip and hairline only while
-  it is stuck (`useStuck`, a passive scroll listener while the section is
-  open).
+  it is stuck (`hooks/useStuckSection.ts`, after review).
 * **`components/LibraryCards.tsx` (new):** `LibraryCard` and `GroundCard`,
   moved out of `ObjectLibrary` unchanged, except that a card that starts a
   placement, brush or kit (pointer or keyboard) records itself in Recent.
@@ -264,6 +263,50 @@ Back" draft).
   the panel, whose translucent white shades with the page gradient.
 * **D1, Collapse all wraps in with the chips** instead of at the end of
   its own row, saving a row.
+
+### Review fixes (`/code-review high`, 2026-11-09)
+
+Ten findings; eight fixed, two answered differently:
+
+1. **A kit-import error was invisible** while Kits was folded (the message
+   is in the section's body). Choosing files unfolds Kits; a new kit
+   (import or Save as kit) unfolds it too.
+2. **A Recent card moved to the front under the pointer,** so a second
+   click meant to cancel started another item. Recent now keeps its order
+   while a placement or brush runs and reorders when it ends.
+3. **The stuck strip went stale** when the layout moved without a scroll
+   (folding, a search, a panel resize).
+4. **Sections remembered open slid open on every visit,** because the
+   stored folding is applied just after the first render. A section does
+   not animate in its first frame.
+5. **`libraryItemByKey` rebuilt the whole library per call;** it keeps a
+   map now, and its comment says what is really shared (`params`).
+6. **The sticky header found its scroller by a CSS class** and mirrored
+   the panel's padding silently. `hooks/useStuckSection.ts` finds the
+   scrolling ancestor by its computed overflow; the padding pairing is
+   commented on both sides.
+7. **Every open section had its own scroll listener;** one listener and
+   one ResizeObserver for the whole list (which also fixes 3), and the
+   stuck section is passed down as a prop.
+8. *Not done:* sharing a persistence helper with `useEditorLayout` (two
+   users, a premature abstraction for now).
+9. **`LibrarySectionId` duplicated the categories;** it is derived from
+   `LibraryCategory` and `LIBRARY_SECTIONS` from `LIBRARY_CATEGORIES`.
+10. **The chips' group lost its box** (`display: contents` can drop a
+    group from the accessibility tree); Collapse all is a child of the
+    group instead.
+
+Checked with real input (7 of 7): a bad kit file with Kits folded unfolds
+it and shows "The file is invalid or corrupted."; Save as kit unfolds Kits
+with the new kit; clicking the last Recent card keeps the order during the
+placement, a second click on the same spot cancels, then it moves to the
+front; with Props stuck, folding everything removes the strip without a
+scroll; after a reload, Buildings (remembered open) goes 0 → 930 px in one
+frame while a click on Vehicles animates through 28 heights (reduced
+motion emulated off: headless Chrome reports `reduce`, under which nothing
+animates, as intended); the chip group is a flex box holding the button;
+all folded still fits (516/516 px). The 29 checks above were run again
+after the fixes: 29 of 29.
 
 ### Verification
 
@@ -309,9 +352,9 @@ the DevTools protocol; the scripts were one-off (not in the repo).
 
 ### Known limitations
 
-* **A card clicked in Recent moves to the front** of Recent at once; the
-  card under the pointer changes. It is what "recent" means; noted in case
-  it feels jumpy.
+* **Recent reorders when a placement ends,** so after cancelling by a
+  second click the card under the pointer can change; a first-ever item
+  appears in Recent only once its placement ends.
 * Smaller cards (open question 3) are not in this stage.
 * Not tried in the user's own browser.
 

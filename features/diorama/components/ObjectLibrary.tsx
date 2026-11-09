@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useStuckSection } from "../hooks/useStuckSection";
 import { Search, Upload } from "lucide-react";
 import { useDioramaStore } from "../store/dioramaStore";
 import { useKitStore } from "../store/kitStore";
@@ -29,6 +30,8 @@ function KitImport({ onMessage }: { onMessage: (message: string | null) => void 
   const handleFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     event.target.value = ""; // allow importing the same file again later
+    // The kits, or what went wrong, show in the section's body: unfold it.
+    if (files.length) useDioramaStore.getState().setSectionsFolded(["Kits"], false);
     const kits = [];
     let error: string | null = null;
     for (const file of files) {
@@ -56,14 +59,16 @@ function KitImport({ onMessage }: { onMessage: (message: string | null) => void 
   );
 }
 
-/** The category chips under the search box: one section of the library, or all of them. */
-function CategoryChips({ category, showGround }: { category: LibraryCategory; showGround: boolean }) {
+/**
+ * The category chips under the search box: one section of the library, or
+ * all of them. `children` (Collapse all) wraps in after the last chip.
+ */
+function CategoryChips({ category, showGround, children }: { category: LibraryCategory; showGround: boolean; children?: ReactNode }) {
   const setCategory = useDioramaStore((s) => s.setLibraryCategory);
   const chips = showGround ? LIBRARY_CATEGORIES : LIBRARY_CATEGORIES.filter((c) => c !== "Ground");
 
   return (
-    // `contents`: the chips wrap in the parent's row, together with Collapse all after them.
-    <div role="group" aria-label="Library categories" className="contents">
+    <div role="group" aria-label="Library categories" className="flex flex-wrap items-center gap-1">
       {chips.map((chip) => (
         <button
           key={chip}
@@ -80,6 +85,7 @@ function CategoryChips({ category, showGround }: { category: LibraryCategory; sh
           {chip === "all" ? "All" : chip}
         </button>
       ))}
+      {children}
     </div>
   );
 }
@@ -126,7 +132,14 @@ export function ObjectLibrary() {
   const isPlot = useDioramaStore((s) => s.environment.base === "plot");
   const chosen = useDioramaStore((s) => s.libraryCategory);
   const storedFolded = useDioramaStore((s) => s.foldedSections);
-  const recentKeys = useDioramaStore((s) => s.recentLibraryKeys);
+  const storedRecent = useDioramaStore((s) => s.recentLibraryKeys);
+  const busy = useDioramaStore((s) => Boolean(s.placement || s.brush));
+  // Recent keeps its order while a placement or brush runs, so the card just clicked stays
+  // under the pointer and a second click on it still cancels (it moves to the front after).
+  const [recentKeys, setRecentKeys] = useState(storedRecent);
+  if (!busy && recentKeys !== storedRecent) setRecentKeys(storedRecent);
+  const listRef = useRef<HTMLDivElement>(null);
+  const stuckId = useStuckSection(listRef);
   // Folding during a search applies to that search only (D2).
   const [searchFolded, setSearchFolded] = useState<{ query: string; ids: LibrarySectionId[] }>({ query: "", ids: [] });
   const q = query.trim();
@@ -224,8 +237,7 @@ export function ObjectLibrary() {
         />
       </label>
 
-      <div className="flex flex-wrap items-center gap-1">
-        <CategoryChips category={category} showGround={isPlot} />
+      <CategoryChips category={category} showGround={isPlot}>
         {foldable && sections.length > 1 && (
           <button
             type="button"
@@ -235,19 +247,20 @@ export function ObjectLibrary() {
             {anyOpen ? "Collapse all" : "Expand all"}
           </button>
         )}
-      </div>
+      </CategoryChips>
 
       {sections.length === 0 && (
         <p className="text-xs text-[#4A3421]/50">{q ? `Nothing${where} matches “${q}”.` : `Nothing${where} yet.`}</p>
       )}
 
-      <div className="flex flex-col">
+      <div ref={listRef} className="flex flex-col">
         {sections.map(({ id, shown, total, actions, body }) => (
           <LibrarySection
             key={id}
             title={id}
             count={q ? `${shown} of ${total}` : `${total}`}
             open={isOpen(id)}
+            stuck={stuckId === id}
             onToggle={foldable ? () => toggle(id) : undefined}
             actions={actions}
           >

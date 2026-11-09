@@ -32,9 +32,13 @@ export function useLibraryPrefs() {
         writeLibraryPrefs(currentPrefs());
       }, WRITE_DELAY_MS);
     });
-    // A deleted kit leaves Recent at once, so it does not hold one of the eight places.
+    // A deleted kit leaves Recent at once, so it does not hold one of the eight places;
+    // a new kit (Save as kit, an import) unfolds Kits, so it is seen.
     const unsubscribeKits = useKitStore.subscribe((state, previous) => {
       if (state.kits === previous.kits) return;
+      if (state.kits.some((kit) => !previous.kits.some((old) => old.id === kit.id))) {
+        useDioramaStore.getState().setSectionsFolded(["Kits"], false);
+      }
       const known = [...state.kits, ...BUILT_IN_KITS];
       const { recentLibraryKeys, setLibraryPrefs } = useDioramaStore.getState();
       const recent = recentLibraryKeys.filter((key) => Boolean(libraryItemByKey(key, known)));

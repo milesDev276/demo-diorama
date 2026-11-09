@@ -1,4 +1,4 @@
-import { ASSET_CATEGORY_ORDER, type AssetCategory } from "../assets/assetRegistry";
+import { LIBRARY_CATEGORIES, type LibraryCategory } from "../assets/assetRegistry";
 
 /**
  * The library's sections and how this browser remembers their folding and
@@ -6,9 +6,13 @@ import { ASSET_CATEGORY_ORDER, type AssetCategory } from "../assets/assetRegistr
  * Editor preferences, not scene data.
  */
 
-export type LibrarySectionId = "Recent" | "Ground" | AssetCategory | "Kits";
+/** A section is a library category (the chips but All), or Recent. */
+export type LibrarySectionId = Exclude<LibraryCategory, "all"> | "Recent";
 
-export const LIBRARY_SECTIONS: LibrarySectionId[] = ["Recent", "Ground", ...ASSET_CATEGORY_ORDER, "Kits"];
+export const LIBRARY_SECTIONS: LibrarySectionId[] = [
+  "Recent",
+  ...LIBRARY_CATEGORIES.filter((category): category is Exclude<LibraryCategory, "all"> => category !== "all"),
+];
 
 /**
  * A first visit: every section folded but Recent, so the whole list of

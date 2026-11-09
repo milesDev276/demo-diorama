@@ -178,6 +178,7 @@ export function EditorSidePanel<T extends string>({
             id={`${baseId}-panel-${tab.id}`}
             aria-labelledby={`${baseId}-tab-${tab.id}`}
             hidden={tab.id !== value}
+            // The library's sticky section headers cancel this padding (LibrarySection: -top-3 -mx-4).
             className="min-h-0 flex-1 overflow-y-auto p-4 pt-3"
           >
             {panels[tab.id]}

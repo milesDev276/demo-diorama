@@ -965,17 +965,21 @@ export function getAllLibraryItems(kits: Kit[]): LibraryItem[] {
   return [...ASSET_CATEGORY_ORDER.flatMap((category) => assetsIn(category).flatMap(libraryItems)), ...kits.map(kitLibraryItem)];
 }
 
+let itemsByKey: Map<string, LibraryItem> | null = null;
+
 /**
  * The library entry with this key (plan/Stage-22-Implementation.md D3), or
- * undefined if the library no longer has it (a deleted kit). Returns the
- * same objects as getLibraryItems, so an active placement matches either.
+ * undefined if the library no longer has it (a deleted kit). Its `params`
+ * are the same objects as those of getLibraryItems' entries, so the
+ * active-card match (`placement.params === item.params`) holds for either.
  */
 export function libraryItemByKey(key: string, kits: Kit[]): LibraryItem | undefined {
   if (key.startsWith("kit:")) {
     const kit = kits.find((k) => `kit:${k.id}` === key);
     return kit ? kitLibraryItem(kit) : undefined;
   }
-  return getAllLibraryItems([]).find((item) => item.key === key);
+  itemsByKey ??= new Map(getAllLibraryItems([]).map((item) => [item.key, item]));
+  return itemsByKey.get(key);
 }
 
 function assetsIn(category: AssetCategory): AssetDefinition[] {
