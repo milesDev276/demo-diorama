@@ -13,6 +13,7 @@ import type {
   Kit,
   LeftPanelTab,
   ObjectParams,
+  FocusPing,
   PhotoApi,
   PhotoSettings,
   Placement,
@@ -129,6 +130,10 @@ interface DioramaState {
   /** Goes up whenever another scene is opened, so the camera rig goes to the view of that scene. */
   cameraRevision: number;
   photoApi: PhotoApi | null;
+  /** Height of the photo bar in CSS pixels while Preview shows it, so the canvas stays above it (0 otherwise). */
+  photoBarHeight: number;
+  /** The last focus click in Preview, for the marker (PreviewOverlay). */
+  focusPing: FocusPing | null;
   leftTab: LeftPanelTab;
   /** Follows the selection (see the subscription below the store), and can be chosen by hand. */
   rightTab: RightPanelTab;
@@ -266,6 +271,8 @@ interface DioramaState {
   setCamera: (camera: DioramaCameraState) => void;
   setPhoto: (changes: Partial<PhotoSettings>) => void;
   registerPhotoApi: (api: PhotoApi | null) => void;
+  setPhotoBarHeight: (height: number) => void;
+  pingFocus: (x: number, y: number) => void;
   setSaveStatus: (status: SaveStatus) => void;
   setLeftTab: (tab: LeftPanelTab) => void;
   setRightTab: (tab: RightPanelTab) => void;
@@ -514,6 +521,8 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
   groundBrushSize: 2,
   cameraRevision: 0,
   photoApi: null,
+  photoBarHeight: 0,
+  focusPing: null,
   leftTab: "library",
   rightTab: "scene",
   libraryCategory: "all",
@@ -984,6 +993,8 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
     set((state) => (JSON.stringify(state.camera) === JSON.stringify(camera) ? state : { camera })),
   setPhoto: (changes) => set((state) => ({ photo: { ...state.photo, ...changes } })),
   registerPhotoApi: (api) => set({ photoApi: api }),
+  setPhotoBarHeight: (height) => set((state) => (state.photoBarHeight === height ? state : { photoBarHeight: height })),
+  pingFocus: (x, y) => set({ focusPing: { x, y, at: performance.now() } }),
   setSaveStatus: (status) => set({ saveStatus: status }),
   setLeftTab: (tab) => set({ leftTab: tab }),
   setRightTab: (tab) => set({ rightTab: tab }),

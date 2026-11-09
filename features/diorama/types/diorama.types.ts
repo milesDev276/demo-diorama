@@ -310,4 +310,13 @@ export interface CameraControlsApi {
   setPreset: (preset: CameraPreset) => void;
   resetCamera: () => void;
   focusOn: (positions: Vector3Tuple[]) => void;
+  /** Preview only: frames the base and everything on it from the current direction. */
+  fitScene: () => void;
+}
+
+/** Where the last photo-focus click landed, in viewport pixels; `at` restarts the marker. */
+export interface FocusPing {
+  x: number;
+  y: number;
+  at: number;
 }

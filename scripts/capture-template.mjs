@@ -23,10 +23,11 @@ const WIDTH = HERO ? 1600 : 640;
 const QUALITY = HERO ? 88 : 86;
 const HERO_STARTER = "autumn-corner";
 /**
- * Height of the 16:9 photo frame in a window (DioramaCanvas's mat pads it
- * 24 px on the sides and top, 144 px below). The orthographic zoom is in
- * pixels, so a larger frame needs a proportionally larger zoom to frame the
- * scene the same way.
+ * Height of the 16:9 photo frame in a window under the mat of Stages 7–19
+ * (24 px on the sides and top, 144 px below; Stage 20 sizes the bottom to the
+ * photo bar). The orthographic zoom is in pixels, so a larger window needs a
+ * proportionally larger zoom to frame the scene the same way. Only the ratio
+ * is used, and the old numbers are kept so the hero image frames as before.
  */
 const frameHeight = ({ width, height }) => Math.min(height - 168, ((width - 48) * 9) / 16);
 const ZOOM_SCALE = frameHeight(VIEWPORT) / frameHeight({ width: 1600, height: 1000 });
@@ -92,6 +93,8 @@ async function main() {
       await cdp.evaluate(`window.__dioramaStore.getState().setPhoto({ aspect: "16:9", focus: null })`);
       await sleep(2000);
 
+      // The page screenshot would include what floats over Preview (the way back, the help line).
+      await cdp.evaluate(`document.head.insertAdjacentHTML("beforeend", "<style>[data-preview-overlay]{visibility:hidden!important}</style>")`);
       const rect = await cdp.evaluate(`(() => {
         const r = document.querySelector("canvas").getBoundingClientRect();
         return { x: r.x, y: r.y, width: r.width, height: r.height };

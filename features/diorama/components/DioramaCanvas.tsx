@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Grid, useGLTF } from "@react-three/drei";
 import { NeutralToneMapping } from "three";
@@ -34,8 +34,15 @@ import { sceneLook } from "../utils/weather";
 /** Marks editor helpers that thumbnails leave out (ThumbnailCapture). */
 const EDITOR_ONLY = { editorOnly: true };
 
-/** The mat around a photo frame. Its padding keeps the frame clear of the photo bar. */
-const MAT_STYLE = { background: "#26201c", containerType: "size" } as const;
+/** The mat around a photo frame. */
+const MAT_COLOR = "#26201c";
+
+/** The photo bar floats this far above the window's bottom edge (PhotoBar `bottom-5`)… */
+const PHOTO_BAR_INSET = 20;
+/** …and the Preview canvas stops this far above the bar. */
+const PHOTO_BAR_GAP = 12;
+/** Until the bar has been measured: its two-row height, so the first frame errs on the safe side. */
+const PHOTO_BAR_FALLBACK = 112;
 
 /**
  * `/diorama?dev=<flag>` dev aids: `blockout` swaps the scene for the hero
@@ -66,7 +73,20 @@ export function DioramaCanvas() {
   // In Preview a photo frame gives the canvas itself its shape, so what is framed is what is exported.
   const frameRatio = useDioramaStore((s) => (s.isPreviewMode ? PHOTO_ASPECT_RATIOS[s.photo.aspect] : null));
   // Inline because the stops come from the time of day and the weather, which SkyBackdrop in Preview also uses.
-  const skyStyle = { background: skyGradient(sceneLook(timeOfDay, weather)) };
+  const look = sceneLook(timeOfDay, weather);
+  const skyStyle = { background: skyGradient(look) };
+  // In Preview the canvas never lies under the photo bar, so what is on screen is what is saved (Stage 20 D1).
+  const photoBarHeight = useDioramaStore((s) => s.photoBarHeight);
+  const barClearance = (photoBarHeight || PHOTO_BAR_FALLBACK) + PHOTO_BAR_INSET + PHOTO_BAR_GAP;
+  const outerStyle: CSSProperties = !isPreviewMode
+    ? skyStyle
+    : frameRatio
+      ? { background: MAT_COLOR, containerType: "size", paddingBottom: barClearance }
+      : {
+          // The canvas draws its own sky in Preview; behind the bar the gradient's last stop carries on.
+          background: `${skyGradient(look)} top / 100% calc(100% - ${barClearance}px) no-repeat, ${look.sky.bottom}`,
+          paddingBottom: barClearance,
+        };
   const clearSelection = useDioramaStore((s) => s.clearSelection);
   const [devFlag] = useState(getDevFlag);
   const showBlockout = devFlag === "blockout";
@@ -81,9 +101,9 @@ export function DioramaCanvas() {
       className={cn(
         "relative h-full w-full overflow-hidden rounded-3xl",
         (placement || isBrushing || isPaintingGround) && "cursor-crosshair",
-        frameRatio !== null && "flex items-center justify-center px-6 pb-36 pt-6"
+        frameRatio !== null && "flex items-center justify-center px-6 pt-6"
       )}
-      style={frameRatio ? MAT_STYLE : skyStyle}
+      style={outerStyle}
     >
       <div
         className={frameRatio ? "overflow-hidden rounded-md shadow-[0_12px_48px_rgba(0,0,0,0.45)]" : "h-full w-full"}

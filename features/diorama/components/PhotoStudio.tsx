@@ -68,7 +68,9 @@ export function PhotoStudio({ composerRef }: PhotoStudioProps) {
       pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
       raycaster.setFromCamera(pointer, camera);
       const hit = raycaster.intersectObjects(scene.children, true).find(({ object }) => (object as Mesh).isMesh && object.visible);
-      useDioramaStore.getState().setPhoto({ focus: hit ? hit.point.toArray() : null });
+      const state = useDioramaStore.getState();
+      state.setPhoto({ focus: hit ? hit.point.toArray() : null });
+      state.pingFocus(event.clientX, event.clientY);
     };
 
     canvas.addEventListener("pointerdown", onPointerDown);

@@ -1,4 +1,4 @@
-# Handoff — Hero Diorama Work (as of 2026-11-07, after Stage 19)
+# Handoff — Hero Diorama Work (as of 2026-11-09, after Stage 20)
 
 Read this first when picking up the work. It summarizes where things
 stand, what was decided and why, how to run and verify things, and what
@@ -31,26 +31,27 @@ comes next. Details live in the linked plan files.
 | Stage 16: everyday people | Done | `main` (PR #19) |
 | Stage 17: app shell and My Dioramas | Done | `main` (PR #20) |
 | Stage 18: editor layout | Done | `main` (PR #21) |
-| Stage 19: object colors and sign text | Implemented and verified; committed and pushed, PR not opened yet (no GitHub CLI) | branch `stage19-object-colors` |
+| Stage 19: object colors and sign text | Done | `main` (PR #22) |
+| Stage 20: photo studio | Implemented and verified | branch `stage20-photo-studio` |
 
 Stage 7 was the last stage of the original roadmap; Stages 8 to 16 were added
 at the user's request. Stage 17 followed
 [Product-Roadmap.md](Product-Roadmap.md). The roadmap's backend stages are
 paused (2026-11-02, §7), so Stage 18 is a UI stage: the editor layout.
 
-**`main` holds Stages 0–18** (last merge: PR #21, `812eca6`). Stage 19 is
-on `stage19-object-colors`.
+**`main` holds Stages 0–19** (last merge: PR #22, `326abb1`; the user merged
+it on GitHub). Stage 20 is on `stage20-photo-studio`.
 
-**Immediate next action:** open, review and merge Stage 19's PR (§8: Claude
+**Immediate next action:** open, review and merge Stage 20's PR (§8: Claude
 does this now; it needs the GitHub CLI, which was still not installed on
-2026-11-07: `winget install GitHub.cli`, then `gh auth login` by the user).
+2026-11-09: `winget install GitHub.cli`, then `gh auth login` by the user).
 Then ask the user for the next UI stage (§7).
 One branch per stage; cut the next branch from an up-to-date `main`
 (`git fetch`, then fast-forward).
 (For Stages 6 to 14 the user handed every decision
 to Claude, so the plan was settled with its defaults and implemented without
 a separate approval round. Stage 15's plan was approved with "theo mặc định",
-Stage 16's and Stage 17's with "hãy thực hiện": their defaults. Ask again at the start of new work; it is not a standing rule.)
+Stage 16's and Stage 17's with "hãy thực hiện", Stage 20's with "tôi đồng ý theo ý kiến của bạn": their defaults. Ask again at the start of new work; it is not a standing rule.)
 
 The old Stage 5 stash was dropped on 2026-10-06; `git stash list` is empty.
 
@@ -79,6 +80,7 @@ The old Stage 5 stash was dropped on 2026-10-06; `git stash list` is empty.
 | [Stage-17-Implementation.md](Stage-17-Implementation.md) | The home page, My Dioramas in IndexedDB, the editor at `/diorama/[id]`, thumbnails from the canvas, the migration of the old single autosave, the template leftovers removed: decisions D1–D11 and results (§6) |
 | [Stage-18-Implementation.md](Stage-18-Implementation.md) | The editor layout: Library / Objects and Object / Scene tabs (`EditorSidePanel`), library category chips, segmented controls that fit, Reset in the Scene tab, the breadcrumb, the dev badge off: decisions D1–D7 and results (§6) |
 | [Stage-19-Implementation.md](Stage-19-Implementation.md) | Per-object colors (the `paint` slot, curated swatches) and editable sign text on four signs (per-text sign textures), the Color and Sign sections of the inspector: decisions D1–D8 and results (§6) |
+| [Stage-20-Implementation.md](Stage-20-Implementation.md) | The photo studio: the canvas above the photo bar, the one-row bar with pixel sizes, Fit (F) and the frame-change dolly (`utils/cameraFit.ts`), the Preview overlay (way back, help line, focus ring): decisions D1–D6 and results (§6) |
 | [Product-Roadmap.md](Product-Roadmap.md) | From editor to public app: architecture A1–A7 and Stages 17–27 (platform, print export, launch) |
 | [Phase-7-Community.md](Phase-7-Community.md) | Detailed plan of Stages 21–23 (publish, explore, likes, remix, profiles, comments, moderation); not started |
 | `Phase-*.md` | Earlier phases, kept for history |
@@ -504,6 +506,29 @@ Stage 19:
   its own slot. Default texts are `SIGN_TEXTS` in `graphicsAtlas.ts`; the
   painters take the text. Sign materials are refcounted per (cell, text).
 
+Stage 20:
+
+* **In Preview the canvas never lies under the photo bar.** The bar
+  reports its height (`photoBarHeight`, editor state) and `DioramaCanvas`
+  keeps that much + 32 px clear below the canvas in every frame. A new
+  control in the bar changes nothing else; a second row only makes the
+  canvas shorter.
+* **Whatever floats over Preview carries `data-preview-overlay`**
+  (`PreviewOverlay.tsx`); screenshot scripts hide it, as
+  `capture-template.mjs` does. Exports render the canvas only.
+* **Fit is `cameraApi.fitScene()`,** Preview only: `utils/cameraFit.ts`
+  frames the corners of every visible mesh's box, clipped to the base's
+  outline, from the current direction, in closed form (`fitView`).
+* **Only a frame choice moves the Preview camera** (back, by the ratio of
+  the aspects, when the frame narrows); window and panel resizes do not.
+  The Preview entry's reference height scales with it, so the editing
+  zoom and the recorded view do not change.
+* **Segment labels never break inside a word** (`SegmentedControl`).
+* **The starter images were rendered before Stage 20.** Rendering them
+  now differs by resampling only (mean 1.8–2.0, edges only), because the
+  16:9 frame in the capture window is 1552 px wide instead of 1479. Re-render
+  them when a starter changes anyway; `ZOOM_SCALE`'s numbers stay.
+
 ## 4. How to Run and Verify
 
 The platform is Windows. Node 22.14, Chrome, and Blender 5.2.2 LTS at
@@ -792,8 +817,8 @@ node scripts/capture-template.mjs [--hero]
 
 ## 7. Next
 
-The roadmap's seven stages and Stages 8 to 19 are implemented; Stage 19 is
-pushed but not merged yet.
+The roadmap's seven stages and Stages 8 to 20 are implemented; Stage 20 is
+on its branch, not merged yet.
 
 **Backend paused, UI first (user decision, 2026-11-02):** after asking on
 2026-10-20 for the backend to be its own repository (which the user
@@ -802,13 +827,17 @@ first, they picked the editor layout (Stage 18). Don't restart backend
 work unless asked. Product-Roadmap.md §3 keeps the backend stages; they
 are renumbered when they resume.
 
-* **UI candidates still open:** the home page, the Preview / photo bar,
+* **UI candidates still open:** the home page,
   resizable or collapsible panels (out of Stage 18's scope); outfit colors
   for figures and more editable signs (out of Stage 19's scope). Per-object
   colors and sign text, the roadmap's "before launch" item, are Stage 19.
-* **Open from Stage 19:** not tried in the user's own browser; PR not
-  opened (no GitHub CLI). The umbrella figure is not paintable (clear
-  vinyl canopy).
+* **Open from Stage 20:** not tried in the user's own browser; PR not
+  opened (no GitHub CLI). Narrower frames move the camera back and wider
+  ones never closer (Fit resets it); entering Preview with a saved narrow
+  frame still crops the sides. Preview candidates left: camera presets or
+  a lens control in Preview, season in the bar.
+* **Open from Stage 19:** not tried in the user's own browser. The
+  umbrella figure is not paintable (clear vinyl canopy).
 * **Open from Stage 18:** not tried in the user's own browser; three rows
   of library items at 1366 × 768 instead of the planned five.
 
