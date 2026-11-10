@@ -388,6 +388,12 @@ survives the canvas changing size, the side panels fold into rails (`\`)
 or are dragged wider, and the object list shows whole names and works from
 the keyboard ([Stage-21-Implementation.md](Stage-21-Implementation.md)).
 
+**Stage 22 — A library that folds** (2026-11-09) tames the asset library,
+which printed about 70 cards at once: each section folds and shows its
+count, a search unfolds what matches, a Recent section keeps the last
+eight items used, and a section's header stays in view while its cards
+scroll ([Stage-22-Implementation.md](Stage-22-Implementation.md)).
+
 ---
 
 ## 4. Rules That Carry Over

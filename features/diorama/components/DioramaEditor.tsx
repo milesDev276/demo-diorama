@@ -20,6 +20,7 @@ import type { LeftPanelTab } from "../types/diorama.types";
 import { useEditorShortcuts } from "../hooks/useEditorShortcuts";
 import { useAutoSave } from "../hooks/useAutoSave";
 import { useEditorLayout } from "../hooks/useEditorLayout";
+import { useLibraryPrefs } from "../hooks/useLibraryPrefs";
 import { fitColumnWidths, PANEL_WIDTH_RANGE, RAIL_WIDTH } from "../utils/editorLayout";
 import { useOpenDiorama } from "@/features/dioramas/hooks/useOpenDiorama";
 import { useDioramaLauncher } from "@/features/dioramas/hooks/useDioramaLauncher";
@@ -107,6 +108,7 @@ function EditorWorkspace() {
   useEditorShortcuts(!isPreview);
   useAutoSave();
   useEditorLayout();
+  useLibraryPrefs();
 
   const exitPreview = useCallback(() => setPreviewMode(false), [setPreviewMode]);
 

@@ -1,123 +1,26 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import Image from "next/image";
-import { Paintbrush, Search, Upload } from "lucide-react";
-import { motion } from "framer-motion";
+import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useStuckSection } from "../hooks/useStuckSection";
+import { Search, Upload } from "lucide-react";
 import { useDioramaStore } from "../store/dioramaStore";
 import { useKitStore } from "../store/kitStore";
 import { cn } from "@/lib/cn";
-import { getLibraryItems, LIBRARY_CATEGORIES, type LibraryCategory, type LibraryItem } from "../assets/assetRegistry";
+import {
+  getLibraryItems,
+  LIBRARY_CATEGORIES,
+  libraryItemByKey,
+  type LibraryCategory,
+  type LibraryItem,
+} from "../assets/assetRegistry";
 import { BUILT_IN_KITS } from "../assets/builtInKits";
-import { SURFACE_KIND_SPECS, surfaceSwatch } from "../assets/surfaceKinds";
-import { SURFACE_KINDS, type SurfaceKind } from "../types/diorama.types";
+import { SURFACE_KIND_SPECS } from "../assets/surfaceKinds";
+import { SURFACE_KINDS } from "../types/diorama.types";
 import { parseKitFile } from "../utils/kitFile";
-import { scatterPatchParams } from "../utils/objectDefaults";
+import type { LibrarySectionId } from "../utils/libraryPrefs";
 import { readFileAsText } from "../utils/sceneSerializer";
-import { KitCardActions } from "./KitCardActions";
-
-/** Whether the item's placement or brush is the one running now. */
-function useIsActive(item: LibraryItem): boolean {
-  return useDioramaStore((s) => {
-    if (item.action === "brush") return s.brush?.kind === item.kind;
-    const placement = s.placement;
-    if (!placement) return false;
-    if (item.action === "kit") return "kit" in placement && placement.kit.id === item.kit.id;
-    return !("kit" in placement) && !placement.movingId && placement.type === item.type && placement.params === item.params;
-  });
-}
-
-function LibraryCard({ item }: { item: LibraryItem }) {
-  const isActive = useIsActive(item);
-  const Icon = item.icon;
-  const userKit = item.action === "kit" && !item.kit.builtIn ? item.kit : null;
-
-  const activate = (fromKeyboard: boolean) => {
-    const store = useDioramaStore.getState();
-    if (fromKeyboard) {
-      // No pointer: add near the middle of the base instead of picking a surface.
-      if (item.action === "place") store.addObject(item.type, item.params);
-      else if (item.action === "brush") store.addObject("scatter", scatterPatchParams(item.kind));
-      else store.addKit(item.kit);
-      return;
-    }
-    if (isActive) {
-      if (item.action === "brush") store.stopBrush();
-      else store.cancelPlacement();
-      return;
-    }
-    if (item.action === "place") store.startPlacement({ type: item.type, params: item.params });
-    else if (item.action === "brush") store.startBrush(item.kind);
-    else store.startPlacement({ kit: item.kit });
-  };
-
-  return (
-    <div className="group relative">
-      <motion.button
-        type="button"
-        whileHover={{ scale: 1.03 }}
-        whileTap={{ scale: 0.97 }}
-        aria-pressed={isActive}
-        title={item.action === "brush" ? `${item.label} — paint with a brush` : item.label}
-        // detail is 0 when the button was activated from the keyboard.
-        onClick={(event) => activate(event.detail === 0)}
-        className={cn(
-          "flex w-full flex-col items-center gap-1 rounded-2xl border p-1.5 pb-2 text-center transition-colors cursor-pointer",
-          isActive
-            ? "border-[#F0B27A] bg-[#F0B27A]/25"
-            : "border-[#8b6f52]/10 bg-white/50 hover:border-[#8b6f52]/25 hover:bg-white"
-        )}
-      >
-        <span className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl bg-gradient-to-b from-[#f3ece0] to-[#e6dccb] text-[#4A3421]/70">
-          {item.thumbnail ? (
-            <Image src={item.thumbnail} alt="" width={192} height={192} unoptimized className="h-full w-full object-contain" />
-          ) : (
-            <Icon size={26} />
-          )}
-          {item.action === "brush" && (
-            <span className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white/85 text-[#4A3421]">
-              <Paintbrush size={11} aria-hidden />
-            </span>
-          )}
-        </span>
-        <span className="line-clamp-2 text-[11px] font-medium leading-tight text-[#4A3421]">{item.label}</span>
-      </motion.button>
-      {userKit && <KitCardActions kit={userKit} />}
-    </div>
-  );
-}
-
-/** A ground material of a plot scene: picking it starts the ground brush, picking it again ends it. */
-function GroundCard({ kind }: { kind: SurfaceKind }) {
-  const isActive = useDioramaStore((s) => s.groundBrush?.kind === kind);
-  const spec = SURFACE_KIND_SPECS[kind];
-
-  return (
-    <motion.button
-      type="button"
-      whileHover={{ scale: 1.03 }}
-      whileTap={{ scale: 0.97 }}
-      aria-pressed={isActive}
-      title={`${spec.label} — paint the ground`}
-      onClick={() => {
-        const store = useDioramaStore.getState();
-        if (isActive) store.stopGroundBrush();
-        else store.startGroundBrush(kind);
-      }}
-      className={cn(
-        "flex w-full flex-col items-center gap-1 rounded-xl border p-1 pb-1.5 text-center transition-colors cursor-pointer",
-        isActive ? "border-[#F0B27A] bg-[#F0B27A]/25" : "border-[#8b6f52]/10 bg-white/50 hover:border-[#8b6f52]/25 hover:bg-white"
-      )}
-    >
-      <span className="relative block h-7 w-full overflow-hidden rounded-lg" style={{ background: surfaceSwatch(kind) }}>
-        <span className="absolute bottom-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white/85 text-[#4A3421]">
-          <Paintbrush size={9} aria-hidden />
-        </span>
-      </span>
-      <span className="text-[10px] font-medium leading-tight text-[#4A3421]">{spec.label}</span>
-    </motion.button>
-  );
-}
+import { GroundCard, LibraryCard } from "./LibraryCards";
+import { LibrarySection } from "./LibrarySection";
 
 /** "Import" beside the Kits heading: reads kit files into the library and says what went wrong, if anything. */
 function KitImport({ onMessage }: { onMessage: (message: string | null) => void }) {
@@ -127,6 +30,8 @@ function KitImport({ onMessage }: { onMessage: (message: string | null) => void 
   const handleFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     event.target.value = ""; // allow importing the same file again later
+    // The kits, or what went wrong, show in the section's body: unfold it.
+    if (files.length) useDioramaStore.getState().setSectionsFolded(["Kits"], false);
     const kits = [];
     let error: string | null = null;
     for (const file of files) {
@@ -154,13 +59,16 @@ function KitImport({ onMessage }: { onMessage: (message: string | null) => void 
   );
 }
 
-/** The category chips under the search box: one section of the library, or all of them. */
-function CategoryChips({ category, showGround }: { category: LibraryCategory; showGround: boolean }) {
+/**
+ * The category chips under the search box: one section of the library, or
+ * all of them. `children` (Collapse all) wraps in after the last chip.
+ */
+function CategoryChips({ category, showGround, children }: { category: LibraryCategory; showGround: boolean; children?: ReactNode }) {
   const setCategory = useDioramaStore((s) => s.setLibraryCategory);
   const chips = showGround ? LIBRARY_CATEGORIES : LIBRARY_CATEGORIES.filter((c) => c !== "Ground");
 
   return (
-    <div role="group" aria-label="Library categories" className="flex flex-wrap gap-1">
+    <div role="group" aria-label="Library categories" className="flex flex-wrap items-center gap-1">
       {chips.map((chip) => (
         <button
           key={chip}
@@ -177,6 +85,27 @@ function CategoryChips({ category, showGround }: { category: LibraryCategory; sh
           {chip === "all" ? "All" : chip}
         </button>
       ))}
+      {children}
+    </div>
+  );
+}
+
+interface Section {
+  id: LibrarySectionId;
+  /** Items shown, and how many the section has without a search. */
+  shown: number;
+  total: number;
+  actions?: ReactNode;
+  body: ReactNode;
+}
+
+function CardGrid({ items }: { items: LibraryItem[] }) {
+  return (
+    // As many columns as the column's width holds (Stage 21 D5): two at the default width.
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
+      {items.map((item) => (
+        <LibraryCard key={item.key} item={item} />
+      ))}
     </div>
   );
 }
@@ -190,31 +119,112 @@ function CategoryChips({ category, showGround }: { category: LibraryCategory; sh
  * needed. A category chip narrows it to one section, and the search runs
  * inside that section. Never touches Three.js directly — it only
  * dispatches to the store.
+ *
+ * In the All view each section folds (plan/Stage-22-Implementation.md D1);
+ * a search shows every matching section unfolded without changing the
+ * stored folding (D2); Recent holds the items started last (D3).
  */
 export function ObjectLibrary() {
   const userKits = useKitStore((s) => s.kits);
+  const kits = useMemo(() => [...userKits, ...BUILT_IN_KITS], [userKits]);
   const [query, setQuery] = useState("");
   const [kitMessage, setKitMessage] = useState<string | null>(null);
   const isPlot = useDioramaStore((s) => s.environment.base === "plot");
   const chosen = useDioramaStore((s) => s.libraryCategory);
+  const storedFolded = useDioramaStore((s) => s.foldedSections);
+  const storedRecent = useDioramaStore((s) => s.recentLibraryKeys);
+  const busy = useDioramaStore((s) => Boolean(s.placement || s.brush));
+  // Recent keeps its order while a placement or brush runs, so the card just clicked stays
+  // under the pointer and a second click on it still cancels (it moves to the front after).
+  const [recentKeys, setRecentKeys] = useState(storedRecent);
+  if (!busy && recentKeys !== storedRecent) setRecentKeys(storedRecent);
+  const listRef = useRef<HTMLDivElement>(null);
+  const stuckId = useStuckSection(listRef);
+  // Folding during a search applies to that search only (D2).
+  const [searchFolded, setSearchFolded] = useState<{ query: string; ids: LibrarySectionId[] }>({ query: "", ids: [] });
+  const q = query.trim();
   // Ground materials exist only on a plot; elsewhere their chip is gone and the whole library shows.
   const category: LibraryCategory = chosen === "Ground" && !isPlot ? "all" : chosen;
+
+  const totals = useMemo(() => new Map(getLibraryItems("", kits).map(({ title, items }) => [title, items.length])), [kits]);
   const groups = useMemo(
-    () => getLibraryItems(query, [...userKits, ...BUILT_IN_KITS]).filter(({ title }) => category === "all" || title === category),
-    [query, userKits, category]
+    () => getLibraryItems(query, kits).filter(({ title }) => category === "all" || title === category),
+    [query, kits, category]
   );
   const groundKinds = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const lower = q.toLowerCase();
     return SURFACE_KINDS.filter((kind) => {
       const { label, tags } = SURFACE_KIND_SPECS[kind];
-      return !q || label.toLowerCase().includes(q) || tags.some((tag) => tag.includes(q));
+      return !lower || label.toLowerCase().includes(lower) || tags.some((tag) => tag.includes(lower));
     });
-  }, [query]);
+  }, [q]);
+  const recentItems = useMemo(
+    () => recentKeys.map((key) => libraryItemByKey(key, kits)).filter((item): item is LibraryItem => Boolean(item)),
+    [recentKeys, kits]
+  );
   const showGround = isPlot && (category === "all" || category === "Ground") && groundKinds.length > 0;
   const where = category === "all" ? "" : ` in ${category}`;
 
+  const sections: Section[] = [];
+  if (category === "all" && !q && recentItems.length > 0) {
+    sections.push({ id: "Recent", shown: recentItems.length, total: recentItems.length, body: <CardGrid items={recentItems} /> });
+  }
+  if (showGround) {
+    sections.push({
+      id: "Ground",
+      shown: groundKinds.length,
+      total: SURFACE_KINDS.length,
+      body: (
+        // As many columns as the column's width holds (Stage 21 D5): four at the default width.
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(48px,1fr))] gap-1.5">
+          {groundKinds.map((kind) => (
+            <GroundCard key={kind} kind={kind} />
+          ))}
+        </div>
+      ),
+    });
+  }
+  for (const { title, items } of groups) {
+    const isKits = title === "Kits";
+    sections.push({
+      id: title as LibrarySectionId,
+      shown: items.length,
+      total: totals.get(title) ?? items.length,
+      actions: isKits ? <KitImport onMessage={setKitMessage} /> : undefined,
+      body: (
+        <>
+          {isKits && kitMessage && (
+            <p role="alert" className="rounded-lg bg-red-50 px-2 py-1.5 text-[11px] text-red-600">
+              {kitMessage}
+            </p>
+          )}
+          <CardGrid items={items} />
+        </>
+      ),
+    });
+  }
+
+  // A chip shows its section alone and unfolded; folding is the All view's.
+  const foldable = category === "all";
+  const folded = q ? (searchFolded.query === q ? searchFolded.ids : []) : storedFolded;
+  const isOpen = (id: LibrarySectionId) => !foldable || !folded.includes(id);
+  const toggle = (id: LibrarySectionId) => {
+    if (!q) {
+      useDioramaStore.getState().toggleSection(id);
+      return;
+    }
+    const ids = folded.includes(id) ? folded.filter((section) => section !== id) : [...folded, id];
+    setSearchFolded({ query: q, ids });
+  };
+  const anyOpen = sections.some(({ id }) => isOpen(id));
+  const foldAll = () => {
+    const ids = sections.map(({ id }) => id);
+    if (q) setSearchFolded({ query: q, ids: anyOpen ? ids : [] });
+    else useDioramaStore.getState().setSectionsFolded(ids, anyOpen);
+  };
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       <label className="flex items-center gap-2 rounded-xl border border-[#8b6f52]/15 bg-white/60 px-3 py-2 text-[#4A3421]/50 focus-within:border-[#8b6f52]/40 focus-within:bg-white">
         <Search size={14} aria-hidden />
         <input
@@ -227,44 +237,37 @@ export function ObjectLibrary() {
         />
       </label>
 
-      <CategoryChips category={category} showGround={isPlot} />
+      <CategoryChips category={category} showGround={isPlot}>
+        {foldable && sections.length > 1 && (
+          <button
+            type="button"
+            onClick={foldAll}
+            className="ml-auto rounded-full px-1.5 py-px whitespace-nowrap text-[11px] font-medium text-[#4A3421]/55 transition-colors hover:bg-white hover:text-[#4A3421] focus-visible:outline-2 focus-visible:outline-[#F0B27A] cursor-pointer"
+          >
+            {anyOpen ? "Collapse all" : "Expand all"}
+          </button>
+        )}
+      </CategoryChips>
 
-      {groups.length === 0 && !showGround && (
-        <p className="text-xs text-[#4A3421]/50">
-          {query.trim() ? `Nothing${where} matches “${query.trim()}”.` : `Nothing${where} yet.`}
-        </p>
+      {sections.length === 0 && (
+        <p className="text-xs text-[#4A3421]/50">{q ? `Nothing${where} matches “${q}”.` : `Nothing${where} yet.`}</p>
       )}
 
-      {showGround && (
-        <div className="flex flex-col gap-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#4A3421]/40">Ground</p>
-          {/* As many columns as the column's width holds (Stage 21 D5): four at the default width. */}
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(48px,1fr))] gap-1.5">
-            {groundKinds.map((kind) => (
-              <GroundCard key={kind} kind={kind} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {groups.map(({ title, items }) => (
-        <div key={title} className="flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#4A3421]/40">{title}</p>
-            {title === "Kits" && <KitImport onMessage={setKitMessage} />}
-          </div>
-          {title === "Kits" && kitMessage && (
-            <p role="alert" className="rounded-lg bg-red-50 px-2 py-1.5 text-[11px] text-red-600">
-              {kitMessage}
-            </p>
-          )}
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
-            {items.map((item) => (
-              <LibraryCard key={item.key} item={item} />
-            ))}
-          </div>
-        </div>
-      ))}
+      <div ref={listRef} className="flex flex-col">
+        {sections.map(({ id, shown, total, actions, body }) => (
+          <LibrarySection
+            key={id}
+            title={id}
+            count={q ? `${shown} of ${total}` : `${total}`}
+            open={isOpen(id)}
+            stuck={stuckId === id}
+            onToggle={foldable ? () => toggle(id) : undefined}
+            actions={actions}
+          >
+            {body}
+          </LibrarySection>
+        ))}
+      </div>
     </div>
   );
 }

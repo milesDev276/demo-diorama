@@ -33,6 +33,7 @@ import type {
 } from "../types/diorama.types";
 import { ASSET_REGISTRY, type LibraryCategory } from "../assets/assetRegistry";
 import { DEFAULT_PANEL_WIDTH } from "../utils/editorLayout";
+import { DEFAULT_FOLDED_SECTIONS, withRecent, type LibrarySectionId } from "../utils/libraryPrefs";
 import {
   deltaToParentFrame,
   getSelectionCenter,
@@ -143,6 +144,10 @@ interface DioramaState {
   libraryCategory: LibraryCategory;
   /** The side columns' widths and folding (plan/Stage-21-Implementation.md D4, D5). */
   panels: Record<PanelSide, PanelLayout>;
+  /** The library's folded sections in the All view (plan/Stage-22-Implementation.md D1). */
+  foldedSections: LibrarySectionId[];
+  /** Keys of the library items started last, newest first (Stage 22 D3). */
+  recentLibraryKeys: string[];
 
   // --- Object CRUD ---
   /** Adds an object on the spawn spiral. Removing a building removes what is attached to it. */
@@ -285,6 +290,13 @@ interface DioramaState {
   setPanelLayout: (side: PanelSide, changes: Partial<PanelLayout>) => void;
   /** Folds both side columns, or unfolds both when both are folded. */
   togglePanels: () => void;
+  toggleSection: (id: LibrarySectionId) => void;
+  /** Folds or unfolds every one of `ids` (Collapse all / Expand all). */
+  setSectionsFolded: (ids: LibrarySectionId[], folded: boolean) => void;
+  /** Puts a library item at the front of Recent. */
+  noteLibraryUse: (key: string) => void;
+  /** The stored library preferences, applied when the editor opens. */
+  setLibraryPrefs: (prefs: { folded?: LibrarySectionId[]; recent?: string[] }) => void;
 }
 
 /** Snapshots `objects` and the ground onto the history stack. Shared by every atomic action. */
@@ -538,6 +550,8 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
     left: { width: DEFAULT_PANEL_WIDTH.left, folded: false },
     right: { width: DEFAULT_PANEL_WIDTH.right, folded: false },
   },
+  foldedSections: DEFAULT_FOLDED_SECTIONS,
+  recentLibraryKeys: [],
 
   addObject: (type, params) =>
     set((state) => {
@@ -1024,6 +1038,21 @@ export const useDioramaStore = create<DioramaState>((set, get) => ({
       const folded = !(state.panels.left.folded && state.panels.right.folded);
       return { panels: { left: { ...state.panels.left, folded }, right: { ...state.panels.right, folded } } };
     }),
+  toggleSection: (id) =>
+    set((state) => ({
+      foldedSections: state.foldedSections.includes(id)
+        ? state.foldedSections.filter((section) => section !== id)
+        : [...state.foldedSections, id],
+    })),
+  setSectionsFolded: (ids, folded) =>
+    set((state) => {
+      const rest = state.foldedSections.filter((section) => !ids.includes(section));
+      return { foldedSections: folded ? [...rest, ...ids] : rest };
+    }),
+  noteLibraryUse: (key) =>
+    set((state) => (state.recentLibraryKeys[0] === key ? state : { recentLibraryKeys: withRecent(state.recentLibraryKeys, key) })),
+  setLibraryPrefs: ({ folded, recent }) =>
+    set((state) => ({ foldedSections: folded ?? state.foldedSections, recentLibraryKeys: recent ?? state.recentLibraryKeys })),
 }));
 
 const sameIds = (a: string[], b: string[]) => a.length === b.length && a.every((id, i) => id === b[i]);
