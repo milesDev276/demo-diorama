@@ -60,6 +60,11 @@ export function getBackStreetSurface(): SurfaceMap {
   return surfaceFrom(WIDTH, DEPTH, GROUND);
 }
 
+/** An object moved down onto a plot's road, whose surface is lower than everything else. */
+export function onRoad(object: DioramaObject): DioramaObject {
+  return { ...object, position: [object.position[0], ROAD_Y, object.position[2]] };
+}
+
 /** A round patch of scatter at a world position. */
 export function patch(kind: "leaves" | "grass" | "weeds", x: number, z: number, radius: number, seed: number): DioramaObject {
   return createDioramaObject("scatter", 0, BASE_TEMPLATES.plot, {
@@ -121,7 +126,7 @@ export function getBackStreetObjects(): DioramaObject[] {
     // Roads: markings, a manhole, grates, and someone crossing
     place("crosswalk", CROSSWALK_X, 5.75, half, undefined, ROAD_Y),
     place("stopLine", 3.5, 2.6, 0, undefined, ROAD_Y),
-    ...run("roadLine", 4, [-12, 7.5], [12, 7.5]).map((line) => ({ ...line, position: [line.position[0], ROAD_Y, line.position[2]] as [number, number, number] })),
+    ...run("roadLine", 4, [-12, 7.5], [12, 7.5]).map(onRoad),
     place("manhole", -1.0, 5.8, 0, undefined, ROAD_Y),
     place("gutterGrate", -2.0, 3.65, 0, undefined, ROAD_Y),
     place("gutterGrate", 8.0, 3.65, 0, undefined, ROAD_Y),

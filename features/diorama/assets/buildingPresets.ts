@@ -15,6 +15,51 @@ const NARROW = { baysX: 2, baysZ: 4 };
 const APARTMENT_UPPER = uniformFloor(APARTMENT_BLOCK, { front: "balcony", right: "windows", back: "blank", left: "windows" });
 const NARROW_UPPER = uniformFloor(NARROW, { front: "windows", right: "windows", back: "blank", left: "blank" });
 
+
+/** マンション: a balcony on every front bay above the entrance floor (Stage 24 D2). */
+export const APARTMENT_BLOCK_PRESET: BuildingPreset = {
+  id: "apartment-block-4f",
+  label: "Apartment Block 4F",
+  tags: ["apartment", "mansion", "block", "flats", "residential", "balcony"],
+  params: {
+    ...APARTMENT_BLOCK,
+    floors: [
+      {
+        front: ["windows", "entrance", "windows", "windows"],
+        right: ["windows", "windows", "windows"],
+        back: ["blank", "blank", "blank", "blank"],
+        left: ["windows", "blank", "windows"],
+      },
+      APARTMENT_UPPER,
+      APARTMENT_UPPER,
+      APARTMENT_UPPER,
+    ],
+    roof: "flat-rooftop",
+  },
+};
+
+/** ペンシルビル / 雑居ビル: a shop bay and a stair door below, offices above, a blank side against the neighbour (Stage 24 D2). */
+export const NARROW_BUILDING_PRESET: BuildingPreset = {
+  id: "narrow-building-4f",
+  label: "Narrow Building 4F",
+  tags: ["pencil building", "zakkyo", "narrow", "office", "shop", "commercial", "mixed-use"],
+  params: {
+    ...NARROW,
+    floors: [
+      {
+        front: ["shopfront", "entrance"],
+        right: ["windows", "windows", "blank", "blank"],
+        back: ["blank", "blank"],
+        left: ["blank", "blank", "blank", "blank"],
+      },
+      NARROW_UPPER,
+      NARROW_UPPER,
+      NARROW_UPPER,
+    ],
+    roof: "flat-rooftop",
+  },
+};
+
 /**
  * Starting points for the `building` type, offered in the asset browser.
  * A preset is only the params a new building starts with; the inspector
@@ -69,48 +114,8 @@ export const BUILDING_PRESETS: BuildingPreset[] = [
       roof: "hipped-tile",
     },
   },
-  {
-    // マンション: a balcony on every front bay above the entrance floor (Stage 24 D2).
-    id: "apartment-block-4f",
-    label: "Apartment Block 4F",
-    tags: ["apartment", "mansion", "block", "flats", "residential", "balcony"],
-    params: {
-      ...APARTMENT_BLOCK,
-      floors: [
-        {
-          front: ["windows", "entrance", "windows", "windows"],
-          right: ["windows", "windows", "windows"],
-          back: ["blank", "blank", "blank", "blank"],
-          left: ["windows", "blank", "windows"],
-        },
-        APARTMENT_UPPER,
-        APARTMENT_UPPER,
-        APARTMENT_UPPER,
-      ],
-      roof: "flat-rooftop",
-    },
-  },
-  {
-    // ペンシルビル / 雑居ビル: one bay of shop and one of stair door below, offices above, a blank side against the neighbour.
-    id: "narrow-building-4f",
-    label: "Narrow Building 4F",
-    tags: ["pencil building", "zakkyo", "narrow", "office", "shop", "commercial", "mixed-use"],
-    params: {
-      ...NARROW,
-      floors: [
-        {
-          front: ["shopfront", "entrance"],
-          right: ["windows", "windows", "blank", "blank"],
-          back: ["blank", "blank"],
-          left: ["blank", "blank", "blank", "blank"],
-        },
-        NARROW_UPPER,
-        NARROW_UPPER,
-        NARROW_UPPER,
-      ],
-      roof: "flat-rooftop",
-    },
-  },
+  APARTMENT_BLOCK_PRESET,
+  NARROW_BUILDING_PRESET,
 ];
 
 /** What a building without (valid) params falls back to. */

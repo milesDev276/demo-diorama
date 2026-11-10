@@ -239,8 +239,27 @@ A 24 × 16 m plot built in code like the Residential Lane
   behind the row there are only 3 m. So the narrow building carries the
   rooftop props (a water tank, an AC unit) that D2 meant for the apartment
   block, and the right end is an alley and a walled lot with a tree.
-* One set of wires instead of two: a `powerLine` already runs the plot's
-  length, so the second pole stands under the first one's wires.
+* One pole with wires instead of two, and a street light at the alley (see
+  the review fixes).
+
+### Review fixes (`/code-review high`, 2026-11-10)
+
+* **A second pole the wires missed:** a `powerLine` spans 24 m
+  (`poleLayout.json`), so wires from the pole at x −2.8 sagged through a
+  pole 13.9 m away. That pole is now a street light.
+* **A block wall past the plot's back edge:** 9.2 m rounded up to five 2 m
+  pieces; it is now 8 m (four), with the garbage cage where it ends.
+* **The old shop's AC unit in the narrow building's wall:** the narrow
+  building moved from x 4.77 to 5.0.
+* **Bicycles across a 1.5 m sidewalk** (1.8 m long, into the shopfront and
+  over the curb): parked along the curb instead.
+* **The narrow building's size and roof height** come from
+  `buildingSize(NARROW_BUILDING_PRESET.params)`, not copied numbers.
+* **`onRoad` was copied in two starters and inlined in a third:** one export
+  in `plotStarter.ts`, used by all three.
+* **`BUILDING_PRESETS.find(...)!` by id:** the two new presets are named
+  exports (`APARTMENT_BLOCK_PRESET`, `NARROW_BUILDING_PRESET`), so the
+  starter refers to its preset by a symbol.
 
 ### Verification
 
@@ -261,7 +280,12 @@ A 24 × 16 m plot built in code like the Residential Lane
   on the branch differ by at most 19 of 255 (Autumn Street Corner), 12
   (Back Street) and 0 (Residential Lane), within the 19 / 25 / 0 that two
   renders of the branch differ by. (The committed images differ more from
-  either: they were rendered in an earlier stage.)
+  either: they were rendered in an earlier stage.) After the `onRoad`
+  refactor, Residential Lane's render differs from `main` in 77 pixels
+  (at most 16 of 255, round the street light) on two captures, but its
+  scene data — environment and every object without ids — is identical
+  to the old file's, compared as JSON in the browser; so the starters'
+  scenes are unchanged and the difference is the renderer's.
 * **Frame rate** (`measure-scene.mjs`, 1920 × 1080): the starter 180 fps in
   the editor (71 draw calls, 75 k triangles) and 165 in Preview; 100
   buildings alternating workshop and old shop 180 / 179 fps (404 draw

@@ -1,10 +1,9 @@
-import { BUILDING_PRESETS } from "../assets/buildingPresets";
+import { NARROW_BUILDING_PRESET } from "../assets/buildingPresets";
 import type { DioramaObject, SurfaceMap } from "../types/diorama.types";
 import { BASE_TEMPLATES } from "./baseTemplates";
-import { BUILDING_GRID } from "./buildingParams";
-import { CORNER } from "./cornerLayout";
+import { BUILDING_GRID, buildingSize } from "./buildingParams";
 import { attach, createDioramaObject, place, run, runObject } from "./objectDefaults";
-import { patch, surfaceFrom, type GroundRect } from "./plotStarter";
+import { onRoad, patch, surfaceFrom, type GroundRect } from "./plotStarter";
 
 /**
  * The "Old Shopping Street" starter (plan/Stage-24-Implementation.md D3): a
@@ -12,20 +11,21 @@ import { patch, surfaceFrom, type GroundRect } from "./plotStarter";
  * the shop side. From the left: the workshop, set back behind a concrete
  * apron with a kei truck before its half-raised shutter; the old shop with
  * its tobacco window; the narrow four-storey building with a water tank on
- * its roof; a vending machine at the mouth of a back alley; beyond the alley
- * a walled lot with a tree. X runs −12 … 12, Z −8 … 8 (front). All numbers
+ * its roof; a vending machine and a street light at the mouth of a back
+ * alley; beyond the alley a walled lot with a tree. X runs −12 … 12, Z −8 … 8 (front). All numbers
  * are meters.
  */
 const WIDTH = 24;
 const DEPTH = 16;
-const ROAD_Y = CORNER.roadY;
 
 const SIDEWALK_Z = 2; // building fronts; the sidewalk runs from here to the street
 const STREET_Z = 3.5;
 const ALLEY = { x0: 8, x1: 10.5 };
 const WORKSHOP = { x: -7, z: -3.185 }; // its front at z 0, behind the apron
 const SHUTTER_X = WORKSHOP.x - 1.49; // building_workshop_01: the shutter's middle
-const NARROW = { x: 4.77, z: SIDEWALK_Z - (4 * BUILDING_GRID.bay) / 2 };
+const NARROW = buildingSize(NARROW_BUILDING_PRESET.params);
+// Clear of the old shop's AC unit (its right side, at x 3.13) and of the vending machine.
+const NARROW_X = 5.0;
 
 const GROUND: GroundRect[] = [
   ["concrete", -11.1, -2.9, 0, SIDEWALK_Z],
@@ -41,28 +41,24 @@ export function getShoppingStreetSurface(): SurfaceMap {
   return surfaceFrom(WIDTH, DEPTH, GROUND);
 }
 
-/** On the street or the alley, whose surface is lower than the lots. */
-function onRoad(object: DioramaObject): DioramaObject {
-  return { ...object, position: [object.position[0], ROAD_Y, object.position[2]] };
-}
-
 /** The narrow building with a water tank and AC units on its roof and its open side. */
 function narrowBuilding(): DioramaObject[] {
-  const { bay, groundFloor, upperFloor } = BUILDING_GRID;
+  const { groundFloor, upperFloor } = BUILDING_GRID;
   const building = createDioramaObject("building", 0, BASE_TEMPLATES.plot, {
-    position: [NARROW.x, 0, NARROW.z],
+    position: [NARROW_X, 0, SIDEWALK_Z - NARROW.depth / 2],
     rotation: [0, 0, 0],
-    params: BUILDING_PRESETS.find((preset) => preset.id === "narrow-building-4f")!.params,
+    params: NARROW_BUILDING_PRESET.params,
   });
-  const side = bay; // half its width
-  const roof = groundFloor + 3 * upperFloor;
+  const side = NARROW.width / 2;
+  const back = -NARROW.depth / 2;
+  const roof = NARROW.wallHeight;
   return [
     building,
-    attach(building, "waterTank", [0.4, roof, -2.2]),
-    attach(building, "airConditioner", [-0.9, roof, 2.6]),
+    attach(building, "waterTank", [0.4, roof, back + 1.44]),
+    attach(building, "airConditioner", [-0.9, roof, -back - 1.04]),
     attach(building, "airConditioner", [side + 0.2, groundFloor + upperFloor + 0.15, -0.9], Math.PI / 2),
     attach(building, "airConditioner", [side + 0.2, groundFloor + 2 * upperFloor + 0.15, -0.9], Math.PI / 2),
-    attach(building, "meterBox", [side, 1.25, -2.7], Math.PI / 2),
+    attach(building, "meterBox", [side, 1.25, back + 0.94], Math.PI / 2),
   ];
 }
 
@@ -86,23 +82,24 @@ export function getShoppingStreetObjects(): DioramaObject[] {
 
     // The narrow building, bicycles and an A-frame sign before it, a vending machine at the alley
     ...narrowBuilding(),
-    place("bicycle", 3.55, 2.65, half + 0.05),
-    place("bicycle", 4.15, 2.7, half - 0.06),
-    place("aFrameSign", 6.1, 2.75, -0.25),
-    place("vendingMachine", 7.35, 2.45),
+    // Bicycles parked along the curb: 1.8 m long, they do not fit across a 1.5 m sidewalk
+    place("bicycle", 4.3, 2.45, 0.05),
+    place("bicycle", 4.65, 3.0, Math.PI - 0.06),
+    place("aFrameSign", 6.25, 2.75, -0.25),
+    place("vendingMachine", 7.4, 2.45),
     place("postBox", 2.45, 3.15),
 
-    // Beyond the alley: a walled lot with a tree and the garbage cage at its corner
-    runObject("blockWall", [ALLEY.x1 + 0.075, -8], [ALLEY.x1 + 0.075, 1.2]),
+    // Beyond the alley: a walled lot with a tree, and the garbage cage where the wall ends
+    runObject("blockWall", [ALLEY.x1 + 0.075, -8], [ALLEY.x1 + 0.075, 0]),
     place("zelkovaTree", 11.2, -4.6, 0.7),
-    place("garbageStation", 11.25, 1.45, -half),
+    place("garbageStation", 11.25, 1.0, -half),
     patch("grass", 11.3, -6.6, 0.8, 2402),
     patch("weeds", 11.4, -1.2, 0.5, 2403),
 
-    // Poles along the sidewalk; one set of wires runs the plot's length through both
+    // A pole with its wires on the sidewalk (a span is 24 m, so a second pole could not meet them), a street light at the alley
     place("utilityPole", -2.8, 3.2),
     place("powerLine", -2.8, 3.2),
-    place("utilityPole", 11.1, 3.2),
+    place("streetLight", 11.1, 3.2),
 
     // The street and the alley
     onRoad(place("stopLine", (ALLEY.x0 + ALLEY.x1) / 2, STREET_Z - 0.9)),
