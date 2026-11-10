@@ -394,6 +394,12 @@ count, a search unfolds what matches, a Recent section keeps the last
 eight items used, and a section's header stays in view while its cards
 scroll ([Stage-22-Implementation.md](Stage-22-Implementation.md)).
 
+**Stage 23 — Coming back** (2026-11-10) welcomes a returning visitor: the
+home page offers to continue the newest diorama and shows the four newest,
+and every thumbnail waits until the models have loaded, frames the whole
+diorama from the Isometric direction and is retaken only when the diorama
+changed ([Stage-23-Implementation.md](Stage-23-Implementation.md)).
+
 ---
 
 ## 4. Rules That Carry Over

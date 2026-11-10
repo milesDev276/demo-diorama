@@ -1,4 +1,4 @@
-# Handoff — Hero Diorama Work (as of 2026-11-09, after Stage 22)
+# Handoff — Hero Diorama Work (as of 2026-11-10, after Stage 23)
 
 Read this first when picking up the work. It summarizes where things
 stand, what was decided and why, how to run and verify things, and what
@@ -34,17 +34,18 @@ comes next. Details live in the linked plan files.
 | Stage 19: object colors and sign text | Done | `main` (PR #22) |
 | Stage 20: photo studio | Done | `main` (PR #23) |
 | Stage 21: room to work (editor camera fit, folding and resizable panels, object list) | Done | `main` (PR #24) |
-| Stage 22: a library that folds (folding sections, search counts, Recent, sticky headers) | Implemented and verified | branch `stage22-library` |
+| Stage 22: a library that folds (folding sections, search counts, Recent, sticky headers) | Done | `main` (PR #25) |
+| Stage 23: coming back (thumbnails that wait for models and frame the whole diorama; Continue and your dioramas on the home page) | Implemented and verified | branch `stage23-coming-back` |
 
 Stage 7 was the last stage of the original roadmap; Stages 8 to 16 were added
 at the user's request. Stage 17 followed
 [Product-Roadmap.md](Product-Roadmap.md). The roadmap's backend stages are
 paused (2026-11-02, §7), so Stage 18 is a UI stage: the editor layout.
 
-**`main` holds Stages 0–21** (last merge: PR #24, `8d57b6b`; the user merged
-it). Stage 22 is on `stage22-library`.
+**`main` holds Stages 0–22** (last merge: PR #25, `8d81a96`; the user merged
+it). Stage 23 is on `stage23-coming-back`.
 
-**Immediate next action:** open, review and merge Stage 22's PR (§8). The
+**Immediate next action:** open, review and merge Stage 23's PR (§8). The
 GitHub CLI is installed at `C:\Program Files\GitHub CLI\gh.exe` but is not
 on the Bash PATH: call it by its full path. Then ask the user for the next
 UI stage (§7).
@@ -53,7 +54,7 @@ One branch per stage; cut the next branch from an up-to-date `main`
 (For Stages 6 to 14 the user handed every decision
 to Claude, so the plan was settled with its defaults and implemented without
 a separate approval round. Stage 15's plan was approved with "theo mặc định",
-Stage 16's and Stage 17's with "hãy thực hiện", Stage 20's with "tôi đồng ý theo ý kiến của bạn", Stage 21's with "tôi đồng ý với recommend của bạn", Stage 22's with "mình đồng ý": their defaults. Ask again at the start of new work; it is not a standing rule.)
+Stage 16's and Stage 17's with "hãy thực hiện", Stage 20's with "tôi đồng ý theo ý kiến của bạn", Stage 21's with "tôi đồng ý với recommend của bạn", Stage 22's with "mình đồng ý", Stage 23's with "tôi đồng ý": their defaults. Ask again at the start of new work; it is not a standing rule.)
 
 The old Stage 5 stash was dropped on 2026-10-06; `git stash list` is empty.
 
@@ -83,6 +84,7 @@ The old Stage 5 stash was dropped on 2026-10-06; `git stash list` is empty.
 | [Stage-18-Implementation.md](Stage-18-Implementation.md) | The editor layout: Library / Objects and Object / Scene tabs (`EditorSidePanel`), library category chips, segmented controls that fit, Reset in the Scene tab, the breadcrumb, the dev badge off: decisions D1–D7 and results (§6) |
 | [Stage-19-Implementation.md](Stage-19-Implementation.md) | Per-object colors (the `paint` slot, curated swatches) and editable sign text on four signs (per-text sign textures), the Color and Sign sections of the inspector: decisions D1–D8 and results (§6) |
 | [Stage-20-Implementation.md](Stage-20-Implementation.md) | The photo studio: the canvas above the photo bar, the one-row bar with pixel sizes, Fit (F) and the frame-change dolly (`utils/cameraFit.ts`), the Preview overlay (way back, help line, focus ring): decisions D1–D6 and results (§6) |
+| [Stage-23-Implementation.md](Stage-23-Implementation.md) | Coming back: thumbnails that wait for loaded models, frame the whole diorama from the Isometric direction at 960 × 600 and are retaken only when stale (`thumbnailAt`); Continue and the four newest dioramas on the home page: decisions D1–D4 and results (§6) |
 | [Stage-22-Implementation.md](Stage-22-Implementation.md) | A library that folds: folding sections with counts, Collapse/Expand all, search unfolding its matches, Recent, headers that stick while their section scrolls (`LibrarySection`, `libraryPrefs.ts`): decisions D1–D5 and results (§6) |
 | [Stage-21-Implementation.md](Stage-21-Implementation.md) | Room to work: presets, Fit and the opening view fit the canvas (`orthoFitView`), the shot through canvas resizes (`useCanvasResizeZoom`), folding and resizable side panels (`editorLayout.ts`, `PanelResizeHandle`), the object list's names and keyboard, the home page's background: decisions D1–D8 and results (§6) |
 | [Product-Roadmap.md](Product-Roadmap.md) | From editor to public app: architecture A1–A7 and Stages 17–27 (platform, print export, launch) |
@@ -589,6 +591,28 @@ Stage 22:
   panel is translucent over the page gradient, so a constant strip shows
   as a band.
 
+Stage 23:
+
+* **A thumbnail is the whole diorama, not the user's view.**
+  `ThumbnailCapture` renders through its own orthographic camera (the
+  Isometric direction, `sceneFit` + `orthoFitView` into 960 × 600), with
+  the renderer resized for that one render and restored, and the editor
+  view redrawn, in the same task.
+* **No picture while models load:** loading ghosts carry `LOADING_GHOST`
+  (`utils/editorHelpers.ts`); the capture also waits for drei's
+  `useProgress` to be idle. A new kind of loading stand-in must carry the
+  marker too.
+* **`thumbnailAt` on the IndexedDB entry decides retaking on opening**
+  (`thumbnailIsStale`): missing, older than `updatedAt`, or absent (any
+  pre-Stage 23 thumbnail). A save still always retakes. A starter's
+  preview picture counts as current, so it stays until the first edit.
+  Anything that writes an entry must keep or set `thumbnailAt` the same
+  way (`entryOf` in `dioramaRepository.ts`).
+* **The home page reads the collection in the browser**
+  (`features/home/components/HomeCollection.tsx`); the server render has a
+  neutral pill where the hero button goes, so a returning visitor never
+  sees "Start building" flash.
+
 ## 4. How to Run and Verify
 
 The platform is Windows. Node 22.14, Chrome, and Blender 5.2.2 LTS at
@@ -879,7 +903,7 @@ node scripts/capture-template.mjs [--hero]
 
 ## 7. Next
 
-The roadmap's seven stages and Stages 8 to 22 are implemented; Stage 22 is
+The roadmap's seven stages and Stages 8 to 23 are implemented; Stage 23 is
 on its branch, not merged yet.
 
 **Backend paused, UI first (user decision, 2026-11-02):** after asking on
@@ -889,17 +913,14 @@ first, they picked the editor layout (Stage 18). Don't restart backend
 work unless asked. Product-Roadmap.md §3 keeps the backend stages; they
 are renumbered when they resume.
 
-* **UI candidates still open:** the home page (recent dioramas on it, a
-  fuller landing); outfit colors for figures and more editable signs (out
+* **UI candidates still open:** a fuller home landing (recent dioramas are
+  Stage 23); outfit colors for figures and more editable signs (out
   of Stage 19's scope). Folding and resizable panels are Stage 21. Per-object
   colors and sign text, the roadmap's "before launch" item, are Stage 19.
-* **"Coming Back", a drafted and set-aside Stage 22 topic (2026-11-09):**
-  the home page showing your dioramas ("Continue “name”", the four newest),
-  and thumbnails that wait for loaded models and frame the whole diorama.
-  The survey found a real bug: `ThumbnailCapture` takes its picture 3 s
-  after opening without checking for loading ghosts (`AssetGhost`), so a
-  first visit can store a thumbnail of grey cylinders, kept until the next
-  save. The draft was never committed; plan it again from this note.
+* **Open from Stage 23:** not tried in the user's own browser. A starter's
+  diorama shows the starter's Preview-style picture until its first edit;
+  an imported diorama has no picture until opened; Continue truncates a
+  long name before its closing quote.
 * **Open from Stage 22:** not tried in the user's own browser. Smaller
   cards (a compact switch) were left out (open question 3).
 * **Open from Stage 21:** not tried in the user's own browser. A saved

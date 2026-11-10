@@ -14,7 +14,10 @@ import { legacySceneMigrated, markLegacySceneMigrated, readLegacyScene } from ".
 
 const NAME_LIMIT = 80;
 
-function entryOf(scene: DioramaScene, createdAt: number, updatedAt: number, thumbnail?: Blob): DioramaEntry {
+/** A thumbnail with its capture time (D3 of plan/Stage-23-Implementation.md); old entries have no time. */
+type Thumbnail = Pick<DioramaEntry, "thumbnail" | "thumbnailAt">;
+
+function entryOf(scene: DioramaScene, createdAt: number, updatedAt: number, thumbnail: Thumbnail = {}): DioramaEntry {
   const entry: DioramaEntry = {
     id: scene.id,
     name: scene.name,
@@ -23,7 +26,8 @@ function entryOf(scene: DioramaScene, createdAt: number, updatedAt: number, thum
     objectCount: scene.objects.length,
     base: scene.environment.base,
   };
-  if (thumbnail) entry.thumbnail = thumbnail;
+  if (thumbnail.thumbnail) entry.thumbnail = thumbnail.thumbnail;
+  if (thumbnail.thumbnail && thumbnail.thumbnailAt !== undefined) entry.thumbnailAt = thumbnail.thumbnailAt;
   return entry;
 }
 
@@ -86,11 +90,15 @@ export async function getDiorama(id: string): Promise<DioramaScene | null> {
   return { ...result.scene, id };
 }
 
-/** Adds a new diorama. The scene must have an id no other diorama has. */
-export async function createDiorama(scene: DioramaScene, thumbnail?: Blob): Promise<DioramaEntry> {
+/**
+ * Adds a new diorama. The scene must have an id no other diorama has. A
+ * thumbnail given here counts as a picture of it as it is now, unless
+ * `current` is false (a duplicate of a diorama whose picture was stale).
+ */
+export async function createDiorama(scene: DioramaScene, thumbnail?: Blob, current = true): Promise<DioramaEntry> {
   await whenReady();
   const now = Date.now();
-  const entry = entryOf(scene, now, now, thumbnail);
+  const entry = entryOf(scene, now, now, { thumbnail, thumbnailAt: current ? now : undefined });
   await write([
     { store: ENTRIES, key: scene.id, put: entry },
     { store: SCENES, key: scene.id, put: serializeScene(scene) },
@@ -108,23 +116,38 @@ export async function saveDiorama(scene: DioramaScene): Promise<void> {
     const previous = entries.get(scene.id);
     previous.onsuccess = () => {
       const entry = previous.result as DioramaEntry | undefined;
-      entries.put(entryOf(scene, entry?.createdAt ?? now, now, entry?.thumbnail), scene.id);
+      entries.put(entryOf(scene, entry?.createdAt ?? now, now, entry ?? {}), scene.id);
       transaction.objectStore(SCENES).put(serializeScene(scene), scene.id);
     };
   });
 }
 
 /** Replaces a diorama's thumbnail. Does not count as an edit. */
-export async function saveThumbnail(id: string, thumbnail: Blob): Promise<void> {
+export async function saveThumbnail(id: string, thumbnail: Blob, takenAt: number): Promise<void> {
   await whenReady();
   await transact([ENTRIES], (transaction) => {
     const entries = transaction.objectStore(ENTRIES);
     const previous = entries.get(id);
     previous.onsuccess = () => {
       const entry = previous.result as DioramaEntry | undefined;
-      if (entry) entries.put({ ...entry, thumbnail }, id);
+      if (entry) entries.put({ ...entry, thumbnail, thumbnailAt: takenAt }, id);
     };
   });
+}
+
+/**
+ * Whether a diorama's thumbnail no longer shows it (D3): there is none, it
+ * was taken before the last save, or it has no time (taken before Stage 23,
+ * when a thumbnail could show models that had not loaded yet).
+ */
+export async function thumbnailIsStale(id: string): Promise<boolean> {
+  await whenReady();
+  const entry = await readOne<DioramaEntry>(ENTRIES, id);
+  return entry ? isStale(entry) : false;
+}
+
+function isStale(entry: DioramaEntry): boolean {
+  return !entry.thumbnail || entry.thumbnailAt === undefined || entry.thumbnailAt < entry.updatedAt;
 }
 
 /** Renames a diorama: its entry and its scene file. */
@@ -141,7 +164,10 @@ export async function renameDiorama(id: string, name: string): Promise<void> {
       const entry = entryRequest.result as DioramaEntry | undefined;
       const file = fileRequest.result as DioramaSceneFile | undefined;
       if (!entry || !file) return;
-      entries.put({ ...entry, name: trimmed, updatedAt: Date.now() }, id);
+      const now = Date.now();
+      // A name is not in the picture: a thumbnail that was current stays current.
+      const current = entry.thumbnailAt !== undefined && entry.thumbnailAt >= entry.updatedAt;
+      entries.put({ ...entry, name: trimmed, updatedAt: now, ...(current ? { thumbnailAt: now } : {}) }, id);
       scenes.put({ ...file, scene: { ...file.scene, name: trimmed } }, id);
     };
   });
@@ -153,7 +179,8 @@ export async function duplicateDiorama(id: string): Promise<DioramaEntry | null>
   if (!scene) return null;
   const entry = await readOne<DioramaEntry>(ENTRIES, id);
   const copy: DioramaScene = { ...scene, id: createId("scene"), name: `${scene.name} copy`.slice(0, NAME_LIMIT) };
-  return createDiorama(copy, entry?.thumbnail);
+  // The copy's picture is exactly as current as the original's.
+  return createDiorama(copy, entry?.thumbnail, entry ? !isStale(entry) : true);
 }
 
 /** Deletes a diorama for good. */

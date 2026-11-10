@@ -4,6 +4,7 @@ import { Component, Suspense, useEffect, type ReactNode } from "react";
 import { Clone, useGLTF } from "@react-three/drei";
 import type { Material, Mesh, Object3D } from "three";
 import { DIORAMA_COLORS } from "../utils/palette";
+import { LOADING_GHOST } from "../utils/editorHelpers";
 import {
   castsShadow,
   getPaintMaterial,
@@ -89,7 +90,7 @@ function Model({ url, paint, sign }: ModelProps) {
 function AssetGhost({ radius, failed = false }: { radius: number; failed?: boolean }) {
   const height = Math.max(0.5, radius);
   return (
-    <mesh position={[0, height / 2, 0]}>
+    <mesh position={[0, height / 2, 0]} userData={failed ? {} : LOADING_GHOST}>
       <cylinderGeometry args={[radius * 0.6, radius * 0.6, height, 16]} />
       <meshBasicMaterial
         color={failed ? DIORAMA_COLORS.signRed : DIORAMA_COLORS.sidewalkJoint}
