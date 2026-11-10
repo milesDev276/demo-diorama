@@ -283,6 +283,35 @@ angle; the starters' own preview images; anything on a server.
 * No change to `cameraFit.ts` was needed; `StartBuildingButton.tsx` is
   kept and used by `HomeActions` for the first visit.
 
+### Review fixes (`/code-review high`, 2026-11-10)
+
+* **A save of the view alone retook the picture** (and so replaced a
+  starter's preview after an orbit): `saveDiorama` now compares what a
+  picture shows — objects and environment (`pictureKey`) — with the stored
+  scene, and keeps a current thumbnail current when only the view, photo
+  settings or name changed. `ThumbnailCapture` asks `thumbnailIsStale`
+  after every save as well as on opening, so the rule lives in one place.
+* **Closing within the autosave's debounce took no picture:** the close
+  capture also runs when objects or environment have changed but are not
+  saved yet (`hasUnsavedPictureChanges`).
+* **A picture of unsaved changes counted as current** (a pending or
+  failing save): such a picture is stored without `thumbnailAt`, so it is
+  retaken on the next opening.
+* **The list read before the close-time picture arrived:** the repository
+  announces a stored thumbnail (`onThumbnailSaved`) and `useDioramaList`
+  reloads, so My Dioramas and the home page show it.
+* **Four drawing-buffer resizes per capture:** now two
+  (`setDrawingBufferSize` there and back).
+* **Retrying every second while the user was busy:** after placing,
+  brushing or Preview it waits the full idle time again; only loading
+  retries every second.
+* Smaller: renaming uses the shared `isStale`; `StartBuildingButton` lost
+  its now-unreachable "has dioramas" branch (and `hasDioramas` went); the
+  hero button's classes are shared (`features/home/components/heroButton.ts`).
+* Not changed: the home page reads every entry (the thumbnails are inside
+  the entries, so a count alone would still read them); hex colors stay,
+  as everywhere else in the app.
+
 ### Verification
 
 * `npm run lint`, `npx tsc --noEmit`, `npm run build`: clean.
@@ -304,6 +333,14 @@ angle; the starters' own preview images; anything on a server.
   `thumbnailAt` unchanged, the starter's picture kept. After an edit — a
   new picture; reopening without an edit — no new picture. Duplicate and
   rename (through My Dioramas' menu) — both entries still current.
+* **After the review fixes** (the editor left through its own link, as a
+  user does): a view-only save (`setCamera`) — saved, the starter's
+  picture kept and still current. An edit, then leaving 150 ms later —
+  the canvas unmounted at 391 ms, before the autosave; a new picture,
+  stored as stale, and the save flushed. An edit, then leaving 1.2 s
+  later — a new, current picture, and My Dioramas' card shows exactly the
+  stored blob. The scenarios above rerun: the same results, the same
+  picture sizes byte for byte.
 * **Home page:** a fresh profile matches `main` except inside the hero
   picture (1,295 pixels, at most 21 of 765 in summed RGB difference: raster
   noise of the rounded, shadowed image). With one diorama, two and six:

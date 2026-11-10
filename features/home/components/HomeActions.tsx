@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { editorPath } from "@/features/dioramas/hooks/useDioramaLauncher";
+import { HERO_BUTTON } from "./heroButton";
 import { StartBuildingButton } from "./StartBuildingButton";
 import { useHomeCollection } from "./HomeCollection";
 
@@ -27,7 +28,7 @@ export function HomeActions() {
     <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
       <Link
         href={editorPath(latest.id)}
-        className="flex min-w-0 max-w-full items-center gap-2 rounded-full bg-[#F0B27A] px-6 py-3 text-base font-semibold text-[#4A3421] shadow-[0_6px_20px_rgba(240,178,122,0.45)] transition-colors hover:bg-[#eda868] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8B6F52]"
+        className={`${HERO_BUTTON} min-w-0 max-w-full`}
       >
         <span className="truncate">Continue “{latest.name}”</span>
         <ArrowRight size={18} className="shrink-0" />

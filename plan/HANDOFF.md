@@ -602,9 +602,9 @@ Stage 23:
   (`utils/editorHelpers.ts`); the capture also waits for drei's
   `useProgress` to be idle. A new kind of loading stand-in must carry the
   marker too.
-* **`thumbnailAt` on the IndexedDB entry decides retaking on opening**
-  (`thumbnailIsStale`): missing, older than `updatedAt`, or absent (any
-  pre-Stage 23 thumbnail). A save still always retakes. A starter's
+* **`thumbnailAt` on the IndexedDB entry decides retaking** (on opening and after each save;
+  `thumbnailIsStale`): missing, older than `updatedAt`, or absent (any
+  pre-Stage 23 thumbnail). `saveDiorama` keeps it current when only the view, photo or name changed (`pictureKey`). A starter's
   preview picture counts as current, so it stays until the first edit.
   Anything that writes an entry must keep or set `thumbnailAt` the same
   way (`entryOf` in `dioramaRepository.ts`).

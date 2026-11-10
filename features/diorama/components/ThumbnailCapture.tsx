@@ -5,7 +5,8 @@ import { useThree, type RootState } from "@react-three/fiber";
 import { useProgress } from "@react-three/drei";
 import * as THREE from "three";
 import { saveThumbnail, thumbnailIsStale } from "@/features/dioramas/storage/dioramaRepository";
-import { useDioramaStore } from "../store/dioramaStore";
+import { sceneFingerprint, sceneOf, useDioramaStore } from "../store/dioramaStore";
+import type { DioramaScene } from "../types/diorama.types";
 import { sceneLook } from "../utils/weather";
 import { isEditorHelper, isLoadingGhost } from "../utils/editorHelpers";
 import { getBaseTemplate } from "../utils/baseTemplates";
@@ -15,10 +16,10 @@ import { orthoFitView, sceneFit } from "../utils/cameraFit";
 /** Thumbnail size: the 16:10 of My Dioramas' and the home page's cards, sharp on a 2× screen (Stage 23 D2). */
 const WIDTH = 960;
 const HEIGHT = 600;
-/** How long the scene has to stay saved and untouched before a thumbnail is taken. */
+/** How long the scene has to stay saved and untouched before a thumbnail is taken, and how long to wait again after the user was busy (placing, brushing, Preview). */
 const IDLE_MS = 3000;
-/** How soon to look again when the picture could not be taken yet (models loading, placing, Preview). */
-const RETRY_MS = 1000;
+/** How soon to look again while models are loading. */
+const LOADING_RETRY_MS = 1000;
 
 /** The thumbnail's viewing direction: the Isometric preset's (D2). */
 const DIRECTION = new THREE.Vector3(...CAMERA_PRESETS.isometric.position).normalize();
@@ -59,8 +60,9 @@ function thumbnailCamera({ scene, camera, controls }: RootState): THREE.Orthogra
 
 /**
  * Renders the diorama once, without the editor's helpers, through the
- * thumbnail camera at exactly WIDTH × HEIGHT pixels (the renderer is
- * resized for that one render) and copies it onto the sky behind it.
+ * thumbnail camera at exactly WIDTH × HEIGHT pixels (the drawing buffer is
+ * resized for that one render — one resize there, one back) and copies it
+ * onto the sky behind it.
  * Everything up to the copy happens in one task, so the drawing buffer is
  * intact without `preserveDrawingBuffer` (as in PhotoStudio). The editor's
  * size is restored and its view drawn again before the task ends, so the
@@ -93,39 +95,56 @@ function renderThumbnail(state: RootState): HTMLCanvasElement {
   const size = gl.getSize(new THREE.Vector2());
   try {
     const shot = thumbnailCamera(state);
-    gl.setPixelRatio(1);
-    gl.setSize(WIDTH, HEIGHT, false);
+    gl.setDrawingBufferSize(WIDTH, HEIGHT, 1);
     gl.render(scene, shot);
     context.drawImage(gl.domElement, 0, 0, WIDTH, HEIGHT);
   } finally {
     for (const object of hidden) object.visible = true;
-    gl.setPixelRatio(pixelRatio);
-    gl.setSize(size.x, size.y, false);
+    // Back to the editor's size (the canvas's CSS size is never touched) and its view.
+    gl.setDrawingBufferSize(size.x, size.y, pixelRatio);
     gl.render(scene, camera);
   }
   return copy;
 }
 
 /**
- * Takes and stores a thumbnail of the open diorama. Returns false — try
- * again later — while models are loading or the user is placing, brushing
- * or in Preview.
+ * Takes and stores a thumbnail of the open diorama: "taken", or why not
+ * yet — the user is placing, brushing or in Preview ("busy"), or models
+ * are loading ("loading"). A picture of changes that are not stored yet
+ * (a save pending or failing) is stored without a time, so it counts as
+ * stale and is retaken on the next opening.
  */
-function captureThumbnail(get: () => RootState): boolean {
+function captureThumbnail(get: () => RootState): "taken" | "busy" | "loading" {
   const state = useDioramaStore.getState();
-  if (!state.sceneId || state.placement || state.brush || state.groundBrush || state.isPreviewMode) return false;
+  if (!state.sceneId) return "taken";
+  if (state.placement || state.brush || state.groundBrush || state.isPreviewMode) return "busy";
   const three = get();
-  if (!modelsLoaded(three.scene)) return false;
+  if (!modelsLoaded(three.scene)) return "loading";
   try {
     const takenAt = Date.now();
-    storeThumbnail(state.sceneId, renderThumbnail(three), takenAt);
+    const stored = state.savedFingerprint !== null && sceneFingerprint(state) === state.savedFingerprint;
+    storeThumbnail(state.sceneId, renderThumbnail(three), stored ? takenAt : undefined);
   } catch {
     // A lost context or a canvas that cannot be read: keep the old thumbnail.
   }
-  return true;
+  return "taken";
 }
 
-function storeThumbnail(id: string, canvas: HTMLCanvasElement, takenAt: number): void {
+/**
+ * Changes to what a thumbnail shows (objects, environment) that the
+ * autosave has not written yet — its debounce is running, or it failed. A
+ * moved view alone does not count.
+ */
+function hasUnsavedPictureChanges(): boolean {
+  const state = useDioramaStore.getState();
+  if (!state.sceneId || state.savedFingerprint === null || sceneFingerprint(state) === state.savedFingerprint) return false;
+  // Both sides as the fingerprint writes them (sceneOf), so only a real difference counts.
+  const saved = JSON.parse(state.savedFingerprint) as DioramaScene;
+  const now = sceneOf(state);
+  return JSON.stringify([saved.objects, saved.environment]) !== JSON.stringify([now.objects, now.environment]);
+}
+
+function storeThumbnail(id: string, canvas: HTMLCanvasElement, takenAt: number | undefined): void {
   canvas.toBlob(
     (blob) => {
       if (blob) saveThumbnail(id, blob, takenAt).catch(() => {});
@@ -137,16 +156,17 @@ function storeThumbnail(id: string, canvas: HTMLCanvasElement, takenAt: number):
 
 /**
  * Keeps the open diorama's thumbnail in My Dioramas and on the home page
- * current (plan/Stage-17 D7, plan/Stage-23-Implementation.md D1–D3): a few
- * seconds after each save, and once more when the editor closes with a
- * newer save than the last thumbnail. On opening, only a stale thumbnail
- * (missing, older than the last save, or from before Stage 23) is
- * retaken, so a starter's preview image stays until the first edit. No
- * picture is taken while models are still loading.
+ * current (plan/Stage-17 D7, plan/Stage-23-Implementation.md D1–D3): when
+ * the diorama opens and after each save, if the stored thumbnail is stale
+ * (missing, older than the last save of something it shows, or from before
+ * Stage 23), a few seconds later; and once more when the editor closes
+ * with a stale thumbnail or with changes not saved yet. So a starter's
+ * preview image stays until the first edit, and saving only the view
+ * retakes nothing. No picture is taken while models are still loading.
  */
 export function ThumbnailCapture() {
   const get = useThree((s) => s.get);
-  /** The stored thumbnail no longer shows the diorama: a save happened since, or it was stale on opening. */
+  /** The stored thumbnail no longer shows the diorama (found stale on opening or after a save). */
   const pending = useRef(false);
 
   useEffect(() => {
@@ -155,11 +175,13 @@ export function ThumbnailCapture() {
     const schedule = (delay: number) => {
       window.clearTimeout(timer);
       timer = window.setTimeout(() => {
-        if (captureThumbnail(get)) pending.current = false;
-        else schedule(RETRY_MS);
+        const result = captureThumbnail(get);
+        if (result === "taken") pending.current = false;
+        else schedule(result === "busy" ? IDLE_MS : LOADING_RETRY_MS);
       }, delay);
     };
-    const opened = (id: string) => {
+    /** Asks the collection whether the stored picture still shows the diorama (it judges a save of the view alone as no change). */
+    const check = (id: string) => {
       thumbnailIsStale(id)
         .then((stale) => {
           if (!alive || !stale || useDioramaStore.getState().sceneId !== id) return;
@@ -170,16 +192,10 @@ export function ThumbnailCapture() {
     };
 
     const current = useDioramaStore.getState();
-    if (current.sceneId && current.savedFingerprint !== null) opened(current.sceneId);
+    if (current.sceneId && current.savedFingerprint !== null) check(current.sceneId);
+    // A new saved fingerprint: the diorama was opened (loadScene) or saved; either way the entry is written by now.
     const unsubscribe = useDioramaStore.subscribe((state, previous) => {
-      if (state.savedFingerprint === null || state.savedFingerprint === previous.savedFingerprint) return;
-      // From nothing to a fingerprint is a diorama being opened (loadScene); anything else is a save.
-      if (previous.savedFingerprint === null) {
-        opened(state.sceneId);
-        return;
-      }
-      pending.current = true;
-      schedule(IDLE_MS);
+      if (state.savedFingerprint !== null && state.savedFingerprint !== previous.savedFingerprint) check(state.sceneId);
     });
     return () => {
       alive = false;
@@ -191,7 +207,7 @@ export function ThumbnailCapture() {
   // A layout cleanup of the canvas's first child runs before the rest of the scene is removed.
   useLayoutEffect(
     () => () => {
-      if (pending.current) captureThumbnail(get);
+      if (pending.current || hasUnsavedPictureChanges()) captureThumbnail(get);
     },
     [get]
   );
