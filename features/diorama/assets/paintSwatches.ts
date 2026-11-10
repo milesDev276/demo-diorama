@@ -47,6 +47,14 @@ export const PAINT_SWATCHES = {
   ],
   plaster: [PLASTER, SIDING, ...WALL_COLORS],
   siding: [SIDING, PLASTER, ...WALL_COLORS],
+  metal: [
+    s("wallMetal", "Galvanized"),
+    s("paintMetalBlue", "Faded blue"),
+    s("paintMetalRust", "Oxide red"),
+    s("paintWallWhite", "White"),
+    s("paintWallSage", "Sage"),
+    s("paintWallBrown", "Brown"),
+  ],
 } satisfies Record<string, Swatch[]>;
 
 /** A swatch's color as stored on an object: "#rrggbb", lowercase. */

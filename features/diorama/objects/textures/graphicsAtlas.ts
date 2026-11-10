@@ -28,6 +28,8 @@ export const SIGN_TEXTS = {
   konbini_sign: "コトリマート",
   apartment_board: "ハイツ若葉",
   name_plate: "中村",
+  workshop_board: "鈴木工業",
+  oldshop_front: "きくや商店",
 } as const satisfies Partial<Record<CellName, string>>;
 
 export type SignCell = keyof typeof SIGN_TEXTS;
@@ -397,12 +399,66 @@ function paintApartmentBoard(ctx: CanvasRenderingContext2D, w: number, h: number
   ctx.fillText("HEIGHTS WAKABA", w / 2, h * 0.78, w * 0.7);
 }
 
+/** Name board of a small workshop (by default a fictional 鈴木工業): a gear mark, the name, its trades. */
+function paintWorkshopBoard(ctx: CanvasRenderingContext2D, w: number, h: number, name: string) {
+  ctx.fillStyle = DIORAMA_COLORS.signBoard;
+  ctx.fillRect(0, 0, w, h);
+  const blue = "#3c5a7a";
+  ctx.fillStyle = blue;
+  ctx.fillRect(0, h * 0.9, w, h * 0.1);
+
+  // The mark: a toothed ring
+  const cx = h * 0.62;
+  const cy = h * 0.46;
+  ctx.beginPath();
+  for (let i = 0; i < 16; i++) {
+    const r = i % 2 ? h * 0.3 : h * 0.36;
+    const a = (i / 16) * Math.PI * 2;
+    ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = DIORAMA_COLORS.signBoard;
+  ctx.beginPath();
+  ctx.arc(cx, cy, h * 0.14, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = blue;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  fitText(ctx, name, w * 0.5, h * 0.48, w * 0.62, 900, h * 0.6);
+  ctx.font = font(700, h * 0.24);
+  ctx.fillText("整備", w * 0.9, h * 0.3, w * 0.12);
+  ctx.fillText("板金", w * 0.9, h * 0.62, w * 0.12);
+}
+
+/** The painted name band of an old shop's false front (by default a fictional きくや商店), with the たばこ tag over its tobacco window. */
+function paintOldShopFront(ctx: CanvasRenderingContext2D, w: number, h: number, name: string) {
+  ctx.fillStyle = "#efe7d4";
+  ctx.fillRect(0, 0, w, h);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  ctx.fillStyle = "#2f4a40";
+  fitText(ctx, name, w * 0.43, h * 0.54, w * 0.72, 900, h * 0.66);
+
+  // The tag sits over the tobacco window, near the band's right end (building_shop_old_01).
+  ctx.fillStyle = DIORAMA_COLORS.signRed;
+  roundRect(ctx, w * 0.862, h * 0.14, w * 0.126, h * 0.72, h * 0.08);
+  ctx.fill();
+  ctx.fillStyle = "#fff8ec";
+  ctx.font = font(800, h * 0.34);
+  ctx.fillText("たばこ", w * 0.925, h * 0.52, w * 0.11);
+}
+
 /** The painters of the signs a placed object can change, given the text. */
 const SIGN_PAINTERS: Record<SignCell, SignPainter> = {
   shop_sign: paintShopSign,
   konbini_sign: paintKonbiniSign,
   apartment_board: paintApartmentBoard,
   name_plate: paintNamePlate,
+  workshop_board: paintWorkshopBoard,
+  oldshop_front: paintOldShopFront,
 };
 
 /** A sign's painter with its default text, for the atlas. */
@@ -422,6 +478,8 @@ const PAINTERS: Record<CellName, CellPainter> = {
   bus_stop_board: paintBusStopBoard,
   shop_sign: withDefaultText("shop_sign"),
   konbini_sign: withDefaultText("konbini_sign"),
+  workshop_board: withDefaultText("workshop_board"),
+  oldshop_front: withDefaultText("oldshop_front"),
 };
 
 /** Cells that keep their alpha, for the `decal` material. Everything else is opaque print. */
@@ -436,6 +494,7 @@ const LIT_CELLS: Partial<Record<CellName, number>> = {
   shop_sign: 0.7,
   bus_stop_head: 0.6,
   bus_stop_board: 0.6,
+  oldshop_front: 0.5,
 };
 
 /** Paints one cell and repeats its outer pixels into the gutter, so mipmaps never mix neighboring cells. */

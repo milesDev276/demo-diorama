@@ -1,4 +1,4 @@
-# Handoff — Hero Diorama Work (as of 2026-11-10, after Stage 23)
+# Handoff — Hero Diorama Work (as of 2026-11-10, after Stage 24)
 
 Read this first when picking up the work. It summarizes where things
 stand, what was decided and why, how to run and verify things, and what
@@ -35,17 +35,18 @@ comes next. Details live in the linked plan files.
 | Stage 20: photo studio | Done | `main` (PR #23) |
 | Stage 21: room to work (editor camera fit, folding and resizable panels, object list) | Done | `main` (PR #24) |
 | Stage 22: a library that folds (folding sections, search counts, Recent, sticky headers) | Done | `main` (PR #25) |
-| Stage 23: coming back (thumbnails that wait for models and frame the whole diorama; Continue and your dioramas on the home page) | Implemented and verified | branch `stage23-coming-back` |
+| Stage 23: coming back (thumbnails that wait for models and frame the whole diorama; Continue and your dioramas on the home page) | Done | `main` (PR #26) |
+| Stage 24: more buildings (workshop, old shop, Apartment Block 4F and Narrow Building 4F presets, the Old Shopping Street starter) | Implemented and verified | branch `stage24-more-buildings` |
 
 Stage 7 was the last stage of the original roadmap; Stages 8 to 16 were added
 at the user's request. Stage 17 followed
 [Product-Roadmap.md](Product-Roadmap.md). The roadmap's backend stages are
 paused (2026-11-02, §7), so Stage 18 is a UI stage: the editor layout.
 
-**`main` holds Stages 0–22** (last merge: PR #25, `8d81a96`; the user merged
-it). Stage 23 is on `stage23-coming-back`.
+**`main` holds Stages 0–23** (last merge: PR #26, `55c4fb5`; the user merged
+it). Stage 24 is on `stage24-more-buildings`.
 
-**Immediate next action:** open, review and merge Stage 23's PR (§8). The
+**Immediate next action:** open, review and merge Stage 24's PR (§8). The
 GitHub CLI is installed at `C:\Program Files\GitHub CLI\gh.exe` but is not
 on the Bash PATH: call it by its full path. Then ask the user for the next
 UI stage (§7).
@@ -54,7 +55,7 @@ One branch per stage; cut the next branch from an up-to-date `main`
 (For Stages 6 to 14 the user handed every decision
 to Claude, so the plan was settled with its defaults and implemented without
 a separate approval round. Stage 15's plan was approved with "theo mặc định",
-Stage 16's and Stage 17's with "hãy thực hiện", Stage 20's with "tôi đồng ý theo ý kiến của bạn", Stage 21's with "tôi đồng ý với recommend của bạn", Stage 22's with "mình đồng ý", Stage 23's with "tôi đồng ý": their defaults. Ask again at the start of new work; it is not a standing rule.)
+Stage 16's and Stage 17's with "hãy thực hiện", Stage 20's with "tôi đồng ý theo ý kiến của bạn", Stage 21's with "tôi đồng ý với recommend của bạn", Stage 22's with "mình đồng ý", Stage 23's and Stage 24's with "tôi đồng ý": their defaults. Ask again at the start of new work; it is not a standing rule.)
 
 The old Stage 5 stash was dropped on 2026-10-06; `git stash list` is empty.
 
@@ -85,6 +86,7 @@ The old Stage 5 stash was dropped on 2026-10-06; `git stash list` is empty.
 | [Stage-19-Implementation.md](Stage-19-Implementation.md) | Per-object colors (the `paint` slot, curated swatches) and editable sign text on four signs (per-text sign textures), the Color and Sign sections of the inspector: decisions D1–D8 and results (§6) |
 | [Stage-20-Implementation.md](Stage-20-Implementation.md) | The photo studio: the canvas above the photo bar, the one-row bar with pixel sizes, Fit (F) and the frame-change dolly (`utils/cameraFit.ts`), the Preview overlay (way back, help line, focus ring): decisions D1–D6 and results (§6) |
 | [Stage-23-Implementation.md](Stage-23-Implementation.md) | Coming back: thumbnails that wait for loaded models, frame the whole diorama from the Isometric direction at 960 × 600 and are retaken only when stale (`thumbnailAt`); Continue and the four newest dioramas on the home page: decisions D1–D4 and results (§6) |
+| [Stage-24-Implementation.md](Stage-24-Implementation.md) | More buildings: the workshop (corrugated cladding, half-raised shutter, outside stair) and the old 看板建築 shop (false front, tobacco window) as GLBs with editable signs, the Apartment Block 4F and Narrow Building 4F presets, the Old Shopping Street starter: decisions D1–D3 and results (§6) |
 | [Stage-22-Implementation.md](Stage-22-Implementation.md) | A library that folds: folding sections with counts, Collapse/Expand all, search unfolding its matches, Recent, headers that stick while their section scrolls (`LibrarySection`, `libraryPrefs.ts`): decisions D1–D5 and results (§6) |
 | [Stage-21-Implementation.md](Stage-21-Implementation.md) | Room to work: presets, Fit and the opening view fit the canvas (`orthoFitView`), the shot through canvas resizes (`useCanvasResizeZoom`), folding and resizable side panels (`editorLayout.ts`, `PanelResizeHandle`), the object list's names and keyboard, the home page's background: decisions D1–D8 and results (§6) |
 | [Product-Roadmap.md](Product-Roadmap.md) | From editor to public app: architecture A1–A7 and Stages 17–27 (platform, print export, launch) |
@@ -355,9 +357,10 @@ Stage 12:
   order of its random calls; do not reorder them.
 * **A fixed building with a room is built from wall blocks,** one box per
   side wall, so the siding's per-face jitter shows no seam.
-* **The atlas has room left** under `bus_stop_board` (from y 792); the
-  strip under `plate_kei` is used by the two sign cells, the one right of it
-  by the two Stage 15 cells.
+* **The atlas has room left** under `bus_stop_board` (x 824–1016, from
+  y 792) and under the Stage 24 cells (x 368–808, from y 784); the strip
+  under `plate_kei` is used by the two sign cells, the one right of it by
+  the two Stage 15 cells.
 
 Stage 13:
 
@@ -454,8 +457,8 @@ Stage 15:
 * **`MeshBuilder.solid`** builds a closed polyhedron from corners and faces;
   the 入母屋 roof's hipped part uses it.
 * **Atlas cells `name_plate` and `apartment_board`** sit right of
-  `plate_kei` (x 760–1016, y 8–136), which fills that strip. The next free
-  space is under `bus_stop_board` (from y 792).
+  `plate_kei` (x 760–1016, y 8–136), which fills that strip. Free space
+  since Stage 24: see Stage 12 above.
 * **Starter grounds are `surfaceFrom(width, depth, rects)`**
   (`utils/plotStarter.ts`); `runObject` (`utils/objectDefaults.ts`) makes
   one run between two points.
@@ -613,6 +616,24 @@ Stage 23:
   neutral pill where the hero button goes, so a returning visitor never
   sees "Start building" flash.
 
+Stage 24:
+
+* **`workshop` and `oldShop` are fixed GLBs** (`building_workshop_01`,
+  `building_shop_old_01`); nothing attaches to them. Their signs are atlas
+  cells `workshop_board` and `oldshop_front` (x 368, y 616 and 704); the
+  たばこ tag is painted into `oldshop_front`'s right end, so the old shop's
+  tobacco window and that cell's layout move together.
+* **Corrugated metal is geometry, not a texture:** `_corrugated` in the
+  workshop script extrudes a triangle wave per wall panel. Copy it for the
+  next corrugated asset rather than adding a normal map.
+* **An asset with glass and a room cannot also have paint** (four slots:
+  base, emissive, printed, glass). The old shop chose glass.
+* **A starter's frontage is 24 m at most** (the Scene panel's largest
+  plot): plan a starter's row of buildings against that.
+* **`BUILDING_PRESETS` is looked up by id in new code**
+  (`shoppingStreetStarter.ts`); the older starters still use indexes 0 and
+  1, so add presets at the end.
+
 ## 4. How to Run and Verify
 
 The platform is Windows. Node 22.14, Chrome, and Blender 5.2.2 LTS at
@@ -629,6 +650,8 @@ node scripts/capture-presets.mjs <outDir> [--url <url>] [--seed-scene <file>] [-
 
 # Frame rate (editor + Preview, 1920×1080) and renderer.info for a grid scene or a seeded one
 node scripts/measure-scene.mjs --types keiCar,bicycle --count 100 [--seconds 5] [--save-seed <file>]
+# ... or a built-in starter as it opens (--count 0 skips the grid)
+node scripts/measure-scene.mjs --url "http://localhost:3000/diorama/new?starter=old-shopping-street" --count 0
 
 # Library thumbnails (dev server must run): every item, or some keys
 node scripts/capture-thumbnails.mjs [--only vendingMachine,kit:vending-corner]
@@ -903,7 +926,7 @@ node scripts/capture-template.mjs [--hero]
 
 ## 7. Next
 
-The roadmap's seven stages and Stages 8 to 23 are implemented; Stage 23 is
+The roadmap's seven stages and Stages 8 to 24 are implemented; Stage 24 is
 on its branch, not merged yet.
 
 **Backend paused, UI first (user decision, 2026-11-02):** after asking on
@@ -917,6 +940,11 @@ are renumbered when they resume.
   Stage 23); outfit colors for figures and more editable signs (out
   of Stage 19's scope). Folding and resizable panels are Stage 21. Per-object
   colors and sign text, the roadmap's "before launch" item, are Stage 19.
+* **Open from Stage 24:** not tried in the user's own browser. The old
+  shop cannot be recolored; the workshop's shutter is always half raised;
+  the Apartment Block 4F preset is in no starter. Candidates it left: a
+  fixed マンション with an entrance hall, a 古民家-style shop, a shutter
+  that opens and closes.
 * **Open from Stage 23:** not tried in the user's own browser. A starter's
   diorama shows the starter's Preview-style picture until its first edit;
   an imported diorama has no picture until opened; Continue truncates a

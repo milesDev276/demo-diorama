@@ -2,6 +2,7 @@ import type { DioramaEnvironment, DioramaObject } from "../types/diorama.types";
 import { getDefaultScene } from "../utils/objectDefaults";
 import { getBackStreetObjects, getBackStreetSurface } from "../utils/plotStarter";
 import { getResidentialObjects, getResidentialSurface } from "../utils/residentialStarter";
+import { getShoppingStreetObjects, getShoppingStreetSurface } from "../utils/shoppingStreetStarter";
 import { DEFAULT_ENVIRONMENT } from "../utils/sceneDefaults";
 
 /** A built-in starting point: a whole scene, offered by the New-diorama dialog. */
@@ -59,6 +60,23 @@ export const SCENE_TEMPLATES: SceneTemplate[] = [
       surface: getResidentialSurface(),
     },
     objects: getResidentialObjects,
+  },
+  {
+    // The old shopping street of plan/Stage-24-Implementation.md D3.
+    id: "old-shopping-street",
+    name: "Old Shopping Street",
+    description: "A workshop, an old shop and a narrow building on a small street, on a spring evening.",
+    thumbnail: "/templates/old-shopping-street.webp",
+    environment: {
+      ...DEFAULT_ENVIRONMENT,
+      base: "plot",
+      timeOfDay: "evening",
+      season: "spring",
+      weather: "clear",
+      plinth: "wood",
+      surface: getShoppingStreetSurface(),
+    },
+    objects: getShoppingStreetObjects,
   },
 ];
 

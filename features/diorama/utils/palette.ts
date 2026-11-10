@@ -46,6 +46,11 @@ export const DIORAMA_COLORS = {
   charredBoard: "#3f3934",
   woodLight: "#a07a55",
   shojiPaper: "#f2ead6",
+  // Workshop and old shop (Stage 24)
+  wallMetal: "#a7aca8",
+  copperGreen: "#6f9586",
+  mortarFront: "#d6cdb9",
+  workFloor: "#8d8c86",
 
   // Street
   asphalt: "#55575a",
@@ -139,6 +144,8 @@ export const DIORAMA_COLORS = {
   paintWallSage: "#c7d1bb",
   paintWallBlueGrey: "#c2cad1",
   paintWallBrown: "#93806c",
+  paintMetalBlue: "#8197a2",
+  paintMetalRust: "#9b6f58",
 
   // Weather
   snow: "#eef2f6",
