@@ -15,4 +15,10 @@ export interface DioramaEntry {
   base: DioramaBase;
   /** A small WebP (or PNG) of the scene, captured by the editor. */
   thumbnail?: Blob;
+  /**
+   * When the thumbnail was taken (ms since the epoch). Older than
+   * `updatedAt`, or missing (thumbnails from before Stage 23), means the
+   * editor takes a new one when the diorama is next opened.
+   */
+  thumbnailAt?: number;
 }

@@ -14,7 +14,10 @@ import { legacySceneMigrated, markLegacySceneMigrated, readLegacyScene } from ".
 
 const NAME_LIMIT = 80;
 
-function entryOf(scene: DioramaScene, createdAt: number, updatedAt: number, thumbnail?: Blob): DioramaEntry {
+/** A thumbnail with its capture time (D3 of plan/Stage-23-Implementation.md); old entries have no time. */
+type Thumbnail = Pick<DioramaEntry, "thumbnail" | "thumbnailAt">;
+
+function entryOf(scene: DioramaScene, createdAt: number, updatedAt: number, thumbnail: Thumbnail = {}): DioramaEntry {
   const entry: DioramaEntry = {
     id: scene.id,
     name: scene.name,
@@ -23,8 +26,26 @@ function entryOf(scene: DioramaScene, createdAt: number, updatedAt: number, thum
     objectCount: scene.objects.length,
     base: scene.environment.base,
   };
-  if (thumbnail) entry.thumbnail = thumbnail;
+  if (thumbnail.thumbnail) entry.thumbnail = thumbnail.thumbnail;
+  if (thumbnail.thumbnail && thumbnail.thumbnailAt !== undefined) entry.thumbnailAt = thumbnail.thumbnailAt;
   return entry;
+}
+
+/** What a thumbnail shows of a scene: its objects and environment, not its name, saved view or photo settings. */
+function pictureKey(scene: Pick<DioramaScene, "objects" | "environment">): string {
+  return JSON.stringify([scene.objects, scene.environment]);
+}
+
+function isStale(entry: DioramaEntry): boolean {
+  return !entry.thumbnail || entry.thumbnailAt === undefined || entry.thumbnailAt < entry.updatedAt;
+}
+
+/** Tells open lists (My Dioramas, the home page) that a thumbnail was stored. */
+const thumbnailEvents = new EventTarget();
+
+export function onThumbnailSaved(listener: () => void): () => void {
+  thumbnailEvents.addEventListener("saved", listener);
+  return () => thumbnailEvents.removeEventListener("saved", listener);
 }
 
 let ready: Promise<void> | null = null;
@@ -63,11 +84,6 @@ export async function listDioramas(): Promise<DioramaEntry[]> {
   return entries.sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
-export async function hasDioramas(): Promise<boolean> {
-  await whenReady();
-  return (await count(ENTRIES)) > 0;
-}
-
 /** The most recently edited diorama's id, or null if there is none. */
 export async function latestDioramaId(): Promise<string | null> {
   return (await listDioramas())[0]?.id ?? null;
@@ -86,11 +102,15 @@ export async function getDiorama(id: string): Promise<DioramaScene | null> {
   return { ...result.scene, id };
 }
 
-/** Adds a new diorama. The scene must have an id no other diorama has. */
-export async function createDiorama(scene: DioramaScene, thumbnail?: Blob): Promise<DioramaEntry> {
+/**
+ * Adds a new diorama. The scene must have an id no other diorama has. A
+ * thumbnail given here counts as a picture of it as it is now, unless
+ * `current` is false (a duplicate of a diorama whose picture was stale).
+ */
+export async function createDiorama(scene: DioramaScene, thumbnail?: Blob, current = true): Promise<DioramaEntry> {
   await whenReady();
   const now = Date.now();
-  const entry = entryOf(scene, now, now, thumbnail);
+  const entry = entryOf(scene, now, now, { thumbnail, thumbnailAt: current ? now : undefined });
   await write([
     { store: ENTRIES, key: scene.id, put: entry },
     { store: SCENES, key: scene.id, put: serializeScene(scene) },
@@ -99,32 +119,63 @@ export async function createDiorama(scene: DioramaScene, thumbnail?: Blob): Prom
   return entry;
 }
 
-/** Writes the scene of an existing diorama (or adds it again if it was deleted meanwhile). Keeps its thumbnail. */
+/**
+ * Writes the scene of an existing diorama (or adds it again if it was
+ * deleted meanwhile). Keeps its thumbnail, and keeps it current when what
+ * it shows did not change — a save of the view, the photo settings or the
+ * name alone (plan/Stage-23-Implementation.md D3).
+ */
 export async function saveDiorama(scene: DioramaScene): Promise<void> {
   await whenReady();
   const now = Date.now();
   await transact([ENTRIES, SCENES], (transaction) => {
     const entries = transaction.objectStore(ENTRIES);
-    const previous = entries.get(scene.id);
-    previous.onsuccess = () => {
-      const entry = previous.result as DioramaEntry | undefined;
-      entries.put(entryOf(scene, entry?.createdAt ?? now, now, entry?.thumbnail), scene.id);
-      transaction.objectStore(SCENES).put(serializeScene(scene), scene.id);
+    const scenes = transaction.objectStore(SCENES);
+    const entryRequest = entries.get(scene.id);
+    const fileRequest = scenes.get(scene.id);
+    // Requests in one transaction complete in order: the entry is there when the file is.
+    fileRequest.onsuccess = () => {
+      const entry = entryRequest.result as DioramaEntry | undefined;
+      const file = fileRequest.result as DioramaSceneFile | undefined;
+      const unchanged = entry && file && !isStale(entry) && pictureKey(file.scene) === pictureKey(scene);
+      const thumbnail = entry ? { thumbnail: entry.thumbnail, thumbnailAt: unchanged ? now : entry.thumbnailAt } : {};
+      entries.put(entryOf(scene, entry?.createdAt ?? now, now, thumbnail), scene.id);
+      scenes.put(serializeScene(scene), scene.id);
     };
   });
 }
 
 /** Replaces a diorama's thumbnail. Does not count as an edit. */
-export async function saveThumbnail(id: string, thumbnail: Blob): Promise<void> {
+/**
+ * Stores a thumbnail. `takenAt` is when it was rendered, if it shows the
+ * diorama as stored then; without it the picture counts as stale and is
+ * retaken on the next opening.
+ */
+export async function saveThumbnail(id: string, thumbnail: Blob, takenAt?: number): Promise<void> {
   await whenReady();
   await transact([ENTRIES], (transaction) => {
     const entries = transaction.objectStore(ENTRIES);
     const previous = entries.get(id);
     previous.onsuccess = () => {
       const entry = previous.result as DioramaEntry | undefined;
-      if (entry) entries.put({ ...entry, thumbnail }, id);
+      if (!entry) return;
+      const next: DioramaEntry = { ...entry, thumbnail, thumbnailAt: takenAt };
+      if (takenAt === undefined) delete next.thumbnailAt;
+      entries.put(next, id);
     };
   });
+  thumbnailEvents.dispatchEvent(new Event("saved"));
+}
+
+/**
+ * Whether a diorama's thumbnail no longer shows it (D3): there is none, it
+ * was taken before the last save, or it has no time (taken before Stage 23,
+ * when a thumbnail could show models that had not loaded yet).
+ */
+export async function thumbnailIsStale(id: string): Promise<boolean> {
+  await whenReady();
+  const entry = await readOne<DioramaEntry>(ENTRIES, id);
+  return entry ? isStale(entry) : false;
 }
 
 /** Renames a diorama: its entry and its scene file. */
@@ -141,7 +192,10 @@ export async function renameDiorama(id: string, name: string): Promise<void> {
       const entry = entryRequest.result as DioramaEntry | undefined;
       const file = fileRequest.result as DioramaSceneFile | undefined;
       if (!entry || !file) return;
-      entries.put({ ...entry, name: trimmed, updatedAt: Date.now() }, id);
+      const now = Date.now();
+      // A name is not in the picture: a thumbnail that was current stays current.
+      const current = !isStale(entry);
+      entries.put({ ...entry, name: trimmed, updatedAt: now, ...(current ? { thumbnailAt: now } : {}) }, id);
       scenes.put({ ...file, scene: { ...file.scene, name: trimmed } }, id);
     };
   });
@@ -153,7 +207,8 @@ export async function duplicateDiorama(id: string): Promise<DioramaEntry | null>
   if (!scene) return null;
   const entry = await readOne<DioramaEntry>(ENTRIES, id);
   const copy: DioramaScene = { ...scene, id: createId("scene"), name: `${scene.name} copy`.slice(0, NAME_LIMIT) };
-  return createDiorama(copy, entry?.thumbnail);
+  // The copy's picture is exactly as current as the original's.
+  return createDiorama(copy, entry?.thumbnail, entry ? !isStale(entry) : true);
 }
 
 /** Deletes a diorama for good. */

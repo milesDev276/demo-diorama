@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Trees } from "lucide-react";
 import { editorPath } from "../hooks/useDioramaLauncher";
 import type { DioramaListItem } from "../hooks/useDioramaList";
 import { timeAgo } from "../utils/relativeTime";
 import { DioramaCardMenu } from "./DioramaCardMenu";
+import { DioramaThumbnail } from "./DioramaThumbnail";
 
 interface DioramaCardProps {
   item: DioramaListItem;
@@ -35,14 +35,7 @@ export function DioramaCard({ item, onRename, onDuplicate, onExport, onDelete }:
         aria-label={`Open ${entry.name}`}
         className="block overflow-hidden rounded-t-3xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8B6F52]"
       >
-        {thumbnailUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- a local object URL, nothing for next/image to optimize
-          <img src={thumbnailUrl} alt="" className="aspect-[16/10] w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" />
-        ) : (
-          <span className="flex aspect-[16/10] w-full items-center justify-center bg-gradient-to-b from-[#e9dcc8] to-[#d9c4a6] text-[#8B6F52]/70">
-            <Trees size={28} />
-          </span>
-        )}
+        <DioramaThumbnail url={thumbnailUrl} className={thumbnailUrl ? "transition-transform duration-300 group-hover:scale-[1.02]" : undefined} />
       </Link>
       <div className="flex items-start justify-between gap-2 px-4 pb-4 pt-3">
         <div className="min-w-0 flex-1">

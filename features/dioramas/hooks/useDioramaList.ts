@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { downloadSceneAsJson } from "@/features/diorama/utils/sceneSerializer";
 import type { DioramaEntry } from "../types";
-import { deleteDiorama, duplicateDiorama, getDiorama, listDioramas, renameDiorama } from "../storage/dioramaRepository";
+import { deleteDiorama, duplicateDiorama, getDiorama, listDioramas, onThumbnailSaved, renameDiorama } from "../storage/dioramaRepository";
 
 export interface DioramaListItem {
   entry: DioramaEntry;
@@ -47,8 +47,11 @@ export function useDioramaList() {
   useEffect(() => {
     alive.current = true;
     void reload();
+    // The editor stores its last picture as it closes, often after this list has been read.
+    const unsubscribe = onThumbnailSaved(() => void reload());
     return () => {
       alive.current = false;
+      unsubscribe();
       revokeAll();
     };
   }, [reload]);
