@@ -13,6 +13,8 @@
     "post_front": [368, 344, 168, 256],
     "sign_stop": [552, 344, 256, 224],
     "bus_stop_head": [824, 344, 192, 192],
-    "bus_stop_board": [824, 552, 160, 224]
+    "bus_stop_board": [824, 552, 160, 224],
+    "workshop_board": [368, 616, 432, 72],
+    "oldshop_front": [368, 704, 432, 72]
   }
 }

@@ -131,7 +131,7 @@ async function main() {
     await cdp.clickButton("Preview");
     await sleep(3000);
     const previewFps = await cdp.evaluate(FPS_PROBE(args.seconds * 1000));
-    await cdp.clickButton("Exit Preview", { exact: false });
+    await cdp.clickButton("Back to editor", { exact: false });
 
     const result = {
       gpu,

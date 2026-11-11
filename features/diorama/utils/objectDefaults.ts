@@ -98,7 +98,7 @@ export function place(type: DioramaObjectType, x: number, z: number, rotationY =
 }
 
 /** An object attached to `parent`, at a position in the parent's frame. */
-function attach(
+export function attach(
   parent: DioramaObject,
   type: DioramaObjectType,
   position: Vector3Tuple,

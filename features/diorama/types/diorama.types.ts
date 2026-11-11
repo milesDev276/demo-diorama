@@ -58,6 +58,8 @@ export const DIORAMA_OBJECT_TYPES = [
   "umbrellaFigure",
   "elder",
   "cat",
+  "workshop",
+  "oldShop",
 ] as const;
 
 export type DioramaObjectType = (typeof DIORAMA_OBJECT_TYPES)[number];

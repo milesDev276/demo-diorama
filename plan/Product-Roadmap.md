@@ -400,6 +400,12 @@ and every thumbnail waits until the models have loaded, frames the whole
 diorama from the Isometric direction and is retaken only when the diorama
 changed ([Stage-23-Implementation.md](Stage-23-Implementation.md)).
 
+**Stage 24 — More buildings** (2026-11-10) widens the town: a small
+workshop and an old 看板建築 shop as Blender models with editable signs, an
+Apartment Block 4F and a Narrow Building 4F preset of the modular building,
+and a fourth starter, "Old Shopping Street", on a spring evening
+([Stage-24-Implementation.md](Stage-24-Implementation.md)).
+
 ---
 
 ## 4. Rules That Carry Over

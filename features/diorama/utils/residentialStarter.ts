@@ -1,7 +1,6 @@
 import type { DioramaObject, SurfaceMap } from "../types/diorama.types";
-import { CORNER } from "./cornerLayout";
 import { place, run, runObject } from "./objectDefaults";
-import { patch, surfaceFrom, type GroundRect } from "./plotStarter";
+import { onRoad, patch, surfaceFrom, type GroundRect } from "./plotStarter";
 
 /**
  * The "Residential Lane" starter (plan/Stage-15-Implementation.md D4): a
@@ -17,7 +16,6 @@ import { patch, surfaceFrom, type GroundRect } from "./plotStarter";
  */
 const WIDTH = 24;
 const DEPTH = 16;
-const ROAD_Y = CORNER.roadY;
 
 const LANE_Z = 4.5; // the lane runs from here to the front edge
 const ALLEY = { x0: -1, x1: 2 };
@@ -41,11 +39,6 @@ const GROUND: GroundRect[] = [
 
 export function getResidentialSurface(): SurfaceMap {
   return surfaceFrom(WIDTH, DEPTH, GROUND);
-}
-
-/** On the lane or the alley, whose surface is lower than the lots. */
-function onRoad(object: DioramaObject): DioramaObject {
-  return { ...object, position: [object.position[0], ROAD_Y, object.position[2]] };
 }
 
 /** Fresh objects of the Residential Lane scene, with new ids on every call. */
